@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/ochazuke"
 	"os"
 )
 

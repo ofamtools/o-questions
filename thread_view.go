@@ -3,7 +3,7 @@ package main
 
 import (
 	"github.com/charmbracelet/x/ansi"
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/ochazuke"
 	"strings"
 )
 

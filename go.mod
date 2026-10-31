@@ -1,12 +1,12 @@
-module github.com/unixsuperhero/o-questions
+module ofam.dev/o-questions
 
 go 1.27.1
 
 require (
 	charm.land/bubbletea/v2 v2.1.0
 	github.com/charmbracelet/x/ansi v0.11.9
-	github.com/unixsuperhero/ochazuke v0.67.0
-	github.com/unixsuperhero/oden v0.1.1
+	ofam.dev/ochazuke v0.67.0
+	ofam.dev/oden v0.1.1
 	golang.org/x/sys v0.47.0
 )
 

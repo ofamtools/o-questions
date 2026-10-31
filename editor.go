@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/ochazuke"
 	"slices"
 )
 

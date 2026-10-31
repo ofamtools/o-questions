@@ -10,7 +10,10 @@
   ports owner_questions.py. MCP adds six review tools.
 - Setup items `claude-md` and `codex-agents` add the "Questions for the owner
   (o-questions)" note to the agents' instruction files.
-- ochazuke v0.77.0.
+- ochazuke v0.78.0: instruction-note setup items follow symlinks, preserve
+  links and share writes to one target. The `setup.skip` default omits earlier
+  identical blocks in one resolved directory, avoiding duplicate instruction
+  reads through co-located import files; an explicit list overrides it.
 
 - Question status declares its required model enum. Create, answer, follow-up,
   edit and rename keys omit empty presets so ochazuke's shared argument form

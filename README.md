@@ -205,7 +205,20 @@ o-questions setup install --yes    # or: setup install claude-md --yes
 o-questions setup uninstall --yes
 ```
 
-Both items share the markers, so two paths that are one file hold one note.
-ochazuke setup never writes through a symlink: a linked instruction file reads
-`external`, with the note as the next step (`setup copy claude-md`).
-`setup.skip` lists items to leave out.
+Both items use ochazuke v0.78.0's `follow: true`: setup resolves symlinks on
+these paths, manages the target files and leaves the links intact. Paths that
+resolve to one file share one write and one note. Each existing target gets a
+`.o-questions.bak` backup; reinstall is idempotent and uninstall removes only
+the managed note (restoring the original bytes when no other edits intervene).
+
+`setup.skip` lists items to leave out. Its default is computed at startup from
+the instruction paths under the process's HOME (and `CLAUDE_CONFIG_DIR`, when
+set): identical managed blocks whose files resolve into the same directory
+keep only the last declared item enabled. With the built-in item order this
+skips `claude-md` and keeps `codex-agents`. This conservative directory rule
+avoids reading the note twice when a co-located `CLAUDE.md` imports `AGENTS.md`,
+without parsing a particular harness's import syntax or checking tool names.
+Files in separate resolved directories stay enabled. An explicit `setup.skip`
+value overrides the default; an empty list enables both, even for co-located
+files. `--home` redirects setup's targets; it does not change the startup
+setting default, so use the fixture HOME as well when testing defaults.

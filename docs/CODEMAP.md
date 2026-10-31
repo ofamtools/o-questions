@@ -21,13 +21,13 @@
 | review_app.go | Review verbs, rows, the review noun's aliases, page and keys |
 | review_web.go | review --web: mgmt session out, decisions back |
 | plans.go | Plan "Owner questions" importer (owner_questions.py port) and decisions render |
-| setup.go, setup.json | Setup items for the agents' instruction note |
+| setup.go, setup.json | Instruction-note setup items and co-located block skip defaults |
 | testdata/plans | Fixture plans for the importer |
 | *_test.go | Synthetic store, CLI, MCP, catalog and page checks |
 | cmd/o-story/stories/questions | Page stories run by TestQuestionStories |
 
 All changes belong to o-questions: it owns these domain records, policy and
-projections. Ochazuke v0.77.0 supplies the shell, forms, motions, chrome, modals,
+projections. Ochazuke v0.78.0 supplies the shell, forms, motions, chrome, modals,
 settings, catalog and responsive wrapped detail Sections. Oden v0.1.1 supplies
 command discovery and prefix dispatch.
 No sibling or shared library was changed.

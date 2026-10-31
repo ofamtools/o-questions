@@ -13,7 +13,7 @@
 | settings.go | Settings, defaults and validation |
 | app.go | Shared verb specs/handlers, rows, search projection |
 | mcp.go | Six-tool allowlist, schemas and JSON-RPC stdio lifecycle |
-| page.go | Catalog page, preview detail, binding rows |
+| page.go | Shared catalog detail Sections, legacy preview kind, binding rows |
 | tui.go | Standalone mount, refresh and smoke frame |
 | editor.go | Commit-on-change question/title/entry and association editors; choosers |
 | thread_view.go | Read-only thread modal and scroll rows |
@@ -21,6 +21,7 @@
 | cmd/o-story/stories/questions | Page stories run by TestQuestionStories |
 
 All changes belong to o-questions: it owns these domain records, policy and
-projections. Ochazuke v0.65.0 supplies the shell, forms, motions, chrome, modals,
-settings and catalog. Oden v0.1.1 supplies command discovery and prefix dispatch.
+projections. Ochazuke v0.67.0 supplies the shell, forms, motions, chrome, modals,
+settings, catalog and responsive wrapped detail Sections. Oden v0.1.1 supplies
+command discovery and prefix dispatch.
 No sibling or shared library was changed.

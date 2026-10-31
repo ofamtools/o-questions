@@ -55,16 +55,23 @@ History remains private and is not compacted automatically.
 
 Use `settings list` and `settings set NAME VALUE`; ochazuke owns the app's config.
 Defaults: oldest first, newest initially selected, all status/project/agent filters,
-any date, 8 preview lines, provenance on, thread modal on, detail on, refresh every
-2s, 64 KiB inline entry limit, daily backups on, 14 retained. `detail.answer-lines=0`
-hides answers; `detail.provenance=false`, `view.detail=false`, `view.thread=false`,
-`list.start-newest=false`, and `list.refresh=0` opt out of their UI behaviors.
+any date, complete wrapped answers, metadata on, thread modal on, detail on,
+refresh every 2s, 64 KiB inline entry limit, daily backups on, 14 retained.
+Ochazuke v0.67.0 supplies `detail.sections=true` and `detail.side=true`.
+`detail.sections=false` restores the generic record detail; `detail.side=false`
+hides metadata without hiding answers. `detail.side-width=96` is the detail
+content width at which metadata moves from below the discussion to its right.
+`detail.provenance=false` hides provenance in the full thread modal;
+`view.detail=false`, `view.thread=false`, `list.start-newest=false`, and
+`list.refresh=0` opt out of their UI behaviors. The old `detail.answer-lines`
+setting remains registered for compatibility but is deprecated: Sections always
+show the complete discussion, regardless of its value.
 Hook and HTML settings are reserved for the separate Q4/Q5 lanes.
 
 ## Scope
 
 This lean core implements Q1–Q3 of the family plan. Hooks, HTML export, host noun
-relations, send/goto/make-task, mtm detail tabs, markdown detail projections,
+relations, send/goto/make-task, mtm detail tabs, editable Markdown file views,
 import, installation and owner config registration are separate work.
 
 ## MCP
@@ -90,8 +97,12 @@ deletes or marks a question moot. Registration in the owner's harness is Q6.
 
 `view` opens the standalone split page; `view --smoke` prints a frame without a
 terminal. The left list starts on the newest question, with status, project,
-agent, age and answer count. The right panel shows the question, latest answer
-preview, provenance and links. `v` or Enter opens the full read-only thread.
+agent, age and answer count. The detail shows the question and all answers,
+follow-ups, notes and corrections as wrapped Markdown. Metadata appears on the
+right at wide widths and below the complete discussion at narrow widths.
+There is no answer line limit; `J`/`K` scroll the document. `g m` opens metadata,
+where `y` copies a complete value and Enter expands it read-only. `v` or Enter
+on a question opens the full read-only thread.
 
 Keys come from binding rows: `c` asks a question, `a` adds an answer, `f` adds a
 follow-up, `s` chooses status, `e` edits the question, `r` renames its title, `m`
@@ -102,7 +113,8 @@ editors commit after a short typing pause. Escape closes them with changes kept.
 Undo reverses a change. No save key is required.
 
 The catalog publishes this page for mtm/nabe. Its rows include `cwd` for existing
-host project scope rules. Catalog hosts show record detail; the standalone app
-shows its custom preview. See [host notes and Vim comparison](docs/INTEGRATION.md).
+host project scope rules. Standalone and catalog hosts on ochazuke v0.67.0 or
+later render the same declarative Sections; older hosts retain record detail.
+See [host notes and Vim comparison](docs/INTEGRATION.md).
 The host mount was checked with an isolated mtm database and wrapper directing
 all extension calls to a temp store. No owner config is registered by this lane.

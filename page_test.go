@@ -47,14 +47,20 @@ func TestQuestionStories(t *testing.T) {
 			var story struct {
 				Name      string
 				Host      bool
+				Width     int
+				Height    int
+				Settings  map[string]any
 				Questions []struct{ Question, Title, Answer, Note, Project, Cwd string }
 				Script    []string
 				Expect    []struct {
-					After    int
-					Contains []string
-					Count    *int
-					Selected string
-					Modal    *bool
+					After      int
+					Contains   []string
+					Absent     []string
+					Count      *int
+					Selected   string
+					Modal      *bool
+					Side       string
+					FullAnswer bool
 				}
 			}
 			b, e := os.ReadFile(file)
@@ -86,6 +92,11 @@ func TestQuestionStories(t *testing.T) {
 			if e != nil {
 				t.Fatal(e)
 			}
+			for name, value := range story.Settings {
+				if e = a.r.Settings().Set(name, value); e != nil {
+					t.Fatal(e)
+				}
+			}
 			p, e := mountPage(a)
 			if e != nil {
 				t.Fatal(e)
@@ -105,7 +116,15 @@ func TestQuestionStories(t *testing.T) {
 					t.Fatal(e)
 				}
 				m := ochazuke.NewModel(a.r)
-				v, e := ocli.MountPage(m, doc, questionPage(true), ocli.PageConfig{})
+				for name, value := range story.Settings {
+					if e = a.r.Settings().Set(name, value); e != nil {
+						t.Fatal(e)
+					}
+				}
+				if len(doc.Pages) != 1 {
+					t.Fatalf("expected one published page, got %d", len(doc.Pages))
+				}
+				v, e := ocli.MountPage(m, doc, doc.Pages[0], ocli.PageConfig{})
 				if e != nil {
 					t.Fatal(e)
 				}
@@ -121,6 +140,12 @@ func TestQuestionStories(t *testing.T) {
 				_ = a.r.OpenPage(pageID)
 				_ = v.List(listID).Focus()
 			}
+			if story.Width > 0 {
+				p.m.Width = story.Width
+			}
+			if story.Height > 0 {
+				p.m.Height = story.Height
+			}
 			check := func(after int) {
 				t.Helper()
 				frame := ansi.Strip(p.m.View().Content)
@@ -131,6 +156,11 @@ func TestQuestionStories(t *testing.T) {
 					for _, text := range want.Contains {
 						if !strings.Contains(frame, text) {
 							t.Fatalf("after %d missing %q:\n%s", after, text, frame)
+						}
+					}
+					for _, text := range want.Absent {
+						if strings.Contains(frame, text) {
+							t.Fatalf("after %d unexpected %q:\n%s", after, text, frame)
 						}
 					}
 					if want.Count != nil && p.v.List(listID).Shown() != *want.Count {
@@ -144,6 +174,48 @@ func TestQuestionStories(t *testing.T) {
 					}
 					if want.Modal != nil && (a.r.TopModal() != "") != *want.Modal {
 						t.Fatalf("modal %q", a.r.TopModal())
+					}
+					if want.FullAnswer {
+						for _, seed := range story.Questions {
+							firstLine, lastLine := -1, -1
+							for _, word := range strings.Fields(seed.Answer) {
+								if !strings.Contains(frame, word) {
+									t.Fatalf("answer lost %q:\n%s", word, frame)
+								}
+								line := strings.Count(frame[:strings.Index(frame, word)], "\n")
+								if firstLine < 0 {
+									firstLine = line
+								}
+								lastLine = line
+							}
+							if lastLine <= firstLine {
+								t.Fatalf("answer did not wrap:\n%s", frame)
+							}
+						}
+					}
+					if want.Side != "" {
+						metadata, question := -1, -1
+						for i, line := range strings.Split(frame, "\n") {
+							if strings.Contains(line, "Metadata") {
+								metadata = i
+							}
+							if strings.Contains(line, story.Questions[0].Question) {
+								question = i
+								if want.Side == "right" && strings.Index(line, "Metadata") <= strings.Index(line, story.Questions[0].Question) {
+									t.Fatalf("metadata is not beside question:\n%s", frame)
+								}
+							}
+						}
+						if metadata < 0 || question < 0 || (want.Side == "right" && metadata != question) {
+							t.Fatalf("missing side layout %s:\n%s", want.Side, frame)
+						}
+						if want.Side == "below" {
+							words := strings.Fields(story.Questions[0].Answer)
+							tail := strings.Index(frame, words[len(words)-1])
+							if tail < 0 || metadata <= strings.Count(frame[:tail], "\n") {
+								t.Fatalf("metadata is not below complete answer:\n%s", frame)
+							}
+						}
 					}
 				}
 				if dir := os.Getenv("O_QUESTIONS_STORY_ARTIFACTS"); dir != "" {
@@ -261,6 +333,9 @@ func TestCatalogRowsAndSettings(t *testing.T) {
 			found = true
 			if p.Detail.Kind != "" {
 				t.Fatal("custom detail leaked into host", p.Detail)
+			}
+			if len(p.Detail.Sections) != 3 || p.Detail.Sections[1].Field != "entries" || p.Detail.Sections[1].Body != "text" || p.Detail.Sections[2].Region != "side" {
+				t.Fatal("missing portable question sections", p.Detail)
 			}
 		}
 	}

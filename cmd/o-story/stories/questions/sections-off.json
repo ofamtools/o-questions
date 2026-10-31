@@ -1,0 +1,27 @@
+{
+  "name": "questions/sections-off",
+  "width": 200,
+  "height": 40,
+  "settings": {
+    "detail.sections": false
+  },
+  "questions": [
+    {
+      "question": "Question still visible?",
+      "title": "Opt out",
+      "answer": "Answer still visible"
+    }
+  ],
+  "expect": [
+    {
+      "after": 0,
+      "contains": [
+        "Question still visible?",
+        "Answer still visible"
+      ],
+      "absent": [
+        "Metadata"
+      ]
+    }
+  ]
+}

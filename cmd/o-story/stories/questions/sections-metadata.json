@@ -1,0 +1,50 @@
+{
+  "name": "questions/sections-metadata",
+  "width": 200,
+  "height": 40,
+  "questions": [
+    {
+      "question": "Metadata accessible?",
+      "title": "Metadata access",
+      "answer": "Visible answer"
+    }
+  ],
+  "script": [
+    "g",
+    "m",
+    "enter",
+    "esc",
+    "esc"
+  ],
+  "expect": [
+    {
+      "after": 0,
+      "contains": [
+        "Visible answer",
+        "Metadata"
+      ],
+      "modal": false
+    },
+    {
+      "after": 2,
+      "contains": [
+        "Status"
+      ],
+      "modal": true
+    },
+    {
+      "after": 3,
+      "contains": [
+        "answered"
+      ],
+      "modal": true
+    },
+    {
+      "after": 5,
+      "contains": [
+        "Visible answer"
+      ],
+      "modal": false
+    }
+  ]
+}

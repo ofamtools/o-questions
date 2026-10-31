@@ -1,0 +1,51 @@
+{
+  "name": "questions/answer-editor",
+  "questions": [
+    {
+      "question": "Keep editing?",
+      "title": "Editable thread",
+      "answer": "Existing answer"
+    }
+  ],
+  "script": [
+    "a",
+    "N",
+    "e",
+    "w",
+    " ",
+    "a",
+    "n",
+    "s",
+    "w",
+    "e",
+    "r",
+    "esc",
+    "esc",
+    "v"
+  ],
+  "expect": [
+    {
+      "after": 1,
+      "contains": [
+        "Answer"
+      ],
+      "modal": true
+    },
+    {
+      "after": 13,
+      "contains": [
+        "Existing answer",
+        "New answer"
+      ],
+      "modal": false
+    },
+    {
+      "after": 14,
+      "contains": [
+        "Existing answer",
+        "New answer"
+      ],
+      "modal": true
+    }
+  ]
+}

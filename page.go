@@ -13,7 +13,31 @@ const questionDetailKind = "question-preview"
 func questionPage(detail bool) ocli.CatalogPage {
 	p := ocli.CatalogPage{ID: pageID, Title: "Questions", Layout: ocli.LayoutSplit, Lists: []ocli.CatalogList{{ID: listID, Noun: "question", Source: "question.list", Title: "Questions"}}}
 	if detail {
-		p.Detail = &ocli.CatalogDetail{Fields: []string{"question", "answer", "status", "recorded_by", "source", "cwd", "project", "asked_at", "verbatim", "links"}}
+		p.Detail = &ocli.CatalogDetail{
+			Fields: []string{"question", "answer", "status", "recorded_by", "source", "cwd", "project", "asked_at", "verbatim", "links"},
+			Sections: []ocli.CatalogDetailSection{
+				{Kind: "markdown", Field: "question", Heading: true},
+				{Kind: "thread", Title: "Answers", Field: "entries", Author: "by.kind", At: "at", Body: "text"},
+				{Kind: "fields", Title: "Metadata", Region: "side", Fields: []ocli.CatalogDetailField{
+					{Label: "Status", Field: "status", Format: "badge"},
+					{Label: "Project", Field: "project.id", Format: "text"},
+					{Label: "Asker", Field: "asked_by.kind", Format: "text"},
+					{Label: "Agent", Field: "recorded_by.name", Format: "text"},
+					{Label: "Harness", Field: "recorded_by.harness", Format: "text"},
+					{Label: "Model", Field: "recorded_by.model", Format: "text"},
+					{Label: "Pane", Field: "source.pane", Format: "short-id"},
+					{Label: "Session", Field: "source.agent_session", Format: "short-id"},
+					{Label: "Asked", Field: "asked_at", Format: "relative-time"},
+					{Label: "Updated", Field: "updated", Format: "relative-time"},
+					{Label: "Cwd", Field: "cwd", Format: "path"},
+					{Label: "Task", Field: "task", Format: "text"},
+					{Label: "Transcript", Field: "source.transcript", Format: "path"},
+					{Label: "Verbatim check", Field: "verbatim", Format: "badge"},
+					{Label: "Tags", Field: "tags", Format: "list"},
+					{Label: "Links", Field: "links", Format: "list"},
+				}},
+			},
+		}
 	}
 	return p
 }

@@ -325,6 +325,11 @@ func (s *Store) ImportPlans(root string, includeAnswered bool) (Imported, error)
 		return Imported{}, e
 	}
 	out := Imported{Root: root, Stale: []string{}}
+	if info, e := os.Stat(root); e != nil {
+		return out, e
+	} else if !info.IsDir() {
+		return out, fmt.Errorf("%s is not a directory", root)
+	}
 	qs, e := ScanPlans(root, includeAnswered)
 	if e != nil {
 		return out, e

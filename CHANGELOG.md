@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Questions for the owner (mgmt built in): `question pose|reply|applied|decisions|import|queue`
+  for agents, `question decide|accept|undecide|ask-back|decision-note` for the owner,
+  a Review page (noun `review`, keys 1-9 a ? n x o; `review.page` opts out) and
+  `review --web` over mgmt's browser page. Settings `review.*` and `filter.direction`
+  (the Questions page keeps the owner's questions by default). The plan importer
+  ports owner_questions.py. MCP adds six review tools.
+- Setup items `claude-md` and `codex-agents` add the "Questions for the owner
+  (o-questions)" note to the agents' instruction files.
+- ochazuke v0.77.0.
+
 - Question status declares its required model enum. Create, answer, follow-up,
   edit and rename keys omit empty presets so ochazuke's shared argument form
   prompts before dispatch, including in catalog hosts. Prose parameters consume

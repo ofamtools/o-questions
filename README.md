@@ -84,7 +84,9 @@ import, installation and owner config registration are separate work.
 ## MCP
 
 `o-questions --data DIR mcp` serves newline-delimited JSON-RPC over stdin/stdout.
-The six tools are `q_ask`, `q_answer`, `q_note`, `q_annotate`, `q_list`, `q_show`.
+The owner-question tools are `q_ask`, `q_answer`, `q_note`, `q_annotate`, `q_list`, `q_show`;
+the review tools (questions for the owner) are `q_pose`, `q_queue`, `q_decisions`,
+`q_reply`, `q_applied`, `q_import`. Deciding is the owner's and has no tool.
 `q_ask` requires `question` (verbatim); passing the same `key` returns the existing
 record with `existed: true`. `q_answer` requires `target` and `answer`. `q_note`
 requires `target` and `text`, accepts kind `note` or `correction`, and an optional
@@ -94,7 +96,7 @@ optional text/status/project/pane/agent_session/since/limit filters.
 
 `tags` is an array of strings. `links` is an array of objects with required
 `target` and optional `kind` and `label` strings. Schemas come from the app's
-verb specs; discovery and dispatch use the same six-entry allowlist. Unknown
+verb specs; discovery and dispatch use the same allowlist. Unknown
 fields, wrong types and owner-only tools are refused. The server always stamps
 writes as an agent, retaining inherited harness/pane/session/model provenance
 and using the initialize client's name as a fallback. It never edits owner words,
@@ -125,3 +127,85 @@ later render the same declarative Sections; older hosts retain record detail.
 See [host notes and Vim comparison](docs/INTEGRATION.md).
 The host mount was checked with an isolated mtm database and wrapper directing
 all extension calls to a temp store. No owner config is registered by this lane.
+
+## Questions for the owner (review)
+
+The record above is the owner asking an agent. The other direction uses the same
+store: an agent poses a question for the owner, with a recommendation, and the
+owner decides it on the Review page. This is the mgmt skill's review flow
+(`~/hub/ai/utils/mgmt`) built in: recommendations show as unconfirmed until
+accepted, numbered actions, a note per item, an ask that becomes a thread the
+agent answers, decisions that survive re-posing, an export the agent reads, and
+items locked once applied.
+
+```sh
+# agent
+o-questions question pose "Turn the Review page on by default?" \
+  --group Review --source plans/x.md:42 --details "context" \
+  --recommendation "Yes, with review.page to opt out" --key x-42
+o-questions question import            # pose the open "Owner questions" of review.plans-root
+o-questions question decisions         # JSON: asked questions, decisions, undecided
+o-questions question decisions --render plan | jq -r .   # "## Owner decisions (date)" per plan
+o-questions question reply Q "answer" [--recommendation T] [--recommended_action A]
+o-questions question applied Q done "what changed, how checked"   # locks it
+# owner
+o-questions review                     # the Review page (also a tab in mtm)
+o-questions review --web [--no-open] [--port N]   # mgmt's browser page
+o-questions question decide Q yes [--note T] | --choice 2
+o-questions question accept|undecide Q
+o-questions question ask-back Q "why?"
+```
+
+A question for the owner is a `Question` with `direction: to-owner` and a
+`review` record (topic, source, details, recommendation, recommended action,
+allowed actions, action, note, flags, applied state). Posing the same `key`
+again updates the text and keeps the decision; a decided item whose question,
+details or recommendation changed is flagged `context_changed` until the owner
+touches it. Asking appends the owner's question to the thread (`follow-up`
+entry, status follow-up); the agent's `reply` (a `reply` entry) clears the ask,
+flags `new_reply` and may replace the recommendation. `applied ... done` locks
+the item; `failed` leaves it open. Agents may pose, reply and record results;
+deciding is refused for agents.
+
+`question import` ports `owner_questions.py`'s rules to Go (same sections,
+recommendation markers, answered detection, groups, titles and `oq-` ids), so
+agents import through the CLI or MCP without Python. It never edits a plan:
+`decisions --render plan` prints the sections for the agent to insert. Plan
+questions that disappear are reported `stale` and left alone.
+
+The Review page lists review rows (noun `review`, a tree with one row per topic
+and its counts). The review noun reaches the question verbs that fit one as
+aliases (`review.decide` is `question.decide`). Keys: `1`-`9` pick the item's
+numbered action (its actions, then `ask`), `a` accepts the recommendation, `?`
+asks back, `n` edits the note, `x` clears the decision, `o` cycles `review.show`
+(pending, undecided, asked, changed, decided, applied, all), `v` shows the
+thread, `y` copies, `u` undoes.
+
+`review --web` writes an mgmt session (`$XDG_STATE_HOME/o-questions/review-web`)
+from the store, runs `python3 mgmt.py serve` on it (`review.mgmt`), and copies
+each saved decision back into o-questions while the page runs and once more
+after Ctrl-C. The session is a view; o-questions stays the record.
+
+Settings: `review.page` (default true; false removes the page), `review.show`
+(pending), `review.actions` (yes, no, later, moot), `review.ask` (true),
+`review.plans-root` (`~/hub/o-plans`), `review.mgmt`
+(`~/hub/ai/utils/mgmt/mgmt.py`), and `filter.direction` (to-agent) for the
+Questions page, which keeps showing only the owner's own questions by default.
+
+### Setup: the agents' note
+
+`o-questions setup` adds a managed block to the agents' instruction files
+(`${CLAUDE_CONFIG_DIR:-~/.claude}/CLAUDE.md`, `~/.codex/AGENTS.md`) between
+`<!-- o-questions:begin -->` and `<!-- o-questions:end -->`:
+
+```sh
+o-questions setup                  # status
+o-questions setup plan             # dry run
+o-questions setup install --yes    # or: setup install claude-md --yes
+o-questions setup uninstall --yes
+```
+
+Both items share the markers, so two paths that are one file hold one note.
+ochazuke setup never writes through a symlink: a linked instruction file reads
+`external`, with the note as the next step (`setup copy claude-md`).
+`setup.skip` lists items to leave out.

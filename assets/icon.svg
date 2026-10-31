@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="o-questions">
+<title>o-questions</title>
+<rect width="128" height="128" rx="28" fill="#24170f"/>
+<g>
+<rect x="32" y="24" width="72" height="80" rx="8" fill="#d4783a"/><path d="M24 40H40M24 64H40M24 88H40" stroke="#d4783a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M56 48C56 32 88 32 88 48C88 56 72 56 72 64" fill="none" stroke="#f9eee7" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="72" cy="88" r="4" fill="#f9eee7"/>
+</g>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 602 112" width="602" height="112" role="img" aria-label="o-questions">
+<title>o-questions</title>
+<g transform="translate(-20 -16)">
+<rect x="32" y="24" width="72" height="80" rx="8" fill="#793d15"/><path d="M24 40H40M24 64H40M24 88H40" stroke="#793d15" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M56 48C56 32 88 32 88 48C88 56 72 56 72 64" fill="none" stroke="#f9eee7" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="72" cy="88" r="4" fill="#f9eee7"/>
+</g>
+<path d="M132 44a20 20 0 1 0 0.01 0M167 64h16M218 44a20 20 0 1 0 0.01 0M238 44V106M253 44V66a18 18 0 0 0 36 0M289 44V84M304 64H344A20 20 0 1 0 338.1 78.1M389 50A15 10 0 0 0 374 44A15 10 0 0 0 374 64A15 10 0 0 1 374 84A15 10 0 0 1 359 78M411 26V73a11 11 0 0 0 11 11h4M404 44H427M442 44V84M442 24h0.01M477 44a20 20 0 1 0 0.01 0M512 44V84M512 62a18 18 0 0 1 36 0V84M593 50A15 10 0 0 0 578 44A15 10 0 0 0 578 64A15 10 0 0 1 578 84A15 10 0 0 1 563 78" fill="none" stroke="#24170f" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

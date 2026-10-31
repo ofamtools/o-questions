@@ -1,0 +1,11 @@
+{
+  "name": "questions/status-parameters",
+  "host": true,
+  "questions": [{"question": "Choose a state?", "title": "State input"}],
+  "script": ["s", "esc", "s", "enter", "a", "n", "s", "w", "e", "r", "e", "d", "enter", "enter"],
+  "expect": [
+    {"after": 1, "contains": ["Run question.status", "status"], "modal": true},
+    {"after": 2, "contains": ["open"], "absent": ["Run question.status"], "modal": false},
+    {"after": 14, "contains": ["answered"], "modal": false}
+  ]
+}

@@ -46,6 +46,7 @@ func TestQuestionStories(t *testing.T) {
 		t.Run(filepath.Base(file), func(t *testing.T) {
 			var story struct {
 				Name      string
+				Skip      string
 				Host      bool
 				Width     int
 				Height    int
@@ -69,6 +70,9 @@ func TestQuestionStories(t *testing.T) {
 			}
 			if e = json.Unmarshal(b, &story); e != nil {
 				t.Fatal(e)
+			}
+			if story.Skip != "" {
+				t.Skip(story.Skip)
 			}
 			s := fixture(t)
 			for _, seed := range story.Questions {
@@ -136,6 +140,8 @@ func TestQuestionStories(t *testing.T) {
 					t.Fatal(e)
 				}
 				p.m, p.v = m, v
+				p.a = a
+				a.changed = func() { p.dirty = true }
 				m.Width, m.Height = 120, 30
 				_ = a.r.OpenPage(pageID)
 				_ = v.List(listID).Focus()
@@ -282,25 +288,28 @@ func TestPageStatusAndEditor(t *testing.T) {
 	}
 	p.m.Width, p.m.Height = 100, 24
 	sendKey(t, p, "s")
-	if a.r.Chooser("question-status") == nil {
-		t.Fatalf("s did not open chooser: %s", ansi.Strip(p.m.View().Content))
+	if a.r.RecordEditor(ochazuke.ArgsFormID) == nil {
+		t.Fatalf("s did not open args form: %s", ansi.Strip(p.m.View().Content))
 	}
+	sendKey(t, p, "enter")
 	sendKey(t, p, "m")
 	sendKey(t, p, "o")
 	sendKey(t, p, "o")
 	sendKey(t, p, "t")
+	sendKey(t, p, "enter")
 	sendKey(t, p, "enter")
 	q, e := s.Resolve("1", false)
 	if e != nil || q.Status != "moot" {
 		t.Fatal(q, e)
 	}
 	sendKey(t, p, "c")
-	if a.r.RecordEditor("question-editor") == nil {
-		t.Fatalf("c did not open immediate editor: %s", ansi.Strip(p.m.View().Content))
+	if a.r.RecordEditor(ochazuke.ArgsFormID) == nil {
+		t.Fatalf("c did not open args form: %s", ansi.Strip(p.m.View().Content))
 	}
 	for _, r := range "New question?" {
 		sendKey(t, p, string(r))
 	}
+	sendKey(t, p, "enter")
 	rows, e := s.List()
 	if e != nil || len(rows) != 2 || rows[1].Text != "New question?" {
 		t.Fatal(rows, e)
@@ -373,10 +382,11 @@ func TestPageEmptyCreateAndOptOut(t *testing.T) {
 	}
 	p.m.Width, p.m.Height = 100, 24
 	sendKey(t, p, "c")
-	if a.r.RecordEditor("question-editor") == nil {
+	if a.r.RecordEditor(ochazuke.ArgsFormID) == nil {
 		t.Fatalf("empty-page c failed: %s", ansi.Strip(p.m.View().Content))
 	}
 	sendKey(t, p, "?")
+	sendKey(t, p, "enter")
 	sendKey(t, p, "esc")
 	sendKey(t, p, "esc")
 	rows, e := s.List()

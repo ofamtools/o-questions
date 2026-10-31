@@ -21,22 +21,6 @@ func (a *App) interactive(verb string, c ochazuke.Ctx) (ochazuke.Result, bool) {
 	if spec, ok := textActions[verb]; ok && ochazuke.StringArg(c.Args, spec.param, "") == "" {
 		return a.textEditor(verb, spec, c), true
 	}
-	if verb == "status" && ochazuke.StringArg(c.Args, "status", "") == "" {
-		q, e := a.target(c)
-		if e != nil {
-			return result(nil, e), true
-		}
-		var rows []ochazuke.ChooserRow
-		for _, s := range statuses {
-			rows = append(rows, ochazuke.ChooserRow{ID: s, Label: s})
-		}
-		_, e = a.r.OpenChooser(ochazuke.ChooserSpec{Kind: "question-status", Title: "Status", Rows: rows, Choose: func(row ochazuke.ChooserRow) ochazuke.Result {
-			q, e := a.store.Change("status", q.ID, Change{Value: row.ID})
-			a.refresh()
-			return result(q, e)
-		}})
-		return result(nil, e), true
-	}
 	if verb == "associate" && ochazuke.StringArg(c.Args, "project", "") == "" && ochazuke.StringArg(c.Args, "task", "") == "" {
 		q, e := a.target(c)
 		if e != nil {

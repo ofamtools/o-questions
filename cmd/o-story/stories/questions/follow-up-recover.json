@@ -1,0 +1,8 @@
+{
+  "name": "questions/follow-up-recover",
+  "skip": "Library gap: ochazuke args forms remove unsubmitted text on leave; recovery or commit-on-change must be implemented in the shared shell, not in o-questions.",
+  "host": true,
+  "questions": [{"question": "Keep the owner's words?", "title": "Recovery"}],
+  "script": ["f", "W", "h", "y", "?", "esc", "esc", "f"],
+  "expect": [{"after": 8, "contains": ["Why?"], "modal": true}]
+}

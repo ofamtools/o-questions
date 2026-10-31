@@ -1,0 +1,11 @@
+{
+  "name": "questions/follow-up-parameters",
+  "host": true,
+  "questions": [{"question": "Ask a follow-up?", "title": "Follow-up input"}],
+  "script": ["f", "esc", "esc", "f", "W", "h", "y", "?", "enter"],
+  "expect": [
+    {"after": 1, "contains": ["Run question.follow-up", "Verbatim follow-up"], "modal": true},
+    {"after": 3, "absent": ["Run question.follow-up"], "modal": false},
+    {"after": 9, "contains": ["Why?", "follow-up"], "modal": false}
+  ]
+}

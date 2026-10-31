@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Question status declares its required model enum. Create, answer, follow-up,
+  edit and rename keys omit empty presets so ochazuke's shared argument form
+  prompts before dispatch, including in catalog hosts. Prose parameters consume
+  the remaining words verbatim. Shared-shell limits are recorded in the host notes.
+
 - Animated README logo (reduced-motion users see the still logo)
 
 - Questions detail uses ochazuke v0.67.0 catalog Sections: complete wrapped

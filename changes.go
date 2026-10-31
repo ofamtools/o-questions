@@ -110,7 +110,7 @@ func (s *Store) Change(action, target string, c Change) (Question, error) {
 				status = "moot"
 			}
 			if !slices.Contains(statuses, status) {
-				return fmt.Errorf("unknown status %q", status)
+				return fmt.Errorf("status must be one of %s", strings.Join(statuses, ", "))
 			}
 			q.Status = status
 			q.StatusExplicit = true

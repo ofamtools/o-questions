@@ -40,6 +40,7 @@ func param(desc string) ochazuke.Parameter {
 	return ochazuke.Parameter{Type: "string", Description: desc}
 }
 func required(desc string) ochazuke.Parameter { p := param(desc); p.Required = true; return p }
+func prose(desc string) ochazuke.Parameter    { p := required(desc); p.Rest = true; return p }
 func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	a := &App{store: s, in: in, out: out, errOut: errOut, run: func(cmd *exec.Cmd) error { return cmd.Run() }}
 	a.r = ochazuke.NewRuntime()
@@ -75,7 +76,7 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	for _, v := range []struct {
 		key, verb string
 		args      ochazuke.Arguments
-	}{{"c", "ask", ochazuke.Arguments{"question": ""}}, {"u", "undo", nil}} {
+	}{{"c", "ask", nil}, {"u", "undo", nil}} {
 		row := ochazuke.Do("question."+v.verb, v.args)
 		row.Instance = pageID
 		row.Mode = "normal"
@@ -124,21 +125,21 @@ func (a *App) configure() {
 }
 func (a *App) newestFirst() bool { return a.r.Settings().String("list.order") == "newest-first" }
 func (a *App) specs() []verbSpec {
-	target := ochazuke.Parameter{Type: "string", Description: "Question title, number or ID prefix", Noun: "question", Focus: true}
+	target := ochazuke.Parameter{Type: "string", Description: "Question title, number or ID prefix; omitted uses the selected row", Noun: "question"}
 	arr := ochazuke.Parameter{Type: "array", Description: "Values to append"}
 	ask := map[string]ochazuke.Parameter{"question": {Type: "string", Required: true, Rest: true, Description: "Owner's exact words, verbatim"}, "title": param("Short title"), "project": param("Project ID; absence is unassociated"), "cwd": param("Project directory"), "task": param("Task ID"), "tags": arr, "links": arr, "asked_at": param("RFC3339 asking time"), "follow_up_of": param("Append follow-up to this question"), "key": param("Idempotency key"), "source": {Type: "object", Description: "Source provenance"}}
 	out := []verbSpec{
 		{"ask", "Record the owner's verbatim question", ask, []string{"question"}, false},
 		{"list", "List questions, newest last", map[string]ochazuke.Parameter{"filter": param("Search title, text, entries and tags"), "status": {Type: "string", Enum: append([]string{"all"}, statuses...)}, "project": param("Project ID"), "agent": param("Recording harness"), "pane": param("Asking pane"), "agent_session": param("Agent session"), "since": param("RFC3339, today, 7d or 30d"), "limit": {Type: "integer"}}, nil, true},
 		{"show", "Show the complete thread", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false},
-		{"answer", "Append the answer given", map[string]ochazuke.Parameter{"target": target, "answer": required("Full answer"), "summary": param("Short answer summary"), "model": param("Answering model"), "links": arr, "tags": arr}, []string{"target", "answer"}, false},
-		{"note", "Append a note or correction", map[string]ochazuke.Parameter{"target": target, "text": required("Entry text"), "kind": {Type: "string", Enum: []string{"note", "correction"}}, "replaces": param("Entry corrected")}, []string{"target", "text"}, false},
-		{"follow-up", "Append the owner's follow-up", map[string]ochazuke.Parameter{"target": target, "text": required("Verbatim follow-up")}, []string{"target", "text"}, false},
-		{"correct", "Append a correction, preserving old words", map[string]ochazuke.Parameter{"target": target, "text": required("Correction"), "replaces": param("Entry corrected")}, []string{"target", "text"}, false},
+		{"answer", "Append the answer given", map[string]ochazuke.Parameter{"target": target, "answer": prose("Full answer"), "summary": param("Short answer summary"), "model": param("Answering model"), "links": arr, "tags": arr}, []string{"target", "answer"}, false},
+		{"note", "Append a note or correction", map[string]ochazuke.Parameter{"target": target, "text": prose("Entry text"), "kind": {Type: "string", Enum: []string{"note", "correction"}}, "replaces": param("Entry corrected")}, []string{"target", "text"}, false},
+		{"follow-up", "Append the owner's follow-up", map[string]ochazuke.Parameter{"target": target, "text": prose("Verbatim follow-up")}, []string{"target", "text"}, false},
+		{"correct", "Append a correction, preserving old words", map[string]ochazuke.Parameter{"target": target, "text": prose("Correction"), "replaces": param("Entry corrected")}, []string{"target", "text"}, false},
 		{"annotate", "Add associations, tags, links or a title", map[string]ochazuke.Parameter{"target": target, "tags": arr, "links": arr, "project": param("Project ID"), "task": param("Task ID"), "title": param("Title")}, []string{"target"}, false},
-		{"status", "Set an explicit, sticky status (owner)", map[string]ochazuke.Parameter{"target": target, "status": {Type: "string", Enum: statuses}}, []string{"target", "status"}, false},
-		{"rename", "Change the title", map[string]ochazuke.Parameter{"target": target, "title": required("New title")}, []string{"target", "title"}, false},
-		{"edit", "Change the owner's question, retaining undo (owner)", map[string]ochazuke.Parameter{"target": target, "text": required("Question text")}, []string{"target", "text"}, false},
+		{"status", "Set an explicit, sticky status (owner)", map[string]ochazuke.Parameter{"target": target, "status": {Type: "string", Required: true, Description: "New status", Enum: statuses}}, []string{"target", "status"}, false},
+		{"rename", "Change the title", map[string]ochazuke.Parameter{"target": target, "title": prose("New title")}, []string{"target", "title"}, false},
+		{"edit", "Change the owner's question, retaining undo (owner)", map[string]ochazuke.Parameter{"target": target, "text": prose("Question text")}, []string{"target", "text"}, false},
 		{"copy", "Return question, latest answer or thread", map[string]ochazuke.Parameter{"target": target, "part": {Type: "string", Enum: []string{"question", "answer", "thread"}}, "yank": {Type: "boolean"}}, []string{"target"}, false},
 		{"tag", "Append a tag", map[string]ochazuke.Parameter{"target": target, "tag": required("Tag")}, []string{"target", "tag"}, false},
 		{"untag", "Remove a tag (owner)", map[string]ochazuke.Parameter{"target": target, "tag": required("Tag")}, []string{"target", "tag"}, false},

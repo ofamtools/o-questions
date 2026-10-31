@@ -53,6 +53,8 @@ func TestQuestionStories(t *testing.T) {
 				Height    int
 				Settings  map[string]any
 				Questions []struct{ Question, Title, Answer, Note, Project, Cwd string }
+				Page      string
+				Poses     []Pose
 				Script    []string
 				Expect    []struct {
 					After      int
@@ -92,6 +94,11 @@ func TestQuestionStories(t *testing.T) {
 					}
 				}
 			}
+			for _, pose := range story.Poses {
+				if _, e := agentStore(s).Pose(pose); e != nil {
+					t.Fatal(e)
+				}
+			}
 			var out bytes.Buffer
 			a, e := newApp(s, strings.NewReader(""), &out, &out)
 			if e != nil {
@@ -102,7 +109,11 @@ func TestQuestionStories(t *testing.T) {
 					t.Fatal(e)
 				}
 			}
-			p, e := mountPage(a)
+			spec := questionsSpec
+			if story.Page == reviewPageID {
+				spec = reviewSpec
+			}
+			p, e := mountSpec(a, spec(a))
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -126,26 +137,35 @@ func TestQuestionStories(t *testing.T) {
 						t.Fatal(e)
 					}
 				}
-				if len(doc.Pages) != 1 {
-					t.Fatalf("expected one published page, got %d", len(doc.Pages))
+				if len(doc.Pages) != 2 || doc.Pages[0].ID != pageID || doc.Pages[1].ID != reviewPageID {
+					t.Fatalf("expected the Questions and Review pages, got %+v", doc.Pages)
 				}
-				v, e := ocli.MountPage(m, doc, doc.Pages[0], ocli.PageConfig{})
+				hs := spec(a)
+				hosted := doc.Pages[0]
+				if hs.page.ID == reviewPageID {
+					hosted = doc.Pages[1]
+				}
+				v, e := ocli.MountPage(m, doc, hosted, ocli.PageConfig{})
 				if e != nil {
 					t.Fatal(e)
 				}
-				rows, e := a.rows(nil)
+				rows, e := hs.rows()
 				if e != nil {
 					t.Fatal(e)
 				}
-				if e = v.SetRows(listID, rows); e != nil {
+				if e = v.SetRows(hs.list, rows); e != nil {
 					t.Fatal(e)
 				}
-				p.m, p.v = m, v
+				p.m, p.v, p.spec = m, v, hs
 				p.a = a
+				a.store.Actor = Owner()
 				a.changed = func() { p.dirty = true }
 				m.Width, m.Height = 120, 30
-				_ = a.r.OpenPage(pageID)
-				_ = v.List(listID).Focus()
+				_ = a.r.OpenPage(hs.page.ID)
+				_ = v.List(hs.list).Focus()
+				if hs.first != nil {
+					_ = v.List(hs.list).Select(hs.list + "/" + hs.first(rows))
+				}
 			}
 			if story.Width > 0 {
 				p.m.Width = story.Width
@@ -170,12 +190,12 @@ func TestQuestionStories(t *testing.T) {
 							t.Fatalf("after %d unexpected %q:\n%s", after, text, frame)
 						}
 					}
-					if want.Count != nil && p.v.List(listID).Shown() != *want.Count {
-						t.Fatalf("after %d count %d want %d", after, p.v.List(listID).Shown(), *want.Count)
+					if want.Count != nil && p.v.List(p.spec.list).Shown() != *want.Count {
+						t.Fatalf("after %d count %d want %d", after, p.v.List(p.spec.list).Shown(), *want.Count)
 					}
 					if want.Selected != "" {
-						row, ok := p.v.List(listID).Selected()
-						if !ok || row.Label != want.Selected {
+						row, ok := p.v.List(p.spec.list).Selected()
+						if !ok || strings.TrimSpace(row.Label) != want.Selected {
 							t.Fatalf("selected %+v", row)
 						}
 					}

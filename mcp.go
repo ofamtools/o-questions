@@ -41,6 +41,14 @@ var mcpAllowlist = map[string][]string{
 	"annotate": {"target", "tags", "links", "project", "task", "title"},
 	"list":     {"filter", "status", "project", "pane", "agent_session", "since", "limit"},
 	"show":     {"target"},
+	// Questions for the owner: agents pose, read decisions, reply to asks and
+	// record results; deciding stays the owner's (not listed).
+	"pose":      {"question", "title", "group", "source", "details", "recommendation", "recommended_action", "actions", "project", "cwd", "task", "tags", "links", "key"},
+	"queue":     {"show", "group"},
+	"decisions": {"group", "all", "render", "date"},
+	"reply":     {"target", "text", "recommendation", "recommended_action", "question"},
+	"applied":   {"target", "outcome", "result"},
+	"import":    {"root", "include_answered"},
 }
 
 func (a *App) tools() []mcpTool {
@@ -133,6 +141,8 @@ func (a *App) callTool(name string, raw json.RawMessage, client string) any {
 		switch typ {
 		case "string":
 			_, valid = v.(string)
+		case "boolean":
+			_, valid = v.(bool)
 		case "integer":
 			n, ok := v.(float64)
 			valid = ok && n == math.Trunc(n) && n >= 0

@@ -39,6 +39,18 @@ func statusTable(v any) error {
 	}
 	return nil
 }
+func nonemptyList(v any) error {
+	xs, ok := v.([]string)
+	if !ok || len(xs) == 0 {
+		return fmt.Errorf("needs at least one action")
+	}
+	for _, x := range xs {
+		if strings.TrimSpace(x) == "" {
+			return fmt.Errorf("actions must be nonempty")
+		}
+	}
+	return nil
+}
 func appSettings() []ochazuke.Setting {
 	return []ochazuke.Setting{
 		{Name: "list.order", Type: ochazuke.SettingString, Default: "oldest-first", Enum: []string{"oldest-first", "newest-first"}, Description: "Chronological list and numbered target order"},
@@ -52,13 +64,20 @@ func appSettings() []ochazuke.Setting {
 		{Name: "view.detail", Type: ochazuke.SettingBoolean, Default: true, Description: "Show the question detail panel"},
 		{Name: "view.thread", Type: ochazuke.SettingBoolean, Default: true, Description: "Open full threads in a modal"},
 		{Name: "list.refresh", Type: ochazuke.SettingDuration, Default: 2 * time.Second, Description: "Refresh for agent additions; 0 disables"},
-		{Name: "status.from-entry", Type: ochazuke.SettingList, Default: []string{"question=open", "answer=answered", "follow-up=follow-up", "note=", "correction="}, Validate: statusTable, Description: "kind=status table; empty status keeps current"},
+		{Name: "status.from-entry", Type: ochazuke.SettingList, Default: []string{"question=open", "answer=answered", "follow-up=follow-up", "note=", "correction=", "reply=open"}, Validate: statusTable, Description: "kind=status table; empty status keeps current"},
 		{Name: "entry.max-bytes", Type: ochazuke.SettingInteger, Default: 65536, Validate: positive, Description: "Larger entries use linked private files"},
 		{Name: "backup.daily", Type: ochazuke.SettingBoolean, Default: true, Description: "Back up before the first write of each UTC day"},
 		{Name: "backup.keep", Type: ochazuke.SettingInteger, Default: 14, Validate: positive, Description: "Daily archives retained"},
 		{Name: "capture.backfill", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for optional Q4 hooks"},
 		{Name: "capture.verbatim-check", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for optional Q4 hooks"},
 		{Name: "capture.prompts", Type: ochazuke.SettingString, Default: "off", Enum: []string{"off", "all"}, Description: "Reserved for optional Q4 capture"},
+		{Name: "filter.direction", Type: ochazuke.SettingString, Default: toAgent, Enum: directions, Description: "Questions page: to-agent (the owner's questions), to-owner (questions for the owner) or all"},
+		{Name: "review.page", Type: ochazuke.SettingBoolean, Default: true, Description: "Show the Review page of questions for the owner (read at start)"},
+		{Name: "review.show", Type: ochazuke.SettingString, Default: "pending", Enum: reviewFilters, Description: "Review items shown: pending hides applied ones"},
+		{Name: "review.actions", Type: ochazuke.SettingList, Default: []string{"yes", "no", "later", "moot"}, Validate: nonemptyList, Description: "Default numbered actions of a question for the owner"},
+		{Name: "review.ask", Type: ochazuke.SettingBoolean, Default: true, Description: "Offer ask (a question back to the agent) after the actions"},
+		{Name: "review.plans-root", Type: ochazuke.SettingString, Default: "~/hub/o-plans", Description: "Plans folder question import reads"},
+		{Name: "review.mgmt", Type: ochazuke.SettingString, Default: "~/hub/ai/utils/mgmt/mgmt.py", Description: "mgmt.py that review --web serves"},
 		{Name: "export.open", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for Q5 export"},
 	}
 }

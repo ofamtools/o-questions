@@ -54,16 +54,28 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	if e := a.r.DeclareSetting(appSettings()...); e != nil {
 		return nil, e
 	}
+	a.r.Define(reviewNoun) // review.VERB aliases name question verbs (reviewAliases)
 	for _, v := range a.specs() {
 		v := v
-		b := a.r.Define("question").Verb(v.name, func(c ochazuke.Ctx) ochazuke.Result { return a.handle(v.name, c) }, v.description)
+		// A verb homed on another noun (verbHomes) keeps question.NAME as an alias.
+		noun, verb := "question", v.name
+		if home, ok := verbHomes[v.name]; ok {
+			noun, verb = home[0], home[1]
+		}
+		b := a.r.Define(noun).Verb(verb, func(c ochazuke.Ctx) ochazuke.Result { return a.handle(v.name, c) }, v.description)
 		if len(v.positional) > 0 {
 			b.Positional(v.positional...)
 		}
 		if v.rows {
-			b.Rows("question").Fetch().Quiet()
+			b.Rows(noun).Fetch().Quiet()
 		}
-		op := a.r.Operations["question."+v.name]
+		if noun != "question" {
+			b.AliasOn("question", v.name)
+		}
+		if alias, ok := reviewAliases[v.name]; ok {
+			b.AliasOn(reviewNoun, alias)
+		}
+		op := a.r.Operations[noun+"."+verb]
 		op.Parameters = v.params
 		a.r.Operations[op.Key()] = op
 	}
@@ -72,6 +84,11 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	registerQuestionUI(a)
 	if e := ocli.DeclarePage(a.r, questionPage(a.r.Settings().Bool("view.detail"))); e != nil {
 		return nil, e
+	}
+	if a.r.Settings().Bool("review.page") {
+		if e := ocli.DeclarePage(a.r, reviewPage()); e != nil {
+			return nil, e
+		}
 	}
 	for _, v := range []struct {
 		key, verb string
@@ -114,7 +131,13 @@ func (a *App) configure() {
 	a.store.MaxBytes = s.Int("entry.max-bytes")
 	a.store.BackupDaily = s.Bool("backup.daily")
 	a.store.BackupKeep = s.Int("backup.keep")
+	a.store.ReviewActions = s.Strings("review.actions")
+	a.store.ReviewAsk = s.Bool("review.ask")
+	// Kinds missing from a customised table keep their default status.
 	table := map[string]string{}
+	for k, v := range entryStatuses {
+		table[k] = v
+	}
 	for _, v := range s.Strings("status.from-entry") {
 		k, v, ok := strings.Cut(v, "=")
 		if ok {
@@ -130,7 +153,7 @@ func (a *App) specs() []verbSpec {
 	ask := map[string]ochazuke.Parameter{"question": {Type: "string", Required: true, Rest: true, Description: "Owner's exact words, verbatim"}, "title": param("Short title"), "project": param("Project ID; absence is unassociated"), "cwd": param("Project directory"), "task": param("Task ID"), "tags": arr, "links": arr, "asked_at": param("RFC3339 asking time"), "follow_up_of": param("Append follow-up to this question"), "key": param("Idempotency key"), "source": {Type: "object", Description: "Source provenance"}}
 	out := []verbSpec{
 		{"ask", "Record the owner's verbatim question", ask, []string{"question"}, false},
-		{"list", "List questions, newest last", map[string]ochazuke.Parameter{"filter": param("Search title, text, entries and tags"), "status": {Type: "string", Enum: append([]string{"all"}, statuses...)}, "project": param("Project ID"), "agent": param("Recording harness"), "pane": param("Asking pane"), "agent_session": param("Agent session"), "since": param("RFC3339, today, 7d or 30d"), "limit": {Type: "integer"}}, nil, true},
+		{"list", "List questions, newest last", map[string]ochazuke.Parameter{"filter": param("Search title, text, entries and tags"), "status": {Type: "string", Enum: append([]string{"all"}, statuses...)}, "project": param("Project ID"), "agent": param("Recording harness"), "direction": {Type: "string", Enum: directions, Description: "Who answers: to-agent (the owner asked), to-owner (an agent asked); default filter.direction"}, "pane": param("Asking pane"), "agent_session": param("Agent session"), "since": param("RFC3339, today, 7d or 30d"), "limit": {Type: "integer"}}, nil, true},
 		{"show", "Show the complete thread", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false},
 		{"answer", "Append the answer given", map[string]ochazuke.Parameter{"target": target, "answer": prose("Full answer"), "summary": param("Short answer summary"), "model": param("Answering model"), "links": arr, "tags": arr}, []string{"target", "answer"}, false},
 		{"note", "Append a note or correction", map[string]ochazuke.Parameter{"target": target, "text": prose("Entry text"), "kind": {Type: "string", Enum: []string{"note", "correction"}}, "replaces": param("Entry corrected")}, []string{"target", "text"}, false},
@@ -155,6 +178,7 @@ func (a *App) specs() []verbSpec {
 	for _, v := range []struct{ name, desc string }{{"reopen", "Explicitly reopen (owner)"}, {"moot", "Mark moot (owner)"}, {"delete", "Hide, preserving history (owner)"}, {"star", "Toggle star"}, {"unstar", "Remove star"}, {"path", "Record path or store directory"}, {"check", "Check wording against source transcript (owner)"}} {
 		out = append(out, verbSpec{v.name, v.desc, map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false})
 	}
+	out = append(out, a.reviewSpecs()...)
 	out = append(out, verbSpec{"undo", "Undo the last store change (owner)", nil, nil, false}, verbSpec{"history", "Show store change history", nil, nil, false})
 	for _, name := range []string{"add", "new"} {
 		out = append(out, verbSpec{name, "Alias of ask", ask, []string{"question"}, false})
@@ -196,6 +220,9 @@ func (a *App) handle(verb string, c ochazuke.Ctx) ochazuke.Result {
 	}
 	if verb == "add" || verb == "new" {
 		verb = "ask"
+	}
+	if res, ok := a.handleReview(verb, c); ok {
+		return res
 	}
 	str := func(k string) string { return ochazuke.StringArg(c.Args, k, "") }
 	switch verb {
@@ -394,6 +421,7 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		return ""
 	}
 	status := get("status", "filter.status")
+	direction := get("direction", "filter.direction")
 	project := get("project", "filter.project")
 	agent := get("agent", "filter.agent")
 	since := get("since", "filter.since")
@@ -417,6 +445,9 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 	pane := get("pane", "")
 	session := get("agent_session", "")
 	for i, q := range qs {
+		if dir := q.Direction; direction == toAgent && dir == toOwner || direction == toOwner && dir != toOwner {
+			continue
+		}
 		if status != "" && status != "all" && q.Status != status {
 			continue
 		}

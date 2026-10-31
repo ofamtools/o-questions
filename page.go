@@ -67,6 +67,7 @@ func registerQuestionUI(a *App) {
 	b.Bind("N", ochazuke.Do("ochazuke.list.move", ochazuke.Arguments{"delta": -1, "clamp": true}).FromPayload("steps", "count"))
 	b.Bind("o", ochazuke.Do("ochazuke.setting.cycle", ochazuke.Arguments{"name": "filter.status"}))
 
+	registerReviewUI(a)
 	registerThreadViewer(a.r)
 }
 

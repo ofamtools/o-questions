@@ -61,10 +61,12 @@ type Question struct {
 	Key            string    `json:"key"`
 	Entries        []Entry   `json:"entries"`
 	OwnerRenamed   bool      `json:"owner_renamed,omitempty"`
+	Direction      string    `json:"direction,omitempty"`
+	Review         *Review   `json:"review,omitempty"`
 }
 
 var statuses = []string{"open", "answered", "follow-up", "moot"}
-var entryStatuses = map[string]string{"question": "open", "answer": "answered", "follow-up": "follow-up", "note": "", "correction": ""}
+var entryStatuses = map[string]string{"question": "open", "answer": "answered", "follow-up": "follow-up", "note": "", "correction": "", "reply": "open"}
 
 func thread(q Question, provenance bool) string {
 	var b strings.Builder

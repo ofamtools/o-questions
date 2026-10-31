@@ -46,7 +46,7 @@ func TestMCPLifecycleAndIdempotency(t *testing.T) {
 	if e = json.Unmarshal([]byte(lines[1]), &tools); e != nil {
 		t.Fatal(e)
 	}
-	if len(tools.Result.Tools) != 6 {
+	if len(tools.Result.Tools) != 12 {
 		t.Fatal(tools)
 	}
 	rows, e := s.List()

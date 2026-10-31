@@ -22,7 +22,7 @@ func Owner() Actor { return Actor{Kind: "owner"} }
 
 type AgentPolicy map[string]bool
 
-var agentPolicy = AgentPolicy{"ask": true, "answer": true, "follow-up": true, "note": true, "correct": true, "annotate": true, "tag": true, "link": true, "associate": true, "rename": true}
+var agentPolicy = AgentPolicy{"ask": true, "answer": true, "follow-up": true, "note": true, "correct": true, "annotate": true, "tag": true, "link": true, "associate": true, "rename": true, "pose": true, "reply": true, "apply": true}
 
 type RefusedError struct{ Action, Rule string }
 

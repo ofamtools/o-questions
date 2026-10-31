@@ -71,7 +71,7 @@ func parameterPage(t *testing.T, host bool) (*page, *Store, *int) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := &page{a: a, m: m, v: v}
+	p := &page{a: a, m: m, v: v, spec: questionsSpec(a)}
 	a.changed = func() { p.dirty = true }
 	if err = r.OpenPage(pageID); err != nil {
 		t.Fatal(err)

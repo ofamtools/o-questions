@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func deliver(t *testing.T, p *page, msg tea.Msg) {
@@ -200,27 +201,43 @@ func TestQuestionStories(t *testing.T) {
 						}
 					}
 					if want.Side != "" {
-						metadata, question := -1, -1
-						for i, line := range strings.Split(frame, "\n") {
-							if strings.Contains(line, "Metadata") {
-								metadata = i
+						// column is the cell column s starts at in line (-1 when
+						// absent): box borders are multi-byte.
+						column := func(line, s string) int {
+							i := strings.Index(line, s)
+							if i < 0 {
+								return -1
 							}
-							if strings.Contains(line, story.Questions[0].Question) {
-								question = i
-								if want.Side == "right" && strings.Index(line, "Metadata") <= strings.Index(line, story.Questions[0].Question) {
-									t.Fatalf("metadata is not beside question:\n%s", frame)
-								}
+							return utf8.RuneCountInString(line[:i])
+						}
+						metadata, question, metaCol, questionCol := -1, -1, -1, -1
+						for i, line := range strings.Split(frame, "\n") {
+							if c := column(line, "Metadata"); c >= 0 {
+								metadata, metaCol = i, c
+							}
+							if c := column(line, story.Questions[0].Question); c >= 0 && question < 0 {
+								question, questionCol = i, c
 							}
 						}
-						if metadata < 0 || question < 0 || (want.Side == "right" && metadata != question) {
+						// tailLine is the row of the answer's last word (the
+						// question's row when there is no answer).
+						tail, tailLine := 0, question
+						if words := strings.Fields(story.Questions[0].Answer); len(words) > 0 {
+							tail = strings.Index(frame, words[len(words)-1])
+							tailLine = strings.Count(frame[:max(tail, 0)], "\n")
+						}
+						if metadata < 0 || question < 0 || tail < 0 {
 							t.Fatalf("missing side layout %s:\n%s", want.Side, frame)
 						}
-						if want.Side == "below" {
-							words := strings.Fields(story.Questions[0].Answer)
-							tail := strings.Index(frame, words[len(words)-1])
-							if tail < 0 || metadata <= strings.Count(frame[:tail], "\n") {
-								t.Fatalf("metadata is not below complete answer:\n%s", frame)
-							}
+						// Beside: the metadata column starts at or above the
+						// question's row (the detail's padding may put a blank
+						// row over the question, detail.padding) and to its
+						// right.
+						if want.Side == "right" && (metadata > question || metaCol <= questionCol) {
+							t.Fatalf("metadata is not beside question:\n%s", frame)
+						}
+						if want.Side == "below" && metadata <= tailLine {
+							t.Fatalf("metadata is not below complete answer:\n%s", frame)
 						}
 					}
 				}

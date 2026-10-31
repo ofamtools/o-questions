@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-animated-dark.svg">
+    <img alt="o-questions" src="assets/logo-animated-light.svg" width="360">
+  </picture>
+</p>
+
 # o-questions
 
 A private journal of the owner's questions and the answers given, across agents,

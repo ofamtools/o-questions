@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Animated README logo (reduced-motion users see the still logo)
+
 - Questions detail uses ochazuke v0.67.0 catalog Sections: complete wrapped
   question/answer Markdown, responsive side metadata and full-value copy/expand.
   `detail.sections` and `detail.side` opt out; `detail.answer-lines` is deprecated.

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="o-questions">
+<title>o-questions</title>
+<style>.q{transform-box:fill-box;transform-origin:12.5% 100%}.a{transform-box:fill-box;transform-origin:85.7% 100%}@media (prefers-reduced-motion: no-preference){.q{animation:ask 3.6s cubic-bezier(.45,0,.25,1) infinite}.a{animation:answer 3.6s cubic-bezier(.45,0,.25,1) infinite}@keyframes ask{0%{transform:none}6%{transform:scale(0.9,0.9)}13%{transform:scale(1.07,1.07)}20%{transform:scale(0.98,0.98)}26%,100%{transform:none}}@keyframes answer{0%,30%{transform:none}36%{transform:scale(0.88,0.88)}43%{transform:scale(1.08,1.08)}50%{transform:scale(0.98,0.98)}56%,100%{transform:none}}}</style>
+<rect width="128" height="128" rx="28" fill="#24170f"/>
+<g>
+<g class="q"><path d="M24 24H88V64H48L32 80V64H24Z" fill="#d4783a"/><path d="M40 56V32H48V40H40M72 56V32H64V40H72M48 48H64V56H48Z" fill="none" stroke="#f9eee7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g><g class="a"><path d="M56 72H112V104H96L104 112L80 104H56Z" fill="#ebba99"/><path d="M72 88L80 80L88 88M72 96H88" fill="none" stroke="#f9eee7" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></g>
+</g>
+</svg>

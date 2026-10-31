@@ -1,12 +1,41 @@
 # o-questions logo concepts
 
+The owner chose **08 Mondō (問答)** on 31 October 2026, with **copper** as
+the production palette. `SELECTED = "08-mondo"` and
+`DEFAULT_HUE = "copper"` in `build.py` generate `assets/icon.svg`,
+`assets/logo-light.svg` and `assets/logo-dark.svg`.
+
+Mondō means question and answer. Two separate speech balloons retain the
+owner's question and the agent's reply in reading order. The upper balloon's
+internal strokes suggest the gate and mouth of 問; the lower balloon suggests
+the roof and mouth of 答. The paired silhouettes carry the idea at 16 px,
+while the reduced kanji cues become clearer at larger sizes. Copper keeps
+the family's five-stop HSL recipe at hue 24°, with `#d4783a` primary.
+Ai-inspired indigo remains an available alternative for a later owner choice.
+
+## Regenerate
+
+From the repository root:
+
+```sh
+python3 docs/logo/build.py
+python3 docs/logo/build.py --check
+python3 docs/logo/build.py --preview /tmp/oq-logo/artifacts/round2
+```
+
+The first command writes the three production SVGs. The check compares their
+exact bytes and the inherited family wordmarks. The preview preserves the
+round-2 comparison as reviewed, including its historical selection wording;
+it regenerates byte-identically after the production selection.
+
+## Alternatives
+
 The owner chose **02 Paired voices** as the direction for round 2 and asked
-for Japanese-themed variations in the earlier family's idiom. The final mark
-and colour are still open. `SELECTED = "01-journal"` and
-`DEFAULT_HUE = "copper"` in `build.py` keep the three production SVGs in
-`assets/` provisional and byte-for-byte unchanged. `REFERENCE` names the
-round-2 base idea. Round-1 marks remain in `ROUND1` for later selection;
-production selection can use a slug from either round.
+for Japanese-themed variations in the earlier family's idiom. `REFERENCE`
+still names that base idea. The other round-2 concepts below remain available,
+as do round 1's Question journal, Paired voices, Append thread, Verbatim quotes,
+Source seal and Session bridge in `ROUND1`. Production selection can use a
+slug from either round.
 
 ## Round 2
 

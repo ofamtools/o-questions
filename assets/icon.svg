@@ -2,6 +2,6 @@
 <title>o-questions</title>
 <rect width="128" height="128" rx="28" fill="#24170f"/>
 <g>
-<rect x="32" y="24" width="72" height="80" rx="8" fill="#d4783a"/><path d="M24 40H40M24 64H40M24 88H40" stroke="#d4783a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M56 48C56 32 88 32 88 48C88 56 72 56 72 64" fill="none" stroke="#f9eee7" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="72" cy="88" r="4" fill="#f9eee7"/>
+<path d="M24 24H88V64H48L32 80V64H24Z" fill="#d4783a"/><path d="M56 72H112V104H96L104 112L80 104H56Z" fill="#ebba99"/><path d="M40 56V32H48V40H40M72 56V32H64V40H72M48 48H64V56H48Z" fill="none" stroke="#f9eee7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 88L80 80L88 88M72 96H88" fill="none" stroke="#f9eee7" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 </svg>

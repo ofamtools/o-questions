@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render seven round-2 o-questions logo cards and provisional production art.
+"""Render seven round-2 o-questions logo cards and selected production art.
 
 Copied and adapted from o-cmds/docs/logo/build.py (concepts: 54d056b;
 production/check: 7104aff), itself adapted from o-proj. The family wordmark,
@@ -11,7 +11,7 @@ the 8-unit grid, a 128 tile with rx 28, and the x=112 wordmark origin.
     python3 docs/logo/build.py --check
     python3 docs/logo/build.py --preview /tmp/oq-logo/artifacts
 
-The default still writes round-1 concept 1 to assets/ pending the final choice. --check
+The default writes the selected Mondō / copper mark to assets/. --check
 compares exact production bytes and inherited family wordmarks. --preview
 writes each candidate's SVGs and rationale.txt, a self-contained concepts.html,
 and concepts-sheet.svg; PNGs are added if rsvg-convert is on PATH. Preview
@@ -106,7 +106,7 @@ def bridge(theme, p):
             + ''.join(f'<rect x="{x}" y="80" width="16" height="24" rx="8" fill="{body}"/>' for x in (24, 88)))
 
 
-# Round 1 stays available for provisional production and later selection.
+# Round 1 stays available as alternative production selections.
 ROUND1 = [
     ("01-journal", "Question journal",
      "A bound notebook carries a question mark: a private place to keep the owner's questions and the answers given. "
@@ -133,7 +133,7 @@ ROUND1 = [
      "The deck stays continuous while the supports remain distinct, just as one question can collect attributed answers from several places. "
      "The bridge silhouette offers a less literal alternative to notebooks and speech cards at 16 px.", bridge),
 ]
-SELECTED = "01-journal"  # Provisional; change only after the owner chooses.
+SELECTED = "08-mondo"
 REFERENCE = "02-voices"  # Owner's round-2 direction, kept as the first card.
 
 

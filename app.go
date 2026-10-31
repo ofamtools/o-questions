@@ -82,6 +82,9 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	a.r.EnsureConfigSettings()
 	a.r.Define("question").Columns(columns...)
 	registerQuestionUI(a)
+	if e := a.declareSetup(); e != nil {
+		return nil, e
+	}
 	if e := ocli.DeclarePage(a.r, questionPage(a.r.Settings().Bool("view.detail"))); e != nil {
 		return nil, e
 	}

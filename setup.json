@@ -1,0 +1,30 @@
+[
+  {
+    "id": "claude-md",
+    "name": "Claude Code instructions note",
+    "description": "Adds the 'Questions for the owner (o-questions)' note to Claude Code's user instructions, between o-questions markers; the rest of the file is untouched.",
+    "kind": "block",
+    "path": "${CLAUDE_CONFIG_DIR:-~/.claude}/CLAUDE.md",
+    "begin": "<!-- o-questions:begin -->",
+    "end": "<!-- o-questions:end -->",
+    "content": "## Questions for the owner (o-questions)\n\nWhen you need a decision from the owner, record it with `questions.question pose` (mtm MCP `run`) or `o-questions question pose`, with your recommendation (`recommendation`, and a stable `key` so posing again keeps the decision). The owner answers on the Review page (`o-questions review`, or `o-questions review --web`). Read decisions with `question decisions`, answer the owner's asks with `question reply`, and after acting on a decision record it with `question applied`. Do not ask for decisions in chat when o-questions is available.",
+    "requires": [
+      "dir:${CLAUDE_CONFIG_DIR:-~/.claude}"
+    ],
+    "group": "agents"
+  },
+  {
+    "id": "codex-agents",
+    "name": "Codex instructions note",
+    "description": "Adds the same note to Codex's user instructions. Both items share one marker pair, so when both paths are the same file the note appears once.",
+    "kind": "block",
+    "path": "~/.codex/AGENTS.md",
+    "begin": "<!-- o-questions:begin -->",
+    "end": "<!-- o-questions:end -->",
+    "content": "## Questions for the owner (o-questions)\n\nWhen you need a decision from the owner, record it with `questions.question pose` (mtm MCP `run`) or `o-questions question pose`, with your recommendation (`recommendation`, and a stable `key` so posing again keeps the decision). The owner answers on the Review page (`o-questions review`, or `o-questions review --web`). Read decisions with `question decisions`, answer the owner's asks with `question reply`, and after acting on a decision record it with `question applied`. Do not ask for decisions in chat when o-questions is available.",
+    "requires": [
+      "dir:~/.codex"
+    ],
+    "group": "agents"
+  }
+]

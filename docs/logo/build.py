@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render six o-questions logo concepts and a provisional production logo.
+"""Render seven round-2 o-questions logo cards and provisional production art.
 
 Copied and adapted from o-cmds/docs/logo/build.py (concepts: 54d056b;
 production/check: 7104aff), itself adapted from o-proj. The family wordmark,
@@ -11,7 +11,7 @@ the 8-unit grid, a 128 tile with rx 28, and the x=112 wordmark origin.
     python3 docs/logo/build.py --check
     python3 docs/logo/build.py --preview /tmp/oq-logo/artifacts
 
-The default writes concept 1 to assets/ pending the owner's choice. --check
+The default still writes round-1 concept 1 to assets/ pending the final choice. --check
 compares exact production bytes and inherited family wordmarks. --preview
 writes each candidate's SVGs and rationale.txt, a self-contained concepts.html,
 and concepts-sheet.svg; PNGs are added if rsvg-convert is on PATH. Preview
@@ -47,9 +47,14 @@ def palette(hue):
 # Checked o-cmds (chartreuse 72), ochazuke (green/lime), matomeru (purple),
 # o-json (saffron/teal/cream) and monogatari (blue/mint/red), plus o-proj
 # (cyan/teal) and oden (amber). Copper 24 is unused as a primary hue in that
-# set; warm secondary colours do occur. Cyan 196 is a comparison, not unique.
-HUES = {"copper": 24, "cyan": 196}
+# set; warm secondary colours do occur. Round 2 compares ai-inspired indigo.
+HUES = {"copper": 24}
 PALETTES = {name: palette(hue) for name, hue in HUES.items()}
+# Ai-inspired indigo is a named colour comparison, not another hue-only HSL
+# rotation. Keep the copper recipe and every piece of geometry unchanged.
+PALETTES["ai"] = dict(tile="#102734", deep="#165e83", pri="#4c8ba8",
+                      light="#a2c5d5", pale="#e7f1f5")
+PALETTE_LABELS = {"copper": "copper 24°", "ai": "ai / 藍 indigo"}
 DEFAULT_HUE = "copper"
 
 
@@ -101,8 +106,8 @@ def bridge(theme, p):
             + ''.join(f'<rect x="{x}" y="80" width="16" height="24" rx="8" fill="{body}"/>' for x in (24, 88)))
 
 
-# Data drives the entire gallery: six independent functions, one hue override.
-CONCEPTS = [
+# Round 1 stays available for provisional production and later selection.
+ROUND1 = [
     ("01-journal", "Question journal",
      "A bound notebook carries a question mark: a private place to keep the owner's questions and the answers given. "
      "The binding suggests a durable journal across sessions, while the large question mark keeps the purpose clear at 16 px. "
@@ -129,6 +134,99 @@ CONCEPTS = [
      "The bridge silhouette offers a less literal alternative to notebooks and speech cards at 16 px.", bridge),
 ]
 SELECTED = "01-journal"  # Provisional; change only after the owner chooses.
+REFERENCE = "02-voices"  # Owner's round-2 direction, kept as the first card.
+
+
+def reply_ink(theme, p):
+    return p["light"] if theme == "dark" else p["pri"]
+
+
+def fukidashi(theme, p):
+    """Soft manga balloon above a more emphatic answering balloon."""
+    return (f'<path d="M56 24C32 24 24 32 24 48C24 56 32 64 40 64L32 80L56 64C80 64 88 56 88 48C88 32 80 24 56 24Z" fill="{ink(theme, p)}"/>'
+            f'<path d="M80 72L104 80L112 96L96 104L104 112L80 104L56 104L48 88L56 80Z" fill="{reply_ink(theme, p)}"/>'
+            f'<path d="M40 40H64M72 88H88" stroke="{p["pale"]}" stroke-width="8" {R}/>')
+
+
+def mondo(theme, p):
+    """Gate and roof/mouth cues to 問答; the two balloons read first."""
+    return (f'<path d="M24 24H88V64H48L32 80V64H24Z" fill="{ink(theme, p)}"/>'
+            f'<path d="M56 72H112V104H96L104 112L80 104H56Z" fill="{reply_ink(theme, p)}"/>'
+            f'<path d="M40 56V32H48V40H40M72 56V32H64V40H72M48 48H64V56H48Z" fill="none" stroke="{p["pale"]}" stroke-width="4" {R}/>'
+            f'<path d="M72 88L80 80L88 88M72 96H88" fill="none" stroke="{p["pale"]}" stroke-width="8" {R}/>')
+
+
+def kataribe(theme, p):
+    """Adapt monogatari's speaker: a carried line replaces prompt/cursor."""
+    return (f'<path d="M40 24H72Q88 24 88 40V48Q88 64 72 64H48L32 80V64Q24 64 24 48V40Q24 24 40 24Z" fill="{ink(theme, p)}"/>'
+            f'<path d="M40 40H64Q72 40 72 48V80Q72 88 80 88H96" fill="none" stroke="{p["pale"]}" stroke-width="8" {R}/>'
+            f'<path d="M88 72H104Q112 72 112 80V96Q112 104 104 104H96L88 112V104H88Q80 104 80 96V80Q80 72 88 72Z" fill="{reply_ink(theme, p)}"/>'
+            f'<path d="M88 88H104" stroke="{p["pale"]}" stroke-width="8" {R}/>')
+
+
+def hanko(theme, p):
+    """A red provenance seal closes the reply, rather than approving it."""
+    shu = "#e85b42" if theme == "dark" else "#c73e2b"
+    return (f'<path d="M40 24H72Q88 24 88 40V48Q88 64 72 64H48L32 80V64Q24 64 24 48V40Q24 24 40 24Z" fill="{ink(theme, p)}"/>'
+            f'<path d="M64 72H96Q112 72 112 88V96Q112 104 96 104H80L64 112V104H64Q48 104 48 88Q48 72 64 72Z" fill="{reply_ink(theme, p)}"/>'
+            f'<path d="M40 40H64M64 88H80" stroke="{p["pale"]}" stroke-width="8" {R}/>'
+            f'<rect x="88" y="88" width="24" height="24" rx="4" fill="{shu}"/>'
+            f'<path d="M96 96H104V104H96Z" fill="none" stroke="{p["pale"]}" stroke-width="4"/>')
+
+
+def makimono(theme, p):
+    """Reuse the family handscroll structure, filled with a dialogue pair."""
+    body = ink(theme, p)
+    answer = p["deep"] if theme == "dark" else p["pri"]
+    return (f'<path d="M24 40H104V88H24Z" fill="{p["pale"]}"/>'
+            f'<path d="M24 32V96M104 32V96" stroke="{body}" stroke-width="16" {R}/>'
+            f'<path d="M40 48H64V64H56L48 72V64H40Z" fill="{body}"/>'
+            f'<path d="M64 64H88V80H80L88 88L72 80H64Z" fill="{answer}"/>')
+
+
+def toi(theme, p):
+    """門 becomes the frame and 口 becomes the voice inside it."""
+    body = ink(theme, p)
+    return (f'<path d="M24 104V24H48V48H24M104 104V24H80V48H104M24 36H48M80 36H104" fill="none" stroke="{body}" stroke-width="8" {R}/>'
+            f'<path d="M40 64H88V88H64L48 104V88H40Z" fill="{reply_ink(theme, p)}"/>'
+            f'<path d="M56 76H72" stroke="{p["pale"]}" stroke-width="8" {R}/>')
+
+
+# Seven cards, each with both palettes. The reference keeps its round-1 slug.
+CONCEPTS = [
+    (REFERENCE, "02 Paired voices / reference",
+     next(c[2] for c in ROUND1 if c[0] == REFERENCE), voices),
+    ("07-fukidashi", "Fukidashi taiwa · 吹き出し 対話",
+     "Two manga-style fukidashi balloons keep the owner's question and the agent's answer in separate voices: "
+     "a soft oval speaks first, followed by a more angular reply, each with its own tail. "
+     "This takes Paired voices into the family's Japanese visual vocabulary through balloon shape rather than decoration; "
+     "the two generous silhouettes remain the first thing seen at 16 px.", fukidashi),
+    ("08-mondo", "Mondō · 問答",
+     "Mondō names a question-and-answer dialogue, here drawing on the Zen exchange between questioner and respondent. "
+     "The upper balloon holds a reduced gate and mouth rhythm from 問; the reply carries a roof and mouth rhythm from 答. "
+     "These are stroke echoes, not miniature typeset kanji: at 16 px the two tailed balloons lead, "
+     "while larger project-page art reveals the dialogue within them.", mondo),
+    ("09-kataribe", "Kataribe · 語り部",
+     "The kataribe is a storyteller who carries words onward; for o-questions that means retaining the owner's wording "
+     "and the reply attached to it. A voice line leaves the first balloon and continues into a smaller answering balloon, "
+     "keeping the speakers distinct along one carried thread. This adapts monogatari's storyteller balloon, "
+     "replacing its terminal prompt and cursor with a continuing story line; two linked silhouettes survive at 16 px.", kataribe),
+    ("10-hanko", "Hanko fukidashi · 判子 吹き出し",
+     "Paired balloons end with a small shu-vermilion seal on the reply: a compact sign of the agent and session "
+     "that supplied those words. It borrows the family's hanko vocabulary while using the seal for provenance, "
+     "rather than correctness or approval. The broad voices remain readable at 16 px and the red corner remains "
+     "a second tone in both the copper and ai-indigo treatments.", hanko),
+    ("11-makimono", "Makimono taiwa · 巻物 対話",
+     "An unrolling handscroll carries two speech balloons in sequence, turning the append-only question thread "
+     "into a makimono: the earlier words stay on the scroll as the conversation continues. "
+     "The rollers adapt monogatari's emaki structure, with question and answer replacing its frame panels. "
+     "At 16 px the pale band, two dark rollers and offset voices form a compact scroll silhouette.", makimono),
+    ("12-toi", "Toi · 問",
+     "Toi is the question itself: the gate 門 of 問 frames its mouth 口, redrawn as a tailed speech balloon. "
+     "The outer gate holds the recorded context while the inner voice gives the owner's words a place to remain. "
+     "This is the most reduced adaptation of Paired voices, expressing a voice held within a record rather than two "
+     "separate balloons; the open gate and generous inner mouth stay distinct at 16 px.", toi),
+]
 
 
 # --- the family wordmark -------------------------------------------------
@@ -234,19 +332,10 @@ def check():
 
 def production():
     p = PALETTES[DEFAULT_HUE]
-    _, _, _, mark = next(c for c in CONCEPTS if c[0] == SELECTED)
+    _, _, _, mark = next(c for c in ROUND1 + CONCEPTS if c[0] == SELECTED)
     return {"icon.svg": icon(mark, p),
             **{f"logo-{theme}.svg": logo(theme, mark, p)
                for theme in ("light", "dark")}}
-
-
-def variants():
-    for slug, title, idea, mark in CONCEPTS:
-        yield slug, title, idea, mark, DEFAULT_HUE
-    slug, title, idea, mark = CONCEPTS[0]
-    yield (slug + "-cyan", title + " / cyan",
-           idea + " This comparison changes only the hue to cyan (196°); geometry and tonal stops are identical.",
-           mark, "cyan")
 
 
 def placed(svg, x, y, width):
@@ -260,33 +349,35 @@ def placed(svg, x, y, width):
 
 def contact_sheet():
     """Vector companion to the HTML sheet; rsvg-convert can rasterise it."""
-    rows = (sum(1 for _ in variants()) + 1) // 2
-    parts = [head(1440, 152 + rows * 496),
+    rows = (len(CONCEPTS) + 1) // 2
+    parts = [head(1440, 152 + rows * 792),
              '<rect width="100%" height="100%" fill="#e9ece3"/>',
              '<g font-family="sans-serif" fill="#20251b">',
-             '<text x="32" y="48" font-size="32" font-weight="bold">o-questions / logo concepts</text>',
-             '<text x="32" y="80" font-size="16">Six marks + one hue comparison · copper 24° · concept 1 is provisional</text>',
+             '<text x="32" y="48" font-size="32" font-weight="bold">o-questions / round 2</text>',
+             '<text x="32" y="80" font-size="16">Paired voices + six Japanese variations · copper and ai / 藍 indigo on every card</text>',
              '<text x="32" y="108" font-size="14">16 / 32 / 128 px icons · light and dark wordmarks · 31 October 2026</text>']
-    for i, (slug, title, idea, mark, hue) in enumerate(variants()):
-        x, y = 32 + (i % 2) * 700, 136 + (i // 2) * 496
-        p = PALETTES[hue]
-        tile = icon(mark, p)
+    for i, (slug, title, idea, mark) in enumerate(CONCEPTS):
+        x, y = 32 + (i % 2) * 700, 136 + (i // 2) * 792
         parts.extend([f'<g transform="translate({x} {y})">',
-                      '<rect width="676" height="472" rx="18" fill="#f2f4ed" stroke="#cbd1c1"/>',
+                      '<rect width="676" height="768" rx="18" fill="#f2f4ed" stroke="#cbd1c1"/>',
                       f'<text x="24" y="36" font-size="22" font-weight="bold">{html.escape(title)}</text>'])
         for line, text in enumerate(textwrap.wrap(idea, 89)):
             parts.append(f'<text x="24" y="{60 + line * 16}" font-size="12">{html.escape(text)}</text>')
-        for j, (theme, bg, fg) in enumerate((("light", "#f8f9f3", "#414938"),
-                                            ("dark", "#10151b", "#cdd3d9"))):
-            parts.extend([f'<g transform="translate({24 + j * 320} 152)">',
+        samples = [(hue, theme, bg, fg) for hue in PALETTES
+                   for theme, bg, fg in (("light", "#f8f9f3", "#414938"),
+                                         ("dark", "#10151b", "#cdd3d9"))]
+        for j, (hue, theme, bg, fg) in enumerate(samples):
+            p = PALETTES[hue]
+            tile = icon(mark, p)
+            parts.extend([f'<g transform="translate({24 + (j % 2) * 320} {152 + (j // 2) * 288})">',
                           f'<rect width="308" height="272" rx="12" fill="{bg}"/>',
                           f'<g fill="{fg}" font-size="12">',
-                          f'<text x="16" y="24">{theme} background</text>'])
+                          f'<text x="16" y="24">{PALETTE_LABELS[hue]} · {theme}</text>'])
             for size, left in ((16, 16), (32, 64), (128, 128)):
                 parts.extend([placed(tile, left, 48 + (128 - size) / 2, size),
                               f'<text x="{left + size / 2:g}" y="196" text-anchor="middle">{size} px</text>'])
             parts.extend([placed(logo(theme, mark, p), 16, 216, 276), '</g></g>'])
-        parts.extend([f'<text x="24" y="452" font-size="12">{slug} · {hue} {HUES[hue]}° · {p["pri"]}</text>', '</g>'])
+        parts.extend([f'<text x="24" y="748" font-size="12">{slug} · provisional artwork / production assets unchanged</text>', '</g>'])
     parts.append('</g></svg>\n')
     return '\n'.join(parts)
 
@@ -295,38 +386,39 @@ def preview(out):
     out.mkdir(parents=True, exist_ok=True)
     renderer = shutil.which("rsvg-convert")
     cards = []
-    for slug, title, idea, mark, hue in variants():
-        folder = out / slug
-        folder.mkdir(exist_ok=True)
-        p = PALETTES[hue]
-        tile = icon(mark, p)
-        logos = {theme: logo(theme, mark, p) for theme in ("light", "dark")}
-        svgs = {"icon": tile, **{f"logo-{t}": s for t, s in logos.items()}}
-        for name, svg in svgs.items():
-            (folder / f"{name}.svg").write_text(svg, encoding="utf-8")
-        (folder / "rationale.txt").write_text(f"{title}\n\n{idea}\n", encoding="utf-8")
+    for slug, title, idea, mark in CONCEPTS:
         samples = []
-        for theme, bg in (("light", "#f8f9f3"), ("dark", "#10151b")):
-            icons = "".join(f'<figure><div class="sample" style="width:{size}px;height:{size}px">{tile}</div>'
-                            f'<figcaption>{size} px</figcaption></figure>' for size in (16, 32, 128))
-            samples.append(f'<div class="theme {theme}"><div class="theme-label">{theme} background</div>'
-                           f'<div class="sizes">{icons}</div><div class="logo">{logos[theme]}</div></div>')
-            if renderer:
-                for size in (16, 32, 128):
-                    subprocess.run([renderer, "-w", str(size), "-h", str(size), "-b", bg,
-                                    "-o", str(folder / f"icon-{theme}-{size}.png"),
-                                    str(folder / "icon.svg")], check=True)
-                subprocess.run([renderer, "-w", "720", "-b", bg,
-                                "-o", str(folder / f"logo-{theme}.png"),
-                                str(folder / f"logo-{theme}.svg")], check=True)
-        badge = ' <span class="badge">provisional default</span>' if slug == SELECTED else ""
+        for hue, p in PALETTES.items():
+            folder = out / slug if hue == DEFAULT_HUE else out / slug / hue
+            folder.mkdir(parents=True, exist_ok=True)
+            tile = icon(mark, p)
+            logos = {theme: logo(theme, mark, p) for theme in ("light", "dark")}
+            svgs = {"icon": tile, **{f"logo-{t}": s for t, s in logos.items()}}
+            for name, svg in svgs.items():
+                (folder / f"{name}.svg").write_text(svg, encoding="utf-8")
+            (folder / "rationale.txt").write_text(f"{title}\n\n{idea}\n", encoding="utf-8")
+            for theme, bg in (("light", "#f8f9f3"), ("dark", "#10151b")):
+                icons = "".join(f'<figure><div class="sample" style="width:{size}px;height:{size}px">{tile}</div>'
+                                f'<figcaption>{size} px</figcaption></figure>' for size in (16, 32, 128))
+                samples.append(f'<div class="theme {theme}"><div class="theme-label">{PALETTE_LABELS[hue]} · {theme} background</div>'
+                               f'<div class="sizes">{icons}</div><div class="logo">{logos[theme]}</div></div>')
+                if renderer:
+                    for size in (16, 32, 128):
+                        subprocess.run([renderer, "-w", str(size), "-h", str(size), "-b", bg,
+                                        "-o", str(folder / f"icon-{theme}-{size}.png"),
+                                        str(folder / "icon.svg")], check=True)
+                    subprocess.run([renderer, "-w", "720", "-b", bg,
+                                    "-o", str(folder / f"logo-{theme}.png"),
+                                    str(folder / f"logo-{theme}.svg")], check=True)
+        badge = ' <span class="badge">base idea</span>' if slug == REFERENCE else ""
         cards.append(f'<article><h2>{html.escape(title)}{badge}</h2><p class="idea">{html.escape(idea)}</p>'
-                     f'<div class="pair">{"".join(samples)}</div><p class="meta">{slug} · {hue} {HUES[hue]}° · {p["pri"]}</p></article>')
-    swatches = "".join(f'<span class="swatch" style="background:{value};color:{PALETTES[DEFAULT_HUE]["pale"] if key in ("tile", "deep") else PALETTES[DEFAULT_HUE]["tile"]}">{key} {value}</span>'
-                       for key, value in PALETTES[DEFAULT_HUE].items())
+                     f'<div class="pair">{"".join(samples)}</div><p class="meta">{slug} · copper {PALETTES["copper"]["pri"]} / ai {PALETTES["ai"]["pri"]}</p></article>')
+    swatches = "".join(f'<p>{PALETTE_LABELS[hue]}</p>' + "".join(
+        f'<span class="swatch" style="background:{value};color:{p["pale"] if key in ("tile", "deep") else p["tile"]}">{key} {value}</span>'
+        for key, value in p.items()) for hue, p in PALETTES.items())
     document = """<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>o-questions / logo concepts</title>
+<title>o-questions / round 2 logo concepts</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#e9ece3;color:#20251b;font:16px/1.5 system-ui,sans-serif}
 main{max-width:1440px;margin:auto;padding:48px 32px}header{max-width:920px;margin-bottom:32px}
@@ -341,12 +433,12 @@ figcaption{margin-top:12px}.logo{margin-top:20px;max-width:480px}.logo svg{displ
 .meta{margin-bottom:0;color:#606954}.badge{display:inline-block;font:11px ui-monospace,monospace;vertical-align:middle;text-transform:uppercase;background:#edc8ae;padding:5px 8px;border-radius:20px;margin-left:8px}
 footer{padding:28px 0;color:#606954;max-width:850px}@media(max-width:760px){main{padding:28px 16px}.pair{grid-template-columns:1fr}article{padding:16px}.sizes{gap:24px}}
 @media print{body{background:white}main{padding:0}article{border-radius:0}.theme{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style><main><header><div class="eyebrow">o-family / concepts first / 31 October 2026</div>
-<h1>Your questions.<br>The words that followed.</h1>
-<p class="intro">Six directions for o-questions: a private journal of the owner's questions and the answers given, kept verbatim in attributed, append-only threads across agents and sessions.</p>
-<p>Copper (24°) is unused as a primary hue in the inspected o-cmds (chartreuse 72°), ochazuke (green/lime), matomeru (purple), o-json (saffron/teal/cream) and monogatari (blue/mint/red) palettes. Oden has amber and warm accents; o-proj has cyan/teal. Copper keeps the fixed family tonal recipe. Cyan (196°) is a comparison on concept 1, not a claim of hue exclusivity.</p>
+</style><main><header><div class="eyebrow">o-family / round 2 / 31 October 2026</div>
+<h1>Paired voices.<br>A Japanese vocabulary.</h1>
+<p class="intro">The owner's chosen direction is 02 Paired voices. Six Japanese-themed variations follow its reference card: manga balloons, mondō dialogue, a storyteller, a provenance seal, an unrolling scroll and the question's own kanji.</p>
+<p>Every card compares copper (24°) with ai-inspired indigo (藍), using identical geometry in both palettes. Copper retains the family HSL recipe; ai uses a separate five-stop palette anchored on deep indigo #165e83. Hanko fukidashi also keeps a shu-vermilion (朱) seal as its second tone.</p>
 <div>SWATCHES</div><p>Each tile is 128 × 128 with a 28-unit corner. Marks follow an 8-unit grid; samples below are actual 16, 32 and 128 CSS pixels. Logos retain the family's hand-drawn monoline wordmark, with the mark at x 0–88 and lettering from x 112.</p>
-</header><div class="gallery">CARDS</div><footer>The owner has not selected a logo. Concept 1 (Question journal / copper) is the provisional assets/ default. Preview generation does not change those assets. All SVGs and styling are inline; this sheet needs no network or adjacent files. The source seal denotes provenance, not verification or approval.</footer></main></html>
+</header><div class="gallery">CARDS</div><footer>Paired voices is the selected direction; the final variation and colour remain open. Round-1 Question journal / copper stays the provisional assets/ default until that choice. All SVGs and styling are inline; this sheet needs no network or adjacent files. The source seal denotes provenance, not verification or approval.</footer></main></html>
 """.replace("SWATCHES", swatches).replace("CARDS", "".join(cards))
     (out / "concepts.html").write_text(document, encoding="utf-8")
     sheet = out / "concepts-sheet.svg"
@@ -361,7 +453,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true", help="compare production assets and inherited family wordmarks")
-    mode.add_argument("--preview", type=pathlib.Path, metavar="DIR", help="render the original concept sheet")
+    mode.add_argument("--preview", type=pathlib.Path, metavar="DIR", help="render the seven-card round-2 sheet")
     args = parser.parse_args()
     if args.check:
         sys.exit(0 if check() else 1)

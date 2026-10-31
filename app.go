@@ -46,6 +46,7 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	a := &App{store: s, in: in, out: out, errOut: errOut, run: func(cmd *exec.Cmd) error { return cmd.Run() }}
 	a.r = ochazuke.NewRuntime()
 	a.r.Config().App = "o-questions"
+	a.mcpFn = a.serveMCP
 	if e := a.r.DeclareSetting(appSettings()...); e != nil {
 		return nil, e
 	}

@@ -66,3 +66,22 @@ Hook and HTML settings are reserved for the separate Q4/Q5 lanes.
 This lean core implements Q1–Q3 of the family plan. Hooks, HTML export, host noun
 relations, send/goto/make-task, mtm detail tabs, markdown detail projections,
 import, installation and owner config registration are separate work.
+
+## MCP
+
+`o-questions --data DIR mcp` serves newline-delimited JSON-RPC over stdin/stdout.
+The six tools are `q_ask`, `q_answer`, `q_note`, `q_annotate`, `q_list`, `q_show`.
+`q_ask` requires `question` (verbatim); passing the same `key` returns the existing
+record with `existed: true`. `q_answer` requires `target` and `answer`. `q_note`
+requires `target` and `text`, accepts kind `note` or `correction`, and an optional
+`replaces` entry ID. `q_annotate` requires `target`, adding tags/links and filling
+associations or proposing a title. `q_show` requires `target`; `q_list` takes
+optional text/status/project/pane/agent_session/since/limit filters.
+
+`tags` is an array of strings. `links` is an array of objects with required
+`target` and optional `kind` and `label` strings. Schemas come from the app's
+verb specs; discovery and dispatch use the same six-entry allowlist. Unknown
+fields, wrong types and owner-only tools are refused. The server always stamps
+writes as an agent, retaining inherited harness/pane/session/model provenance
+and using the initialize client's name as a fallback. It never edits owner words,
+deletes or marks a question moot. Registration in the owner's harness is Q6.

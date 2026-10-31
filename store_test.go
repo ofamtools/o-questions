@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,9 @@ import (
 func fixture(t *testing.T) *Store {
 	t.Helper()
 	dir := t.TempDir()
+	for _, key := range []string{"CODEX_THREAD_ID", "CODEX_CI", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_SESSION_ID", "TUIOS_AGENT_NAME", "TUIOS_HARNESS", "TUIOS_PANE_ID", "TUIOS_SESSION", "AGENT_HARNESS", "AGENT_MODEL", "TRANSCRIPT_PATH", "AGENT_TURN_ID", "MTM_ACTOR", "O_QUESTIONS_ACTOR"} {
+		t.Setenv(key, "")
+	}
 	t.Setenv("HOME", dir)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
 	t.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
@@ -257,5 +261,77 @@ func TestCLIQuestion(t *testing.T) {
 	t.Setenv("O_QUESTIONS_ACTOR", "agent")
 	if e := Main([]string{"--data", s.Dir, "moot", rec.Question.ID}, strings.NewReader(""), &out, &out); e == nil {
 		t.Fatal("agent CLI moot succeeded")
+	}
+}
+
+func TestStoreLargeRevisionUndo(t *testing.T) {
+	s := fixture(t)
+	s.MaxBytes = 8
+	q := ask(t, s, "Question?")
+	q, e := s.Append(q.ID, Entry{Kind: "answer", Text: "Original long answer"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	entry := q.Entries[0].ID
+	_, e = s.mutate("edit", q.ID, func(q *Question, _ *[]Question) error {
+		en := &q.Entries[0]
+		if en.ID != entry {
+			t.Fatal("wrong entry")
+		}
+		en.Text = "Replacement long answer"
+		return s.prepareEntry(q.ID, en)
+	})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = s.Undo(); e != nil {
+		t.Fatal(e)
+	}
+	q, e = s.Resolve(q.ID, false)
+	if e != nil || q.Entries[0].Text != "Original long answer" {
+		t.Fatal(q, e)
+	}
+}
+func TestStoreDailyBackupRetention(t *testing.T) {
+	s := fixture(t)
+	s.BackupDaily = true
+	s.BackupKeep = 2
+	at := s.now()
+	s.Now = func() time.Time { return at }
+	for i := 0; i < 4; i++ {
+		at = at.Add(24 * time.Hour)
+		ask(t, s, fmt.Sprintf("Day %d?", i))
+	}
+	files, e := filepath.Glob(filepath.Join(s.Dir, "backups", "????-??-??.tar.gz"))
+	if e != nil || len(files) != 2 {
+		t.Fatal(files, e)
+	}
+}
+func TestStoreHiddenIdempotencyAndCreationUndo(t *testing.T) {
+	s := fixture(t)
+	q := ask(t, s, "Question?")
+	if e := s.Undo(); e != nil {
+		t.Fatal(e)
+	}
+	rows, e := s.List()
+	if e != nil || len(rows) != 0 {
+		t.Fatal(rows, e)
+	}
+	v, e := s.Ask(Ask{Question: q.Text, Key: q.Key})
+	if e != nil || !v.Existed || v.Question.ID != q.ID || !v.Question.Deleted {
+		t.Fatal(v, e)
+	}
+}
+
+func TestCLISourcePreserved(t *testing.T) {
+	s := fixture(t)
+	var out strings.Builder
+	args := []string{"--data", s.Dir, "ask", "--json", `{"question":"Provenance?","source":{"agent_session":"fixture-session","turn":"fixture-turn","transcript":"/tmp/oq-core/fixture-transcript"}}`}
+	if e := Main(args, strings.NewReader(""), &out, &out); e != nil {
+		t.Fatal(e)
+	}
+	rows, e := s.List()
+	if e != nil || len(rows) != 1 || rows[0].Source.AgentSession != "fixture-session" || rows[0].Source.Transcript != "/tmp/oq-core/fixture-transcript" {
+		t.Fatal(rows, e)
 	}
 }

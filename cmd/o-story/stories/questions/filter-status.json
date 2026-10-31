@@ -1,0 +1,1 @@
+{"name":"questions/filter-status","questions":[{"question":"Open question?","title":"Open item"},{"question":"Answered question?","title":"Answered item","answer":"Needle hidden in full answer"}],"script":["o","o"],"expect":[{"after":0,"count":2},{"after":1,"count":1,"selected":"Open item"},{"after":2,"count":1,"selected":"Answered item"}]}

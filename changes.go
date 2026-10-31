@@ -6,10 +6,14 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 )
 
 func jsonDecode(b []byte, v any) error { return json.Unmarshal(b, v) }
 func safeQuestion(q Question) bool {
+	if q.FileName != "" && (strings.ContainsAny(q.FileName, "/\\") || !strings.HasSuffix(q.FileName, ".json")) {
+		return false
+	}
 	if !strings.HasPrefix(q.ID, "q-") || strings.ContainsAny(q.ID, "/\\") || q.Created.IsZero() {
 		return false
 	}
@@ -154,6 +158,13 @@ func (s *Store) Change(action, target string, c Change) (Question, error) {
 					return errors.New("entry already split")
 				}
 			}
+			newQ.Created = s.now()
+			for _, old := range *rows {
+				if !newQ.Created.After(old.Created) {
+					newQ.Created = old.Created.Add(time.Nanosecond)
+				}
+			}
+			newQ.FileName = newQ.Created.Format("20060102T150405.000000000Z") + "-" + slug(newQ.Title) + "-" + newQ.ID + ".json"
 			*rows = append(*rows, newQ)
 			q.Links = append(q.Links, Link{Kind: "question", Target: newQ.ID, Label: "split entry " + en.ID})
 		default:

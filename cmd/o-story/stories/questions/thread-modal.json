@@ -1,0 +1,1 @@
+{"name":"questions/thread-modal","questions":[{"question":"Question wording?","title":"Thread","answer":"Complete answer","note":"Thread note with source"}],"script":["v","q"],"expect":[{"after":0,"modal":false},{"after":1,"contains":["Complete answer","Thread note with source"],"modal":true},{"after":2,"modal":false}]}

@@ -16,3 +16,6 @@ Family plans, todos and the roadmap live in `~/hub/o-plans/` (`README.md` is the
   HOME/XDG and --data explicitly for manual app runs. Never install in a lane.
 - UI keys must remain binding rows. Reuse ochazuke forms and motions; no key
   switches, F-keys, save key or app-side library workarounds.
+- Page stories live in cmd/o-story/stories/questions and are run by
+  TestQuestionStories (the adapter constructs the actual app runtime). Preserve
+  the generic record detail in the catalog until Q8's read-only kind is ready.

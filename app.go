@@ -27,8 +27,6 @@ type App struct {
 	tui         bool
 	changed     func()
 	run         func(*exec.Cmd) error
-	viewFn      func([]string) error
-	mcpFn       func() error
 	showThread  func(Question) error
 }
 type verbSpec struct {
@@ -46,7 +44,12 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	a := &App{store: s, in: in, out: out, errOut: errOut, run: func(cmd *exec.Cmd) error { return cmd.Run() }}
 	a.r = ochazuke.NewRuntime()
 	a.r.Config().App = "o-questions"
-	a.mcpFn = a.serveMCP
+	a.showThread = func(q Question) error {
+		if !a.r.Settings().Bool("view.thread") {
+			return nil
+		}
+		return openThreadViewer(a.r, q.Title, thread(q, a.r.Settings().Bool("detail.provenance")))
+	}
 	if e := a.r.DeclareSetting(appSettings()...); e != nil {
 		return nil, e
 	}
@@ -63,21 +66,28 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 		op.Parameters = v.params
 		a.r.Operations[op.Key()] = op
 	}
+	a.r.EnsureConfigSettings()
 	a.r.Define("question").Columns(columns...)
+	registerQuestionUI(a)
+	if e := ocli.DeclarePage(a.r, questionPage(a.r.Settings().Bool("view.detail"))); e != nil {
+		return nil, e
+	}
+	for _, v := range []struct {
+		key, verb string
+		args      ochazuke.Arguments
+	}{{"c", "ask", ochazuke.Arguments{"question": ""}}, {"u", "undo", nil}} {
+		row := ochazuke.Do("question."+v.verb, v.args)
+		row.Instance = pageID
+		row.Mode = "normal"
+		row.Keys = v.key
+		if e := a.r.Bind(row); e != nil {
+			return nil, e
+		}
+	}
 	return a, nil
 }
-func (a *App) view(args []string) error {
-	if a.viewFn == nil {
-		return fmt.Errorf("TUI not mounted")
-	}
-	return a.viewFn(args)
-}
-func (a *App) mcp() error {
-	if a.mcpFn == nil {
-		return fmt.Errorf("MCP not mounted")
-	}
-	return a.mcpFn()
-}
+func (a *App) view(args []string) error { return runTUI(a, args) }
+func (a *App) mcp() error               { return a.serveMCP() }
 func (a *App) shell() *ocli.Shell {
 	sh := ocli.New(a.r, "o-questions", a.in, a.out, a.errOut)
 	sh.Version = version
@@ -126,7 +136,7 @@ func (a *App) specs() []verbSpec {
 		{"follow-up", "Append the owner's follow-up", map[string]ochazuke.Parameter{"target": target, "text": required("Verbatim follow-up")}, []string{"target", "text"}, false},
 		{"correct", "Append a correction, preserving old words", map[string]ochazuke.Parameter{"target": target, "text": required("Correction"), "replaces": param("Entry corrected")}, []string{"target", "text"}, false},
 		{"annotate", "Add associations, tags, links or a title", map[string]ochazuke.Parameter{"target": target, "tags": arr, "links": arr, "project": param("Project ID"), "task": param("Task ID"), "title": param("Title")}, []string{"target"}, false},
-		{"status", "Set an explicit, sticky status (owner)", map[string]ochazuke.Parameter{"target": target, "status": {Type: "string", Required: true, Enum: statuses}}, []string{"target", "status"}, false},
+		{"status", "Set an explicit, sticky status (owner)", map[string]ochazuke.Parameter{"target": target, "status": {Type: "string", Enum: statuses}}, []string{"target", "status"}, false},
 		{"rename", "Change the title", map[string]ochazuke.Parameter{"target": target, "title": required("New title")}, []string{"target", "title"}, false},
 		{"edit", "Change the owner's question, retaining undo (owner)", map[string]ochazuke.Parameter{"target": target, "text": required("Question text")}, []string{"target", "text"}, false},
 		{"copy", "Return question, latest answer or thread", map[string]ochazuke.Parameter{"target": target, "part": {Type: "string", Enum: []string{"question", "answer", "thread"}}, "yank": {Type: "boolean"}}, []string{"target"}, false},
@@ -178,6 +188,11 @@ func (a *App) target(c ochazuke.Ctx) (Question, error) {
 }
 func (a *App) handle(verb string, c ochazuke.Ctx) ochazuke.Result {
 	a.configure()
+	if a.tui {
+		if res, ok := a.interactive(verb, c); ok {
+			return res
+		}
+	}
 	if verb == "add" || verb == "new" {
 		verb = "ask"
 	}
@@ -188,9 +203,7 @@ func (a *App) handle(verb string, c ochazuke.Ctx) ochazuke.Result {
 		if e := decodeArgs(c.Args, &p); e != nil {
 			return result(nil, e)
 		}
-		if p.Source.Harness == "" {
-			p.Source = sourceFromEnv(a.store.Actor)
-		}
+		p.Source = fillSource(p.Source, sourceFromEnv(a.store.Actor))
 		v, e := a.store.Ask(p)
 		a.refresh()
 		return result(v, e)
@@ -442,7 +455,7 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		if q.Starred {
 			label = "★ " + label
 		}
-		out = append(out, ocli.Row{Noun: "question", ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{strconv.Itoa(i + 1), q.Status, label, q.Project.ID, q.RecordedBy.Harness, age(q.AskedAt, a.store.now()), strconv.Itoa(count)}})
+		out = append(out, ocli.Row{Noun: "question", ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{strconv.Itoa(i + 1), q.Status, label, q.Project.ID, q.RecordedBy.Harness, age(q.AskedAt, a.store.now()), strconv.Itoa(count), search}})
 	}
 	limit := 0
 	switch v := args["limit"].(type) {
@@ -455,4 +468,16 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		out = out[len(out)-limit:]
 	}
 	return out, nil
+}
+
+func fillSource(given, fallback Source) Source {
+	for _, v := range []struct {
+		to       *string
+		fallback string
+	}{{&given.Harness, fallback.Harness}, {&given.AgentSession, fallback.AgentSession}, {&given.Pane, fallback.Pane}, {&given.TuiosSession, fallback.TuiosSession}, {&given.Transcript, fallback.Transcript}, {&given.Turn, fallback.Turn}} {
+		if *v.to == "" {
+			*v.to = v.fallback
+		}
+	}
+	return given
 }

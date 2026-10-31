@@ -37,6 +37,7 @@ type Entry struct {
 	Key      string    `json:"key,omitempty"`
 }
 type Question struct {
+	FileName       string    `json:"file_name,omitempty"`
 	ID             string    `json:"id"`
 	Title          string    `json:"title"`
 	Text           string    `json:"text"`

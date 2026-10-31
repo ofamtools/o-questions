@@ -1,0 +1,1 @@
+{"name":"questions/catalog-host","host":true,"questions":[{"question":"Host question?","title":"Mounted question","answer":"Host answer","cwd":"/tmp/oq-core/project"}],"expect":[{"after":0,"contains":["Mounted question","Host answer"],"count":1}]}

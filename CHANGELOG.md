@@ -6,3 +6,10 @@
   status table, idempotent asks, rich question verbs, settings, backups and undo.
 - Q2: six allowlisted MCP tools share CLI verb specs, validate schemas and stamp
   agent provenance; retries return the same question ID.
+- Q3: Questions split page and catalog, saved filter settings, full-text list
+  search, preview/provenance opt-outs, read-only thread modal and binding rows.
+- Standalone text editors commit after typing pauses. Status uses a chooser;
+  c creates even from an empty page. n/N navigate matches without taking c's role.
+- Integration checks preserve chronological creation order and stable slugged
+  filenames; large answer revisions retain old bodies for undo. Daily retention
+  excludes manual backups.

@@ -85,3 +85,24 @@ fields, wrong types and owner-only tools are refused. The server always stamps
 writes as an agent, retaining inherited harness/pane/session/model provenance
 and using the initialize client's name as a fallback. It never edits owner words,
 deletes or marks a question moot. Registration in the owner's harness is Q6.
+
+## Page and keys
+
+`view` opens the standalone split page; `view --smoke` prints a frame without a
+terminal. The left list starts on the newest question, with status, project,
+agent, age and answer count. The right panel shows the question, latest answer
+preview, provenance and links. `v` or Enter opens the full read-only thread.
+
+Keys come from binding rows: `c` asks a question, `a` adds an answer, `f` adds a
+follow-up, `s` chooses status, `e` edits the question, `r` renames its title, `m`
+associates it, `t` adds a tag, `g x` chooses a link, `y` copies the thread, `d d`
+hides, `u` undoes and `o` cycles the status filter. `/` searches complete question
+and answer text and tags; `n`/`N` move among shown matches. Question/title/entry
+editors commit after a short typing pause. Escape closes them with changes kept.
+Undo reverses a change. No save key is required.
+
+The catalog publishes this page for mtm/nabe. Its rows include `cwd` for existing
+host project scope rules. Catalog hosts show record detail; the standalone app
+shows its custom preview. See [host notes and Vim comparison](docs/INTEGRATION.md).
+The host mount was checked with an isolated mtm database and wrapper directing
+all extension calls to a temp store. No owner config is registered by this lane.

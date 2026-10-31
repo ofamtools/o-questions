@@ -78,7 +78,7 @@ func (s *Store) backup(to string, daily bool) (string, error) {
 		return "", e
 	}
 	if daily && s.BackupKeep > 0 {
-		files, e := filepath.Glob(filepath.Join(to, "*.tar.gz"))
+		files, e := filepath.Glob(filepath.Join(to, "????-??-??.tar.gz"))
 		if e != nil {
 			return "", e
 		}

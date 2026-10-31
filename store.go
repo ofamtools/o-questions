@@ -59,6 +59,9 @@ func (s *Store) locked(fn func() error) error {
 	return fn()
 }
 func (s *Store) path(q Question) string {
+	if q.FileName != "" {
+		return filepath.Join(s.Dir, "q", q.FileName)
+	}
 	return filepath.Join(s.Dir, "q", q.Created.Format("20060102T150405.000000000Z")+"-"+q.ID+".json")
 }
 func (s *Store) all() ([]Question, error) {
@@ -127,9 +130,21 @@ func (s *Store) List() (rows []Question, err error) {
 func resolve(rows []Question, target string) (Question, error) {
 	target = strings.TrimPrefix(target, "question/")
 	for _, q := range rows {
-		if q.ID == target || q.Title == target {
+		if q.ID == target {
 			return q, nil
 		}
+	}
+	var named []Question
+	for _, q := range rows {
+		if q.Title == target {
+			named = append(named, q)
+		}
+	}
+	if len(named) == 1 {
+		return named[0], nil
+	}
+	if len(named) > 1 {
+		return Question{}, fmt.Errorf("ambiguous question title %q (%d matches)", target, len(named))
 	}
 	if n, e := strconv.Atoi(target); e == nil {
 		if n > 0 && n <= len(rows) {
@@ -343,7 +358,11 @@ func (s *Store) Ask(a Ask) (out Asked, err error) {
 			}
 		}
 		now := s.now()
+		if len(rows) > 0 && !now.After(rows[len(rows)-1].Created) {
+			now = rows[len(rows)-1].Created.Add(time.Nanosecond)
+		}
 		q := Question{ID: "q-" + id, Title: a.Title, Text: a.Question, Verbatim: "unchecked", AskedBy: Owner(), RecordedBy: s.Actor, AskedAt: at, Created: now, Updated: now, Status: "open", Project: Project{ID: a.Project}, Cwd: a.Cwd, Task: a.Task, Source: a.Source, Tags: a.Tags, Links: a.Links, Key: a.Key, Entries: []Entry{}}
+		q.FileName = q.Created.Format("20060102T150405.000000000Z") + "-" + slug(q.Title) + "-" + q.ID + ".json"
 		out.Question = q
 		rows = append(rows, q)
 		return s.commit(before, rows, "ask")
@@ -383,17 +402,8 @@ func (s *Store) appendEntry(q *Question, en Entry) error {
 	if en.Kind == "follow-up" {
 		en.By = Owner()
 	}
-	limit := s.MaxBytes
-	if limit == 0 {
-		limit = 65536
-	}
-	if len(en.Text) > limit {
-		en.File = q.ID + "-" + en.ID + ".txt"
-		if e = atomicBytes(filepath.Join(s.Dir, "q", en.File), []byte(en.Text)); e != nil {
-			return e
-		}
-		en.Links = append(en.Links, Link{Kind: "file", Target: filepath.Join(s.Dir, "q", en.File), Label: "full entry"})
-		en.Text = ""
+	if e = s.prepareEntry(q.ID, &en); e != nil {
+		return e
 	}
 	q.Entries = append(q.Entries, en)
 	if !q.StatusExplicit && table[en.Kind] != "" {
@@ -474,4 +484,28 @@ func (s *Store) History() (out []Snapshot, err error) {
 		return nil
 	})
 	return
+}
+
+// Every revision of a large body gets a fresh file. Undo snapshots retain their
+// old file references, so editing a linked entry cannot overwrite history.
+func (s *Store) prepareEntry(questionID string, en *Entry) error {
+	limit := s.MaxBytes
+	if limit == 0 {
+		limit = 65536
+	}
+	if len(en.Text) <= limit {
+		en.File = ""
+		return nil
+	}
+	suffix, e := token()
+	if e != nil {
+		return e
+	}
+	en.File = questionID + "-" + en.ID + "-" + suffix + ".txt"
+	if e = atomicBytes(filepath.Join(s.Dir, "q", en.File), []byte(en.Text)); e != nil {
+		return e
+	}
+	en.Links = append(en.Links, Link{Kind: "file", Target: filepath.Join(s.Dir, "q", en.File), Label: "full entry"})
+	en.Text = ""
+	return nil
 }

@@ -173,12 +173,34 @@ func (a *App) reviewCommand(args []string) error {
 	return a.reviewWeb(serve)
 }
 
+func resolveMgmt(setting string) (string, error) {
+	if setting == "" {
+		if path, err := exec.LookPath("mgmt.py"); err == nil {
+			return path, nil
+		}
+		path := expandHome("~/hub/ai/utils/mgmt/mgmt.py")
+		if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
+			return path, nil
+		}
+		return "", errors.New("mgmt.py not found: install mgmt/ from https://github.com/unixsuperhero/ai-utils and add mgmt.py to PATH, or set review.mgmt to the script's path")
+	}
+	path := expandHome(setting)
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("review.mgmt: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("review.mgmt: %q is not a regular file", path)
+	}
+	return path, nil
+}
+
 func (a *App) reviewWeb(serve []string) error {
 	a.r.EnsureConfigSettings()
 	a.configure()
-	mgmt := expandHome(a.r.Settings().String("review.mgmt"))
-	if _, e := os.Stat(mgmt); e != nil {
-		return fmt.Errorf("review.mgmt: %w", e)
+	mgmt, e := resolveMgmt(a.r.Settings().String("review.mgmt"))
+	if e != nil {
+		return e
 	}
 	sess, e := a.store.webSession()
 	if e != nil {

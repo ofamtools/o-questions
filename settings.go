@@ -77,7 +77,7 @@ func appSettings() []ochazuke.Setting {
 		{Name: "review.actions", Type: ochazuke.SettingList, Default: []string{"yes", "no", "later", "moot"}, Validate: nonemptyList, Description: "Default numbered actions of a question for the owner"},
 		{Name: "review.ask", Type: ochazuke.SettingBoolean, Default: true, Description: "Offer ask (a question back to the agent) after the actions"},
 		{Name: "review.plans-root", Type: ochazuke.SettingString, Default: "~/hub/o-plans", Description: "Plans folder question import reads"},
-		{Name: "review.mgmt", Type: ochazuke.SettingString, Default: "~/hub/ai/utils/mgmt/mgmt.py", Description: "mgmt.py that review --web serves"},
+		{Name: "review.mgmt", Type: ochazuke.SettingString, Default: "", Description: "mgmt.py path for review --web; empty discovers it on PATH, then in the legacy home location"},
 		{Name: "export.open", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for Q5 export"},
 	}
 }

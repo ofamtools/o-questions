@@ -140,8 +140,8 @@ all extension calls to a temp store. No owner config is registered by this lane.
 
 The record above is the owner asking an agent. The other direction uses the same
 store: an agent poses a question for the owner, with a recommendation, and the
-owner decides it on the Review page. This is the mgmt skill's review flow
-(`~/hub/ai/utils/mgmt`) built in: recommendations show as unconfirmed until
+owner decides it on the Review page. This is the [mgmt review flow](https://github.com/unixsuperhero/ai-utils/tree/main/mgmt)
+built in: recommendations show as unconfirmed until
 accepted, numbered actions, a note per item, an ask that becomes a thread the
 agent answers, decisions that survive re-posing, an export the agent reads, and
 items locked once applied.
@@ -194,10 +194,15 @@ from the store, runs `python3 mgmt.py serve` on it (`review.mgmt`), and copies
 each saved decision back into o-questions while the page runs and once more
 after Ctrl-C. The session is a view; o-questions stays the record.
 
+For the browser page, install `mgmt/` from [ai-utils](https://github.com/unixsuperhero/ai-utils).
+Set `review.mgmt` to the path of `mgmt.py`, or leave it empty to discover an
+executable `mgmt.py` on `PATH`. Existing installations in the legacy hub home
+location are used as a final fallback. Python 3 is required for this page.
+
 Settings: `review.page` (default true; false removes the page), `review.show`
 (pending), `review.actions` (yes, no, later, moot), `review.ask` (true),
 `review.plans-root` (`~/hub/o-plans`), `review.mgmt`
-(`~/hub/ai/utils/mgmt/mgmt.py`), and `filter.direction` (to-agent) for the
+(empty; discovers `mgmt.py` at run time), and `filter.direction` (to-agent) for the
 Questions page, which keeps showing only the owner's own questions by default.
 
 ### Setup: the agents' note

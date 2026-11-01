@@ -1,5 +1,5 @@
 // Plan "Owner questions" importer: a Go port of the parsing rules in
-// ~/hub/ai/utils/mgmt/inventories/owner_questions.py (scan, split_item,
+// github.com/unixsuperhero/ai-utils/mgmt/inventories/owner_questions.py (scan, split_item,
 // group_name, item_title, decisions). Ids match the Python ("oq-" + 12 hex of
 // sha256(rel, section, number)), so a question keeps its id whichever tool
 // scanned it. Ported, not called, so agents import through the CLI or MCP

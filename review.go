@@ -2,7 +2,7 @@
 // shown unconfirmed until accepted, numbered actions, an "ask" outcome that
 // becomes a thread the agent answers, decisions carried across regenerations
 // by a stable key, an export the agent reads, items locked once applied) are
-// adapted from ~/hub/ai/utils/mgmt/mgmt.py (build_session, reply, export,
+// adapted from github.com/unixsuperhero/ai-utils/mgmt/mgmt.py (build_session, reply, export,
 // apply/result). One store: a question for the owner is an ordinary Question
 // whose Direction is "to-owner" and whose Review holds the decision.
 package main

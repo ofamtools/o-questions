@@ -12,6 +12,14 @@ projects and sessions. One JSON record per question, append-only thread entries,
 undo history and daily backups. Domain state belongs in this app; ochazuke owns
 keys, forms, list motions, settings and page layout.
 
+## Install
+
+```sh
+go install ofam.dev/oden/cmd/o@latest   # oden's o: o questions runs o-questions, no dash needed
+go install ofam.dev/o-questions@latest
+mtm extension register questions # mounts the questions.* verbs (and its pages) in mtm
+```
+
 ## Quick start
 
 Build with Go 1.27.1: `GOWORK=off GOFLAGS=-trimpath go build -o o-questions .`.

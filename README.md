@@ -83,7 +83,7 @@ import, installation and owner config registration are separate work.
 
 ## MCP
 
-`o-questions --data DIR mcp` serves newline-delimited JSON-RPC over stdin/stdout.
+`o questions --data DIR mcp` serves newline-delimited JSON-RPC over stdin/stdout.
 The owner-question tools are `q_ask`, `q_answer`, `q_note`, `q_annotate`, `q_list`, `q_show`;
 the review tools (questions for the owner) are `q_pose`, `q_queue`, `q_decisions`,
 `q_reply`, `q_applied`, `q_import`. Deciding is the owner's and has no tool.
@@ -140,20 +140,20 @@ items locked once applied.
 
 ```sh
 # agent
-o-questions question pose "Turn the Review page on by default?" \
+o questions question pose "Turn the Review page on by default?" \
   --group Review --source plans/x.md:42 --details "context" \
   --recommendation "Yes, with review.page to opt out" --key x-42
-o-questions question import            # pose the open "Owner questions" of review.plans-root
-o-questions question decisions         # JSON: asked questions, decisions, undecided
-o-questions question decisions --render plan | jq -r .   # "## Owner decisions (date)" per plan
-o-questions question reply Q "answer" [--recommendation T] [--recommended_action A]
-o-questions question applied Q done "what changed, how checked"   # locks it
+o questions question import            # pose the open "Owner questions" of review.plans-root
+o questions question decisions         # JSON: asked questions, decisions, undecided
+o questions question decisions --render plan | jq -r .   # "## Owner decisions (date)" per plan
+o questions question reply Q "answer" [--recommendation T] [--recommended_action A]
+o questions question applied Q done "what changed, how checked"   # locks it
 # owner
-o-questions review                     # the Review page (also a tab in mtm)
-o-questions review --web [--no-open] [--port N]   # mgmt's browser page
-o-questions question decide Q yes [--note T] | --choice 2
-o-questions question accept|undecide Q
-o-questions question ask-back Q "why?"
+o questions review                     # the Review page (also a tab in mtm)
+o questions review --web [--no-open] [--port N]   # mgmt's browser page
+o questions question decide Q yes [--note T] | --choice 2
+o questions question accept|undecide Q
+o questions question ask-back Q "why?"
 ```
 
 A question for the owner is a `Question` with `direction: to-owner` and a
@@ -194,15 +194,15 @@ Questions page, which keeps showing only the owner's own questions by default.
 
 ### Setup: the agents' note
 
-`o-questions setup` adds a managed block to the agents' instruction files
+`o questions setup` adds a managed block to the agents' instruction files
 (`${CLAUDE_CONFIG_DIR:-~/.claude}/CLAUDE.md`, `~/.codex/AGENTS.md`) between
 `<!-- o-questions:begin -->` and `<!-- o-questions:end -->`:
 
 ```sh
-o-questions setup                  # status
-o-questions setup plan             # dry run
-o-questions setup install --yes    # or: setup install claude-md --yes
-o-questions setup uninstall --yes
+o questions setup                  # status
+o questions setup plan             # dry run
+o questions setup install --yes    # or: setup install claude-md --yes
+o questions setup uninstall --yes
 ```
 
 Both items use ochazuke v0.78.0's `follow: true`: setup resolves symlinks on

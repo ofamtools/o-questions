@@ -83,6 +83,13 @@ setting remains registered for compatibility but is deprecated: Sections always
 show the complete discussion, regardless of its value.
 Hook and HTML settings are reserved for the separate Q4/Q5 lanes.
 
+`z /` opens ochazuke's prop filter form on Questions and Review, in the
+standalone TUI and catalog hosts. Filter by `status`, `project_id` (`project`
+is an input alias), `agent`, `direction`, `pane` or `agent_session`. These
+conditions narrow the rows supplied by the existing `filter.*` settings and
+list parameters; use `filter.direction=all` to include both directions on
+Questions. Old owner questions have the filter direction `to-agent`.
+
 ## Scope
 
 This lean core implements Q1–Q3 of the family plan. Hooks, HTML export, host noun

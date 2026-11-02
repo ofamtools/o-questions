@@ -1,0 +1,80 @@
+{
+  "name": "questions/prop-filter-project-host",
+  "host": true,
+  "settings": {
+    "list.props-off": [
+      "question.id",
+      "question.key",
+      "question.title",
+      "question.text",
+      "question.verbatim",
+      "question.asked_by",
+      "question.recorded_by",
+      "question.asked_at",
+      "question.created",
+      "question.updated",
+      "question.status",
+      "question.project",
+      "question.source",
+      "question.starred",
+      "question.entries",
+      "question.file_name",
+      "question.question",
+      "question.search",
+      "question.answer",
+      "question.thread",
+      "question.agent",
+      "question.direction",
+      "question.pane",
+      "question.agent_session"
+    ]
+  },
+  "questions": [
+    {
+      "question": "Alpha question?",
+      "title": "Alpha item",
+      "project": "alpha"
+    },
+    {
+      "question": "Beta question?",
+      "title": "Beta item",
+      "project": "beta"
+    }
+  ],
+  "script": [
+    "z",
+    "/",
+    "i",
+    "b",
+    "e",
+    "t",
+    "a",
+    "esc",
+    "esc"
+  ],
+  "expect": [
+    {
+      "after": 0,
+      "count": 2
+    },
+    {
+      "after": 2,
+      "modal": true,
+      "contains": [
+        "project_id"
+      ]
+    },
+    {
+      "after": 9,
+      "modal": false,
+      "count": 1,
+      "selected": "Beta item",
+      "contains": [
+        "project_id contains beta"
+      ],
+      "absent": [
+        "Alpha item"
+      ]
+    }
+  ]
+}

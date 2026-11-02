@@ -80,6 +80,7 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 		a.r.Operations[op.Key()] = op
 	}
 	a.r.EnsureConfigSettings()
+	a.declareFilterProps()
 	a.r.Define("question").Columns(columns...)
 	registerQuestionUI(a)
 	if e := a.declareSetup(); e != nil {
@@ -473,9 +474,7 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		if !strings.Contains(strings.ToLower(search), filter) {
 			continue
 		}
-		b, _ := json.Marshal(q)
-		data := map[string]any{}
-		_ = json.Unmarshal(b, &data)
+		data := questionRowData(q)
 		data["search"] = search
 		data["question"] = q.Text
 		data["answer"] = latestAnswer(q)

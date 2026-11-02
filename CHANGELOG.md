@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Questions and Review expose scalar project, agent, direction, pane and session
+  props to the shared filter form in standalone and catalog hosts. Legacy owner
+  questions filter as `to-agent`; project records and existing actions, list
+  parameters and filter defaults are preserved.
+
 - Upgrade ochazuke to v0.83.0; the thread viewer uses shared modal closing and
   window-sized page/edge motions (`gg`, `G`, Ctrl-D/U/F/B), and empty detail text
   follows the framework's placeholder format.

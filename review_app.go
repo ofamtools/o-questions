@@ -256,9 +256,7 @@ func (a *App) reviewRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 			}
 			out = append(out, ocli.Row{Noun: reviewNoun, ID: "topic/" + g, Label: label, Data: map[string]any{"topic": g, "question": "## " + label + "\n\n" + strings.Join(lines[g], "\n")}, Cells: []string{"", label, "", "", "", g}})
 		}
-		b, _ := json.Marshal(q)
-		data := map[string]any{}
-		_ = json.Unmarshal(b, &data)
+		data := questionRowData(q)
 		r := q.Review
 		data["question"] = q.Text
 		data["topic"] = g

@@ -107,7 +107,7 @@ func (v *questionDetail) Block(w, h int) ochazuke.Block {
 		return ochazuke.Text("")
 	}
 	if !v.valid {
-		return ochazuke.Text("No question selected")
+		return ochazuke.Text("no question selected")
 	}
 	q := v.q
 	settings := v.host.Model.Runtime.Settings()

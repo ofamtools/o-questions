@@ -38,6 +38,64 @@ func sendKey(t *testing.T, p *page, key string) {
 		deliver(t, p, cmd())
 	}
 }
+
+func TestThreadViewerSharedMotions(t *testing.T) {
+	for _, height := range []int{24, 40} {
+		t.Run(fmt.Sprint(height), func(t *testing.T) {
+			s := fixture(t)
+			if _, e := s.Ask(Ask{Question: strings.Repeat("thread line\n", 100), Title: "Long thread"}); e != nil {
+				t.Fatal(e)
+			}
+			var out bytes.Buffer
+			a, e := newApp(s, strings.NewReader(""), &out, &out)
+			if e != nil {
+				t.Fatal(e)
+			}
+			p, e := mountSpec(a, questionsSpec(a))
+			if e != nil {
+				t.Fatal(e)
+			}
+			p.m.Width, p.m.Height = 100, height
+			_ = p.m.View()
+			sendKey(t, p, "v")
+			_ = p.m.View()
+			d := a.r.Detail(threadViewerTextID)
+			if d == nil {
+				t.Fatal("v did not open the thread")
+			}
+			lines := d.PageLines()
+			if lines <= 0 {
+				t.Fatal("viewer has no page")
+			}
+			sendKey(t, p, "ctrl+d")
+			if got := d.Offset(); got != max(1, lines/2) {
+				t.Fatalf("half page offset = %d, page = %d", got, lines)
+			}
+			sendKey(t, p, "G")
+			if d.Offset() == 0 {
+				t.Fatal("G did not reach the end")
+			}
+			sendKey(t, p, "g")
+			sendKey(t, p, "g")
+			if got := d.Offset(); got != 0 {
+				t.Fatalf("gg offset = %d", got)
+			}
+			sendKey(t, p, "ctrl+f")
+			if got := d.Offset(); got != lines {
+				t.Fatalf("full page offset = %d, page = %d", got, lines)
+			}
+			sendKey(t, p, "ctrl+b")
+			if got := d.Offset(); got != 0 {
+				t.Fatalf("page back offset = %d", got)
+			}
+			sendKey(t, p, "q")
+			if a.r.TopModal() != "" {
+				t.Fatal("q did not close the thread")
+			}
+		})
+	}
+}
+
 func TestQuestionStories(t *testing.T) {
 	files, e := filepath.Glob("cmd/o-story/stories/questions/*.json")
 	if e != nil || len(files) == 0 {

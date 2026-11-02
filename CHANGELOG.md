@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Upgrade ochazuke to v0.83.0; the thread viewer uses shared modal closing and
+  window-sized page/edge motions (`gg`, `G`, Ctrl-D/U/F/B), and empty detail text
+  follows the framework's placeholder format.
+
 - Questions for the owner (mgmt built in): `question pose|reply|applied|decisions|import|queue`
   for agents, `question decide|accept|undecide|ask-back|decision-note` for the owner,
   a Review page (noun `review`, keys 1-9 a ? n x o; `review.page` opts out) and

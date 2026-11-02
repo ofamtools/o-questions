@@ -15,7 +15,13 @@ type threadViewer struct {
 	detail      *ochazuke.Detail
 }
 
-func (v *threadViewer) ModalTitle() string { return v.title }
+func (v *threadViewer) ModalTitle() string                { return v.title }
+func (v *threadViewer) MotionEdges() []ochazuke.SpillEdge { return v.detail.MotionEdges() }
+func (v *threadViewer) MoveToEdge(edge ochazuke.SpillEdge, row int) {
+	v.detail.MoveToEdge(edge, row)
+}
+func (v *threadViewer) PageLines() int     { return v.detail.PageLines() }
+func (v *threadViewer) MovePage(lines int) { v.detail.MovePage(lines) }
 func (v *threadViewer) ModalBlock(styles ochazuke.Styles, width, height int) ochazuke.Block {
 	body, marker := v.detail.Window(threadAtWidth(v.text, width), 0, max(0, height-1))
 	header := marker + strings.Repeat(" ", max(0, width-ansi.StringWidth(marker)))
@@ -36,10 +42,9 @@ func registerThreadViewer(r *ochazuke.Runtime) {
 	for _, row := range []struct {
 		key   string
 		lines int
-	}{{"j", 1}, {"k", -1}, {"ctrl+d", 8}, {"ctrl+u", -8}, {"g", -1_000_000_000}, {"G", 1_000_000_000}} {
+	}{{"j", 1}, {"k", -1}} {
 		b.Bind(row.key, ochazuke.Do("ochazuke.detail.scroll", ochazuke.Arguments{"id": threadViewerTextID, "lines": row.lines}).FromPayload("count", "count").Captured())
 	}
-	b.Bind("q", ochazuke.Do("ochazuke.modal.pop")).Bind("esc", ochazuke.Do("ochazuke.modal.pop"))
 }
 
 func openThreadViewer(r *ochazuke.Runtime, title, source string) error {

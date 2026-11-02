@@ -15,6 +15,7 @@
       "question.updated",
       "question.status",
       "question.project",
+      "question.effective_project",
       "question.source",
       "question.starred",
       "question.entries",

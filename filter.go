@@ -31,6 +31,7 @@ func questionRowData(q Question) map[string]any {
 	data := map[string]any{}
 	_ = json.Unmarshal(b, &data)
 	data["project_id"] = q.Project.ID
+	data["effective_project"] = q.Project.ID
 	data["agent"] = q.RecordedBy.Harness
 	data["pane"] = q.Source.Pane
 	data["agent_session"] = q.Source.AgentSession

@@ -83,8 +83,8 @@ monoline wordmark, 11-unit stroke, 15-unit letter gap, x=112 origin,
 cues and seal details use half-grid subdivisions. No shared library or sibling
 repo changes are needed: these are o-questions identity/review artifacts.
 
-Round 2 adapts the ideas and tone of `~/hub/logos/monogatari/gen.py` and its
-Emaki, Koma, Shiori, Kataribe and Kakuin marks/rationales. Kataribe replaces
+Round 2 adapts the ideas and tone of monogatari's Emaki, Koma, Shiori,
+Kataribe and Kakuin logo concepts. Kataribe replaces
 monogatari's prompt/cursor with a continuing voice line and an answering
 balloon. Makimono replaces Emaki's frame panels with dialogue balloons.
 Hanko borrows the seal vocabulary of matomeru's Hanko and monogatari's Kakuin;

@@ -201,7 +201,7 @@ location are used as a final fallback. Python 3 is required for this page.
 
 Settings: `review.page` (default true; false removes the page), `review.show`
 (pending), `review.actions` (yes, no, later, moot), `review.ask` (true),
-`review.plans-root` (`~/hub/o-plans`), `review.mgmt`
+`review.plans-root` (the folder to import planning documents from), `review.mgmt`
 (empty; discovers `mgmt.py` at run time), and `filter.direction` (to-agent) for the
 Questions page, which keeps showing only the owner's own questions by default.
 

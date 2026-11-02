@@ -2,9 +2,6 @@
 
 ## Unreleased
 
-- Publish `effective_project` on question rows, including an explicit empty
-  value for unassociated questions, so catalog hosts can apply project pins.
-
 - Questions and Review expose scalar project, agent, direction, pane and session
   props to the shared filter form in standalone and catalog hosts. Legacy owner
   questions filter as `to-agent`; project records and existing actions, list

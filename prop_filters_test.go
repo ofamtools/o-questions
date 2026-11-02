@@ -10,16 +10,6 @@ import (
 	ocli "ofam.dev/ochazuke/cli"
 )
 
-func TestQuestionPropFiltersEffectiveProject(t *testing.T) {
-	for _, project := range []string{"", "matomeru"} {
-		data := questionRowData(Question{Project: Project{ID: project}})
-		got, present := data["effective_project"]
-		if !present || got != project {
-			t.Errorf("project %q: effective_project = %v, present %v", project, got, present)
-		}
-	}
-}
-
 func TestQuestionPropFilters(t *testing.T) {
 	for _, host := range []bool{false, true} {
 		t.Run(map[bool]string{false: "standalone", true: "catalog-host"}[host], func(t *testing.T) {

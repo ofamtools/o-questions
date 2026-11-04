@@ -63,6 +63,11 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 			noun, verb = home[0], home[1]
 		}
 		b := a.r.Define(noun).Verb(verb, func(c ochazuke.Ctx) ochazuke.Result { return a.handle(v.name, c) }, v.description)
+		right := agentPolicy[v.name]
+		if right == "" {
+			right = ochazuke.AgentAllow
+		}
+		b.Agent(right)
 		if len(v.positional) > 0 {
 			b.Positional(v.positional...)
 		}
@@ -122,11 +127,17 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	}
 	return a, nil
 }
+func frameworkActor(a Actor) ochazuke.Actor {
+	return ochazuke.Actor{Kind: a.Kind, Name: a.Name, Harness: a.Harness, Pane: a.Pane, Session: a.Session, Model: a.Model}
+}
+
 func (a *App) view(args []string) error { return runTUI(a, args) }
 func (a *App) mcp() error               { return a.serveMCP() }
 func (a *App) shell() *ocli.Shell {
 	sh := ocli.New(a.r, "o-questions", a.in, a.out, a.errOut)
 	sh.Version = version
+	actor := frameworkActor(a.store.Actor)
+	sh.Actor = &actor
 	sh.Prepare = func(context.Context) error { a.configure(); return nil }
 	sh.Reveal = func(target string) error {
 		q, e := a.store.Resolve(target, a.newestFirst())
@@ -151,6 +162,17 @@ func (a *App) configure() {
 	a.store.BackupKeep = s.Int("backup.keep")
 	a.store.ReviewActions = s.Strings("review.actions")
 	a.store.ReviewAsk = s.Bool("review.ask")
+	a.store.Permit = func(action string) error {
+		op, ok := a.r.Operation("question." + action)
+		if !ok {
+			return nil
+		}
+		right := a.r.AgentRight(op, false)
+		if right.Right != ochazuke.AgentAllow {
+			return &RefusedError{action, right.Rule}
+		}
+		return nil
+	}
 	// Kinds missing from a customised table keep their default status.
 	table := map[string]string{}
 	for k, v := range entryStatuses {
@@ -178,26 +200,26 @@ func (a *App) specs() []verbSpec {
 		{"follow-up", "Append the owner's follow-up", map[string]ochazuke.Parameter{"target": target, "text": prose("Verbatim follow-up")}, []string{"target", "text"}, false},
 		{"correct", "Append a correction, preserving old words", map[string]ochazuke.Parameter{"target": target, "text": prose("Correction"), "replaces": param("Entry corrected")}, []string{"target", "text"}, false},
 		{"annotate", "Add associations, tags, links or a title", map[string]ochazuke.Parameter{"target": target, "tags": arr, "links": arr, "project": param("Project ID"), "task": param("Task ID"), "title": param("Title")}, []string{"target"}, false},
-		{"status", "Set an explicit, sticky status (owner)", map[string]ochazuke.Parameter{"target": target, "status": {Type: "string", Required: true, Description: "New status", Enum: statuses}}, []string{"target", "status"}, false},
+		{"status", "Set an explicit, sticky status", map[string]ochazuke.Parameter{"target": target, "status": {Type: "string", Required: true, Description: "New status", Enum: statuses}}, []string{"target", "status"}, false},
 		{"rename", "Change the title", map[string]ochazuke.Parameter{"target": target, "title": prose("New title")}, []string{"target", "title"}, false},
-		{"edit", "Change the owner's question, retaining undo (owner)", map[string]ochazuke.Parameter{"target": target, "text": prose("Question text")}, []string{"target", "text"}, false},
+		{"edit", "Change the owner's question, retaining undo", map[string]ochazuke.Parameter{"target": target, "text": prose("Question text")}, []string{"target", "text"}, false},
 		{"copy", "Return question, latest answer or thread", map[string]ochazuke.Parameter{"target": target, "part": {Type: "string", Enum: []string{"question", "answer", "thread"}}, "yank": {Type: "boolean"}}, []string{"target"}, false},
 		{"tag", "Append a tag", map[string]ochazuke.Parameter{"target": target, "tag": required("Tag")}, []string{"target", "tag"}, false},
-		{"untag", "Remove a tag (owner)", map[string]ochazuke.Parameter{"target": target, "tag": required("Tag")}, []string{"target", "tag"}, false},
+		{"untag", "Remove a tag", map[string]ochazuke.Parameter{"target": target, "tag": required("Tag")}, []string{"target", "tag"}, false},
 		{"link", "Append a link", map[string]ochazuke.Parameter{"target": target, "link": required("URL or file")}, []string{"target", "link"}, false},
-		{"unlink", "Remove a link (owner)", map[string]ochazuke.Parameter{"target": target, "link": required("URL or file")}, []string{"target", "link"}, false},
+		{"unlink", "Remove a link", map[string]ochazuke.Parameter{"target": target, "link": required("URL or file")}, []string{"target", "link"}, false},
 		{"associate", "Associate with a project or task", map[string]ochazuke.Parameter{"target": target, "project": param("Project ID"), "task": param("Task ID")}, []string{"target", "project"}, false},
 		{"open", "Open a link or source transcript", map[string]ochazuke.Parameter{"target": target, "link": param("Link target; required when several")}, []string{"target", "link"}, false},
-		{"split", "Split a thread entry into a child question (owner)", map[string]ochazuke.Parameter{"target": target, "entry": required("Entry ID")}, []string{"target", "entry"}, false},
-		{"merge", "Merge another question here (owner)", map[string]ochazuke.Parameter{"target": target, "other": required("Other question")}, []string{"target", "other"}, false},
+		{"split", "Split a thread entry into a child question", map[string]ochazuke.Parameter{"target": target, "entry": required("Entry ID")}, []string{"target", "entry"}, false},
+		{"merge", "Merge another question here", map[string]ochazuke.Parameter{"target": target, "other": required("Other question")}, []string{"target", "other"}, false},
 		{"backup", "Write a private tar.gz backup", map[string]ochazuke.Parameter{"to": param("Destination directory")}, nil, false},
-		{"restore", "Restore a backup, preserving undo (owner)", map[string]ochazuke.Parameter{"file": required("Backup tar.gz")}, []string{"file"}, false},
+		{"restore", "Restore an archived question (--target) or a backup (FILE), preserving undo", map[string]ochazuke.Parameter{"target": target, "file": param("Backup tar.gz; omit when restoring a question with --target")}, []string{"file"}, false},
 	}
-	for _, v := range []struct{ name, desc string }{{"reopen", "Explicitly reopen (owner)"}, {"moot", "Mark moot (owner)"}, {"delete", "Hide, preserving history (owner)"}, {"star", "Toggle star"}, {"unstar", "Remove star"}, {"path", "Record path or store directory"}, {"check", "Check wording against source transcript (owner)"}} {
+	for _, v := range []struct{ name, desc string }{{"reopen", "Explicitly reopen"}, {"moot", "Mark moot"}, {"delete", "Hide, preserving history; agents use question.archive"}, {"archive", "Archive a question, retaining its text and history; restore --target brings it back"}, {"star", "Toggle star"}, {"unstar", "Remove star"}, {"path", "Record path or store directory"}, {"check", "Check wording against source transcript"}} {
 		out = append(out, verbSpec{v.name, v.desc, map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false})
 	}
 	out = append(out, a.reviewSpecs()...)
-	out = append(out, verbSpec{"undo", "Undo the last store change (owner)", nil, nil, false}, verbSpec{"history", "Show store change history", nil, nil, false})
+	out = append(out, verbSpec{"undo", "Undo the last store change", nil, nil, false}, verbSpec{"history", "Show store change history", nil, nil, false})
 	for _, name := range []string{"add", "new"} {
 		out = append(out, verbSpec{name, "Alias of ask", ask, []string{"question"}, false})
 	}
@@ -267,9 +289,18 @@ func (a *App) handle(verb string, c ochazuke.Ctx) ochazuke.Result {
 		v, e := a.store.Backup(str("to"))
 		return result(v, e)
 	case "restore":
-		e := a.store.Restore(str("file"))
+		if file := str("file"); file != "" {
+			e := a.store.Restore(file)
+			a.refresh()
+			return result(nil, e)
+		}
+		q, e := a.target(c)
+		if e != nil {
+			return result(nil, e)
+		}
+		q, e = a.store.Change("restore", q.ID, Change{})
 		a.refresh()
-		return result(nil, e)
+		return result(q, e)
 	case "path":
 		if str("target") == "" && c.Instance == nil {
 			return result(a.store.Dir, nil)
@@ -303,11 +334,8 @@ func (a *App) handle(verb string, c ochazuke.Ctx) ochazuke.Result {
 		if e = decodeArgs(c.Args, &ann); e != nil {
 			return result(nil, e)
 		}
-		// Tags and entry append are one transaction so invalid annotations lose no answer.
 		v, e := a.store.mutate(mapAction(kind), q.ID, func(q *Question, _ *[]Question) error {
-			if e := a.store.annotate(q, Annotation{Tags: ann.Tags}); e != nil {
-				return e
-			}
+			annotate(q, Annotation{Tags: ann.Tags})
 			en := Entry{Kind: kind, Text: text, Summary: str("summary"), Replaces: str("replaces"), Links: ann.Links}
 			act := a.store.Actor
 			if str("model") != "" {
@@ -421,7 +449,7 @@ func age(at, now time.Time) string {
 	return fmt.Sprintf("%dd", int(d.Hours()/24))
 }
 func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
-	qs, e := a.store.List()
+	qs, e := a.store.records(!a.r.Settings().Bool("list.hide-archived"))
 	if e != nil {
 		return nil, e
 	}
@@ -462,7 +490,13 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 	filter := strings.ToLower(get("filter", ""))
 	pane := get("pane", "")
 	session := get("agent_session", "")
-	for i, q := range qs {
+	number := 0
+	for _, q := range qs {
+		cellNumber := "-"
+		if !q.Deleted {
+			number++
+			cellNumber = strconv.Itoa(number)
+		}
 		if dir := q.Direction; direction == toAgent && dir == toOwner || direction == toOwner && dir != toOwner {
 			continue
 		}
@@ -503,7 +537,7 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		if q.Starred {
 			label = "★ " + label
 		}
-		out = append(out, ocli.Row{Noun: "question", ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{strconv.Itoa(i + 1), q.Status, label, q.Project.ID, q.RecordedBy.Harness, age(q.AskedAt, a.store.now()), strconv.Itoa(count), search}})
+		out = append(out, ocli.Row{Noun: "question", ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{cellNumber, q.Status, label, q.Project.ID, q.RecordedBy.Harness, age(q.AskedAt, a.store.now()), strconv.Itoa(count), search}})
 	}
 	limit := 0
 	switch v := args["limit"].(type) {

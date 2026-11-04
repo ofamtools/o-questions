@@ -47,10 +47,12 @@ the complete list, including when a view is filtered. Machine consumers can use
 CLI identity uses `O_QUESTIONS_ACTOR` (or an inherited `MTM_ACTOR`), otherwise
 harness environment variables identify an agent, otherwise owner. An explicit
 actor is a trusted CLI declaration, not an authentication boundary. Agents may
-ask, append answers/follow-ups/notes/corrections, add tags/links and fill missing
-project/task associations. They can suggest a title until the owner renames it.
-Only the owner may edit the question, change status explicitly, remove metadata,
-star, hide, undo, merge, split or restore. Refusals name the rule and owner.
+read and write, including editing wording, changing status, replacing titles or
+associations, removing metadata, undo, merge, split, restore and review decisions.
+`question.delete` declares agent-never; use `question.archive` instead.
+The catalog and direct-store policy share the same declaration data. The CLI
+binds the store's identity into the shared rights gate, and owner
+`agents.rights` rows may override its defaults. Every mutation retains attribution.
 
 Records live under `$XDG_DATA_HOME/o-questions` (default
 `~/.local/share/o-questions`); `--data` overrides this. Directories use 0700 and
@@ -59,7 +61,15 @@ write-ahead journal recover interrupted multi-record writes. `.history` holds
 full undo snapshots, including creation. Hidden records retain their bytes and
 idempotency keys, so retrying a hidden question does not recreate it.
 
-Entry statuses come from the `status.from-entry` setting. Explicit owner statuses
+`question archive TARGET` hides the question without losing its text or history.
+`question restore --target ID` restores it; `restore FILE` keeps its existing
+backup meaning. Both operations are repeatable and undoable. The Review aliases
+share these handlers. Archived questions remain addressable by ID or title.
+`list.hide-archived` defaults to true; false includes archived Questions rows.
+Archived rows show `-` instead of a positional number, so live numbers remain
+stable. Use a stable ID or title for an archived record.
+
+Entry statuses come from the `status.from-entry` setting. Explicit statuses
 stick across new entries. Entries over `entry.max-bytes` are linked private files;
 show/copy and search hydrate their full text. Daily backups run before the first
 write of each UTC day. `backup --to DIR` writes a manual tar.gz;
@@ -107,7 +117,8 @@ import, installation and owner config registration are separate work.
 `o questions --data DIR mcp` serves newline-delimited JSON-RPC over stdin/stdout.
 The owner-question tools are `q_ask`, `q_answer`, `q_note`, `q_annotate`, `q_list`, `q_show`;
 the review tools (questions for the owner) are `q_pose`, `q_queue`, `q_decisions`,
-`q_reply`, `q_applied`, `q_import`. Deciding is the owner's and has no tool.
+`q_reply`, `q_applied`, `q_import`. The curated MCP tools still omit decisions;
+the CLI and mounted catalog permit them as attributed writes.
 `q_ask` requires `question` (verbatim); passing the same `key` returns the existing
 record with `existed: true`. `q_answer` requires `target` and `answer`. `q_note`
 requires `target` and `text`, accepts kind `note` or `correction`, and an optional
@@ -118,10 +129,11 @@ optional text/status/project/pane/agent_session/since/limit filters.
 `tags` is an array of strings. `links` is an array of objects with required
 `target` and optional `kind` and `label` strings. Schemas come from the app's
 verb specs; discovery and dispatch use the same allowlist. Unknown
-fields, wrong types and owner-only tools are refused. The server always stamps
-writes as an agent, retaining inherited harness/pane/session/model provenance
-and using the initialize client's name as a fallback. It never edits owner words,
-deletes or marks a question moot. Registration in the owner's harness is Q6.
+fields, wrong types and tools outside that allowlist are refused. The server
+always stamps writes as an agent, retaining inherited harness/pane/session/model
+provenance and using the initialize client's name as a fallback. Its curated
+tools do not expose delete or direct wording/status edits. Registration in the
+owner's harness is Q6.
 
 ## Page and keys
 
@@ -185,8 +197,8 @@ details or recommendation changed is flagged `context_changed` until the owner
 touches it. Asking appends the owner's question to the thread (`follow-up`
 entry, status follow-up); the agent's `reply` (a `reply` entry) clears the ask,
 flags `new_reply` and may replace the recommendation. `applied ... done` locks
-the item; `failed` leaves it open. Agents may pose, reply and record results;
-deciding is refused for agents.
+the item; `failed` leaves it open. Agents may pose, reply, record results and
+decide through the CLI/catalog, with actor-attributed history.
 
 `question import` ports `owner_questions.py`'s rules to Go (same sections,
 recommendation markers, answered detection, groups, titles and `oq-` ids), so

@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,10 +28,16 @@ func TestPoseDecideReplyCarryExport(t *testing.T) {
 		t.Fatal(posed, e)
 	}
 	id := posed.Question.ID
-	// Agents never decide for the owner.
-	var refused *RefusedError
-	if _, e = ag.Decide(id, Decision{Accept: true}); !errors.As(e, &refused) {
-		t.Fatal("agent decided", e)
+	// Decisions are ordinary attributed writes, including an agent's write.
+	if _, e = ag.Decide(id, Decision{Accept: true}); e != nil {
+		t.Fatal("agent decision refused", e)
+	}
+	history, e := s.History()
+	if e != nil || history[len(history)-1].By != ag.Actor {
+		t.Fatal(history, e)
+	}
+	if e = ag.Undo(); e != nil {
+		t.Fatal(e)
 	}
 	x, _ := s.Decisions("", false)
 	if len(x.Undecided) != 1 || len(x.Items) != 0 {

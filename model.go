@@ -60,7 +60,6 @@ type Question struct {
 	Deleted        bool      `json:"deleted,omitempty"`
 	Key            string    `json:"key"`
 	Entries        []Entry   `json:"entries"`
-	OwnerRenamed   bool      `json:"owner_renamed,omitempty"`
 	Direction      string    `json:"direction,omitempty"`
 	Review         *Review   `json:"review,omitempty"`
 }

@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"ofam.dev/ochazuke"
 )
 
-// Actor, AgentPolicy and RefusedError adapt matomeru/internal/work/actor.go.
+// Actor and RefusedError adapt matomeru/internal/work/actor.go.
 // Entry points choose identity once; the store enforces policy for every write.
 type Actor struct {
 	Kind    string `json:"kind"`
@@ -20,9 +22,8 @@ type Actor struct {
 
 func Owner() Actor { return Actor{Kind: "owner"} }
 
-type AgentPolicy map[string]bool
-
-var agentPolicy = AgentPolicy{"ask": true, "answer": true, "follow-up": true, "note": true, "correct": true, "annotate": true, "tag": true, "link": true, "associate": true, "rename": true, "pose": true, "reply": true, "apply": true}
+// Undeclared writes are open; these declarations also feed the catalog.
+var agentPolicy = map[string]string{"delete": ochazuke.AgentNever}
 
 type RefusedError struct{ Action, Rule string }
 
@@ -65,18 +66,18 @@ func cliActor(env func(string) string) (Actor, error) {
 	}
 	return a, nil
 }
-func (s *Store) permit(action string, q Question) error {
+func (s *Store) permit(action string, _ Question) error {
 	if s.Actor.Kind == "owner" {
 		return nil
 	}
 	if s.Actor.Kind != "agent" {
 		return &RefusedError{action, "actor.unknown"}
 	}
-	if !agentPolicy[action] {
-		return &RefusedError{action, "agents.append-only"}
+	if s.Permit != nil {
+		return s.Permit(action)
 	}
-	if action == "rename" && q.OwnerRenamed {
-		return &RefusedError{action, "title.owner-renamed"}
+	if agentPolicy[action] == ochazuke.AgentNever {
+		return &RefusedError{action, "verb declaration"}
 	}
 	return nil
 }

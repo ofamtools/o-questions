@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Open agent writes, replacing the append-only allowlist and owner-title/association restrictions while keeping history attribution. Declare `question.delete` agent-never, add `question.archive` through the retained soft-delete handler and restore archived questions with `question restore --target ID`; existing `restore FILE` still restores backups. Review aliases share archive/restore. `list.hide-archived` defaults to true and opts out of hiding in Questions rows. Undo snapshots record the undoing actor.
+
 - Questions and Review expose scalar project, agent, direction, pane and session
   props to the shared filter form in standalone and catalog hosts. Legacy owner
   questions filter as `to-agent`; project records and existing actions, list

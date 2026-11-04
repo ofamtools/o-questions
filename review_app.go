@@ -320,7 +320,7 @@ const reviewNoun = "review"
 var verbHomes = map[string][2]string{"queue": {reviewNoun, "list"}}
 
 // reviewAliases are the question verbs also named review.VERB.
-var reviewAliases = map[string]string{"decide": "decide", "accept": "accept", "undecide": "undecide", "ask-back": "ask-back", "decision-note": "decision-note", "reply": "reply", "applied": "applied", "show": "show", "copy": "copy", "tag": "tag", "untag": "untag", "link": "link", "open": "open", "star": "star", "unstar": "unstar", "delete": "delete", "path": "path", "associate": "associate", "rename": "rename", "undo": "undo"}
+var reviewAliases = map[string]string{"decide": "decide", "accept": "accept", "undecide": "undecide", "ask-back": "ask-back", "decision-note": "decision-note", "reply": "reply", "applied": "applied", "show": "show", "copy": "copy", "tag": "tag", "untag": "untag", "link": "link", "open": "open", "star": "star", "unstar": "unstar", "delete": "delete", "archive": "archive", "restore": "restore", "path": "path", "associate": "associate", "rename": "rename", "undo": "undo"}
 
 var reviewColumns = []ochazuke.Column{{Title: "Decision", Width: 12}, {Title: "Question", Min: 18}, {Title: "Agent", Max: 15, Priority: 1}, {Title: "Age", Width: 7, Priority: 2}, {Title: "Replies", Width: 7, Priority: 2}}
 

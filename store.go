@@ -20,6 +20,7 @@ type Store struct {
 	Dir             string
 	Now             func() time.Time
 	Actor           Actor
+	Permit          func(string) error
 	MaxBytes        int
 	StatusFromEntry map[string]string
 	BackupDaily     bool
@@ -110,7 +111,9 @@ func (s *Store) hydrate(q *Question) error {
 	}
 	return nil
 }
-func (s *Store) List() (rows []Question, err error) {
+func (s *Store) List() ([]Question, error) { return s.records(false) }
+
+func (s *Store) records(includeArchived bool) (rows []Question, err error) {
 	err = s.locked(func() error {
 		all, e := s.all()
 		if e != nil {
@@ -118,7 +121,7 @@ func (s *Store) List() (rows []Question, err error) {
 		}
 		rows = []Question{}
 		for _, q := range all {
-			if !q.Deleted {
+			if includeArchived || !q.Deleted {
 				if e = s.hydrate(&q); e != nil {
 					return e
 				}
@@ -149,8 +152,14 @@ func resolve(rows []Question, target string) (Question, error) {
 		return Question{}, fmt.Errorf("ambiguous question title %q (%d matches)", target, len(named))
 	}
 	if n, e := strconv.Atoi(target); e == nil {
-		if n > 0 && n <= len(rows) {
-			return rows[n-1], nil
+		for _, q := range rows {
+			if q.Deleted {
+				continue
+			}
+			n--
+			if n == 0 {
+				return q, nil
+			}
 		}
 		return Question{}, fmt.Errorf("question number %s not found", target)
 	}
@@ -169,7 +178,7 @@ func resolve(rows []Question, target string) (Question, error) {
 	return Question{}, fmt.Errorf("question %q not found", target)
 }
 func (s *Store) Resolve(target string, newest bool) (Question, error) {
-	rows, e := s.List()
+	rows, e := s.records(true)
 	if e != nil {
 		return Question{}, e
 	}
@@ -188,11 +197,12 @@ func (s *Store) apply(rows []Question) error {
 }
 
 type Snapshot struct {
-	Rows   []Question `json:"rows"`
-	At     time.Time  `json:"at"`
-	Action string     `json:"action"`
-	By     Actor      `json:"by"`
-	Undone bool       `json:"undone"`
+	Rows     []Question `json:"rows"`
+	At       time.Time  `json:"at"`
+	Action   string     `json:"action"`
+	By       Actor      `json:"by"`
+	Undone   bool       `json:"undone"`
+	UndoneBy *Actor     `json:"undone_by,omitempty"`
 }
 
 func (s *Store) history() ([]string, error) {
@@ -241,13 +251,7 @@ func (s *Store) mutate(action, target string, fn func(*Question, *[]Question) er
 			return e
 		}
 		before := clone(rows)
-		visible := []Question{}
-		for _, q := range rows {
-			if !q.Deleted {
-				visible = append(visible, q)
-			}
-		}
-		q, e = resolve(visible, target)
+		q, e = resolve(rows, target)
 		if e != nil {
 			return e
 		}
@@ -460,6 +464,7 @@ func (s *Store) Undo() (err error) {
 				return e
 			}
 			snap.Undone = true
+			snap.UndoneBy = &s.Actor
 			return atomicJSON(files[i], snap)
 		}
 		return errors.New("nothing to undo")

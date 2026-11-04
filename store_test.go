@@ -73,34 +73,48 @@ func TestStoreRights(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	s.Actor = Actor{Kind: "agent", Harness: "test"}
-	for _, action := range []string{"moot", "delete", "undo", "status", "edit", "merge", "split", "star", "untag"} {
-		var e error
-		if action == "undo" {
-			e = s.Undo()
-		} else {
-			_, e = s.Change(action, q.ID, Change{})
-		}
-		var refused *RefusedError
-		if !errors.As(e, &refused) {
-			t.Fatalf("%s: %v", action, e)
-		}
-	}
-	if _, e = s.Annotate(q.ID, Annotation{Title: "overwrite"}); e == nil {
-		t.Fatal("agent renamed owner's title")
-	}
-	if _, e = s.Annotate(q.ID, Annotation{Project: "p", Tags: []string{"tag"}}); e != nil {
+	actor := Actor{Kind: "agent", Name: "writer", Harness: "test", Pane: "pane", Session: "session", Model: "model"}
+	s.Actor = actor
+	if _, e = s.Annotate(q.ID, Annotation{Title: "Agent title", Project: "p", Task: "task", Tags: []string{"tag"}}); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.Annotate(q.ID, Annotation{Project: "other"}); e == nil {
-		t.Fatal("agent reassociated")
+	if _, e = s.Annotate(q.ID, Annotation{Project: "other", Task: "other-task"}); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.Change("edit", q.ID, Change{Value: "Amended question?"}); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.Change("moot", q.ID, Change{}); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.Change("untag", q.ID, Change{Value: "tag"}); e != nil {
+		t.Fatal(e)
 	}
 	if _, e = s.Append(q.ID, Entry{Kind: "answer", Text: "Agent answer"}); e != nil {
 		t.Fatal(e)
 	}
 	q, e = s.Resolve(q.ID, false)
-	if e != nil || q.Text != "Question?" || q.Entries[0].By.Harness != "test" {
+	if e != nil || q.Title != "Agent title" || q.Text != "Amended question?" || q.Project.ID != "other" || q.Task != "other-task" || q.Status != "moot" || len(q.Tags) != 0 || q.Entries[0].By != actor {
 		t.Fatal(q, e)
+	}
+	history, e := s.History()
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, snapshot := range history[2:] {
+		if snapshot.By != actor {
+			t.Fatalf("lost write attribution: %+v", snapshot)
+		}
+	}
+	if _, e = s.Change("delete", q.ID, Change{}); e == nil {
+		t.Fatal("agent deleted the question")
+	}
+	if e = s.Undo(); e != nil {
+		t.Fatal(e)
+	}
+	history, e = s.History()
+	if e != nil || history[len(history)-1].UndoneBy == nil || *history[len(history)-1].UndoneBy != actor {
+		t.Fatal(history, e)
 	}
 }
 func TestStoreIdempotencyConcurrency(t *testing.T) {
@@ -259,8 +273,8 @@ func TestCLIQuestion(t *testing.T) {
 	run("undo")
 	run("list")
 	t.Setenv("O_QUESTIONS_ACTOR", "agent")
-	if e := Main([]string{"--data", s.Dir, "moot", rec.Question.ID}, strings.NewReader(""), &out, &out); e == nil {
-		t.Fatal("agent CLI moot succeeded")
+	if e := Main([]string{"--data", s.Dir, "moot", rec.Question.ID}, strings.NewReader(""), &out, &out); e != nil {
+		t.Fatal("agent CLI moot refused", e)
 	}
 }
 

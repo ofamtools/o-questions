@@ -41,18 +41,7 @@ func addUnique[T comparable](old, more []T) []T {
 	}
 	return old
 }
-func (s *Store) annotate(q *Question, a Annotation) error {
-	if s.Actor.Kind != "owner" {
-		if a.Project != "" && q.Project.ID != "" && q.Project.ID != a.Project {
-			return &RefusedError{"associate", "project.already-associated"}
-		}
-		if a.Task != "" && q.Task != "" && q.Task != a.Task {
-			return &RefusedError{"associate", "task.already-associated"}
-		}
-		if a.Title != "" && a.Title != q.Title && q.OwnerRenamed {
-			return &RefusedError{"rename", "title.owner-renamed"}
-		}
-	}
+func annotate(q *Question, a Annotation) {
 	q.Tags = addUnique(q.Tags, a.Tags)
 	q.Links = addUnique(q.Links, a.Links)
 	if a.Project != "" {
@@ -63,14 +52,13 @@ func (s *Store) annotate(q *Question, a Annotation) error {
 	}
 	if a.Title != "" {
 		q.Title = a.Title
-		if s.Actor.Kind == "owner" {
-			q.OwnerRenamed = true
-		}
 	}
-	return nil
 }
 func (s *Store) Annotate(target string, a Annotation) (Question, error) {
-	return s.mutate("annotate", target, func(q *Question, _ *[]Question) error { return s.annotate(q, a) })
+	return s.mutate("annotate", target, func(q *Question, _ *[]Question) error {
+		annotate(q, a)
+		return nil
+	})
 }
 
 type Change struct {
@@ -84,7 +72,7 @@ func (s *Store) Change(action, target string, c Change) (Question, error) {
 	return s.mutate(action, target, func(q *Question, rows *[]Question) error {
 		switch action {
 		case "annotate", "associate", "tag", "link", "rename":
-			return s.annotate(q, c.Annotation)
+			annotate(q, c.Annotation)
 		case "untag":
 			q.Tags = slices.DeleteFunc(q.Tags, func(v string) bool { return v == c.Value })
 		case "unlink":
@@ -93,8 +81,10 @@ func (s *Store) Change(action, target string, c Change) (Question, error) {
 			q.Starred = !q.Starred
 		case "unstar":
 			q.Starred = false
-		case "delete":
+		case "delete", "archive":
 			q.Deleted = true
+		case "restore":
+			q.Deleted = false
 		case "edit":
 			if strings.TrimSpace(c.Value) == "" {
 				return errors.New("question must not be empty")

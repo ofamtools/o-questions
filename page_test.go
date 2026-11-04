@@ -493,3 +493,30 @@ func TestPageEmptyCreateAndOptOut(t *testing.T) {
 		t.Fatal("thread opt-out ignored")
 	}
 }
+
+func TestThreadViewCLI(t *testing.T) {
+	for _, noun := range []string{"question", "review"} {
+		t.Run(noun, func(t *testing.T) {
+			s := fixture(t)
+			q := ask(t, s, "Which path keeps the complete answer?")
+			if _, err := s.Append(q.ID, Entry{Kind: "answer", Text: "Use the readable thread.\nKeep both lines."}); err != nil {
+				t.Fatal(err)
+			}
+			var out, errOut bytes.Buffer
+			a, err := newApp(s, strings.NewReader(""), &out, &errOut)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := dispatch(a, []string{noun, "view", "--target", q.ID, "--json", "{}"}); err != nil {
+				t.Fatalf("%v: %s", err, &errOut)
+			}
+			var text string
+			if err := json.Unmarshal(out.Bytes(), &text); err != nil {
+				t.Fatal(err, out.String())
+			}
+			if !strings.Contains(text, "## answer\n\nUse the readable thread.\nKeep both lines.") {
+				t.Fatal(text)
+			}
+		})
+	}
+}

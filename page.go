@@ -55,10 +55,10 @@ func registerQuestionUI(a *App) {
 		key, verb string
 		args      ochazuke.Arguments
 	}{
-		{"v", "show", nil}, {"enter", "show", nil}, {"c", "ask", nil}, {"a", "answer", nil}, {"f", "follow-up", nil}, {"s", "status", nil}, {"y", "copy", ochazuke.Arguments{"yank": true}}, {"e", "edit", nil}, {"r", "rename", nil}, {"m", "associate", nil}, {"t", "tag", nil}, {"g x", "open", nil}, {"d d", "delete", nil}, {"u", "undo", nil},
+		{"v", "view", nil}, {"enter", "view", nil}, {"c", "ask", nil}, {"a", "answer", nil}, {"f", "follow-up", nil}, {"s", "status", nil}, {"y", "copy", ochazuke.Arguments{"yank": true}}, {"e", "edit", nil}, {"r", "rename", nil}, {"m", "associate", nil}, {"t", "tag", nil}, {"g x", "open", nil}, {"d d", "delete", nil}, {"u", "undo", nil},
 	} {
 		row := ochazuke.Do("question."+v.verb, v.args)
-		if v.verb == "show" {
+		if v.verb == "view" {
 			row = row.Guard("question-thread-enabled")
 		}
 		b.Bind(v.key, row)

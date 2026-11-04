@@ -2,7 +2,7 @@
 
 | File | Owns |
 | --- | --- |
-| main.go | Global data override, oden command dispatch, ochazuke shell mount |
+| main.go | Global data override, oden command dispatch, readable question/review CLI views, ochazuke shell mount |
 | model.go | Question, entry, source, links and thread projection |
 | actor.go | Entry-point identities and the single store rights policy |
 | atomic.go | Reused slug/token and atomic-file helpers |
@@ -11,7 +11,7 @@
 | backup.go | Daily/manual archives, retention, validated undoable restore |
 | check.go | Explicit wording check against transcript user records |
 | settings.go | Settings, defaults and validation |
-| app.go | Shared verb specs/handlers, rows, search projection |
+| app.go | Shared verb specs/handlers, readable thread result, rows, search projection |
 | mcp.go | Tool allowlist, schemas and JSON-RPC stdio lifecycle |
 | page.go | Shared catalog detail Sections, legacy preview kind, binding rows |
 | tui.go | Standalone mount, refresh and smoke frame |

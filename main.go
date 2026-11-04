@@ -89,8 +89,13 @@ func dispatch(a *App, args []string) error {
 		children = append(children, oden.Command{Name: v.name, Summary: v.description, Run: run})
 		app.Add(oden.Command{Name: v.name, Summary: v.description, Run: run})
 	}
+	children = append(children, oden.Command{Name: "view", Summary: "Read the complete thread", Run: func(ctx context.Context, words []string) error {
+		return sh.Run(ctx, append([]string{"question", "view"}, words...))
+	}})
 	app.Add(oden.Command{Name: "question", Aliases: []string{"q"}, Summary: "Record and review questions", Children: children})
-	app.Add(oden.Command{Name: "review", Summary: "Review questions for the owner (--web: mgmt's browser page)", Run: func(_ context.Context, args []string) error { return a.reviewCommand(args) }})
+	app.Add(oden.Command{Name: "review", Summary: "Review questions for the owner (--web: mgmt's browser page)", Children: []oden.Command{{Name: "view", Summary: "Read the complete thread", Run: func(ctx context.Context, words []string) error {
+		return sh.Run(ctx, append([]string{"review", "view"}, words...))
+	}}}, Run: func(_ context.Context, args []string) error { return a.reviewCommand(args) }})
 	app.Add(oden.Command{Name: "view", Summary: "Questions page", Run: func(_ context.Context, args []string) error { return a.view(args) }})
 	app.Add(oden.Command{Name: "mcp", Summary: "Agent tools over stdio", Run: func(_ context.Context, args []string) error {
 		if len(args) > 0 {

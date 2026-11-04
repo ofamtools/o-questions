@@ -81,6 +81,12 @@ content width at which metadata moves from below the discussion to its right.
 `list.refresh=0` opt out of their UI behaviors. The old `detail.answer-lines`
 setting remains registered for compatibility but is deprecated: Sections always
 show the complete discussion, regardless of its value.
+`question.view` and its `review.view` alias return the complete thread as
+declared Markdown to a catalog host. Enter and `v` use this readable result;
+standalone they keep the existing thread modal. `question.show` still returns
+the structured record. `view.thread=false` disables the viewer and publishes
+that state in the catalog; refresh a host's catalog after changing it.
+
 Hook and HTML settings are reserved for the separate Q4/Q5 lanes.
 
 `z /` opens ochazuke's prop filter form on Questions and Review, in the

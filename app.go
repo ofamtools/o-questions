@@ -79,6 +79,20 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 		op.Parameters = v.params
 		a.r.Operations[op.Key()] = op
 	}
+	a.r.Define("question").Verb("view", func(c ochazuke.Ctx) ochazuke.Result {
+		q, err := a.target(c)
+		if err != nil {
+			return result(nil, err)
+		}
+		if a.tui && a.showThread != nil {
+			return result(nil, a.showThread(q))
+		}
+		return ochazuke.Done(thread(q, a.r.Settings().Bool("detail.provenance")))
+	}, "Read the complete thread").MarkdownResult().AliasOn(reviewNoun, "view").Positional("target")
+	view := a.r.Operations["question.view"]
+	view.Parameters = map[string]ochazuke.Parameter{"target": {Type: "string", Noun: "question", Description: "Question title, number or ID prefix; defaults to the selected row"}}
+	view.EnabledSetting = "view.thread"
+	a.r.Operations[view.Key()] = view
 	a.r.EnsureConfigSettings()
 	a.declareFilterProps()
 	a.r.Define("question").Columns(columns...)

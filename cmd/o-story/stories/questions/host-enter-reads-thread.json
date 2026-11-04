@@ -1,0 +1,40 @@
+{
+  "name": "host-enter-reads-thread",
+  "host": true,
+  "page": "questions",
+  "questions": [
+    {
+      "question": "Full owner wording?",
+      "title": "Readable thread",
+      "answer": "Complete retained answer",
+      "note": "Full retained note"
+    }
+  ],
+  "script": [
+    "enter",
+    "q",
+    "v"
+  ],
+  "expect": [
+    {
+      "after": 1,
+      "modal": true,
+      "contains": [
+        "Full owner wording?",
+        "Complete retained answer",
+        "Full retained note"
+      ]
+    },
+    {
+      "after": 2,
+      "modal": false
+    },
+    {
+      "after": 3,
+      "modal": true,
+      "contains": [
+        "Complete retained answer"
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@
   "name": "questions/prop-filter-project",
   "host": false,
   "settings": {
+    "list.filter-layout": "fields",
     "list.props-off": [
       "question.id",
       "question.key",

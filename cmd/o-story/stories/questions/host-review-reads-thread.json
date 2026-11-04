@@ -1,0 +1,38 @@
+{
+  "name": "host-review-reads-thread",
+  "host": true,
+  "page": "review",
+  "script": [
+    "enter",
+    "q",
+    "v"
+  ],
+  "expect": [
+    {
+      "after": 1,
+      "modal": true,
+      "contains": [
+        "Full owner wording?"
+      ]
+    },
+    {
+      "after": 2,
+      "modal": false
+    },
+    {
+      "after": 3,
+      "modal": true,
+      "contains": [
+        "Full owner wording?"
+      ]
+    }
+  ],
+  "poses": [
+    {
+      "question": "Full owner wording?",
+      "title": "Readable thread",
+      "details": "Complete retained answer",
+      "recommendation": "Full retained note"
+    }
+  ]
+}

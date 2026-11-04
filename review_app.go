@@ -340,8 +340,8 @@ func reviewKeys() []keyRow {
 		keyRow{"n", "review.decision-note", nil},
 		keyRow{"x", "review.undecide", nil},
 		keyRow{"o", "ochazuke.setting.cycle", ochazuke.Arguments{"name": "review.show"}},
-		keyRow{"v", "review.show", nil},
-		keyRow{"enter", "review.show", nil},
+		keyRow{"v", "review.view", nil},
+		keyRow{"enter", "review.view", nil},
 		keyRow{"y", "review.copy", ochazuke.Arguments{"yank": true}},
 		keyRow{"t", "review.tag", nil},
 		keyRow{"g x", "review.open", nil},
@@ -361,7 +361,7 @@ func registerReviewUI(a *App) {
 				row = row.Hide()
 			}
 		}
-		if k.verb == "review.show" {
+		if k.verb == "review.view" {
 			row = row.Guard("question-thread-enabled")
 		}
 		b.Bind(k.key, row)

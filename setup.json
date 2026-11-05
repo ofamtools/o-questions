@@ -2,13 +2,13 @@
   {
     "id": "claude-md",
     "name": "Claude Code instructions note",
-    "description": "Adds the 'Questions for the owner (o-questions)' note to Claude Code's user instructions, between o-questions markers; the rest of the file is untouched.",
+    "description": "Adds the 'Questions (o-questions)' note to Claude Code's user instructions, between o-questions markers; the rest of the file is untouched.",
     "kind": "block",
     "follow": true,
     "path": "${CLAUDE_CONFIG_DIR:-~/.claude}/CLAUDE.md",
     "begin": "<!-- o-questions:begin -->",
     "end": "<!-- o-questions:end -->",
-    "content": "## Questions for the owner (o-questions)\n\nWhen you need a decision from the owner, record it with `questions.question pose` (mtm MCP `run`) or `o-questions question pose`, with your recommendation (`recommendation`, and a stable `key` so posing again keeps the decision). The owner answers on the Review page (`o-questions review`, or `o-questions review --web`). Read decisions with `question decisions`, answer the owner's asks with `question reply`, and after acting on a decision record it with `question applied`. Do not ask for decisions in chat when o-questions is available.",
+    "content": "## Questions (o-questions)\n\nRecord and read questions only through mtm: the mtm MCP gateway (`run` with `questions.question ...`) or, without MCP, the mtm CLI (`mtm questions question ...`). Do not call the `o-questions` binary or another MCP server directly. Never put secrets in a question, answer, tag or link.\n\nThe owner's own questions. When the owner asks you something (they want to know, not to have something done), record it with `questions.question ask` (`mtm questions question ask WORDS`), using the owner's words exactly as typed. After you answer, record the answer with `questions.question answer` (the full answer, or a faithful summary with links to anything longer). Put a follow-up in the same thread with `questions.question follow-up`. Record only questions from the owner's own messages, not from a brief another agent sent you and not your own questions to the owner.\n\nDecisions you need from the owner. Record each with `questions.question pose` (`mtm questions question pose`), with your recommendation (`recommendation`, and a stable `key` so posing again keeps the decision). The owner answers on the Review page. Read decisions with `questions.question decisions`, answer the owner's asks with `questions.question reply`, and after acting on a decision record it with `questions.question applied`. Do not ask for decisions in chat when o-questions is available.",
     "requires": [
       "dir:${CLAUDE_CONFIG_DIR:-~/.claude}"
     ],
@@ -23,7 +23,7 @@
     "path": "~/.codex/AGENTS.md",
     "begin": "<!-- o-questions:begin -->",
     "end": "<!-- o-questions:end -->",
-    "content": "## Questions for the owner (o-questions)\n\nWhen you need a decision from the owner, record it with `questions.question pose` (mtm MCP `run`) or `o-questions question pose`, with your recommendation (`recommendation`, and a stable `key` so posing again keeps the decision). The owner answers on the Review page (`o-questions review`, or `o-questions review --web`). Read decisions with `question decisions`, answer the owner's asks with `question reply`, and after acting on a decision record it with `question applied`. Do not ask for decisions in chat when o-questions is available.",
+    "content": "## Questions (o-questions)\n\nRecord and read questions only through mtm: the mtm MCP gateway (`run` with `questions.question ...`) or, without MCP, the mtm CLI (`mtm questions question ...`). Do not call the `o-questions` binary or another MCP server directly. Never put secrets in a question, answer, tag or link.\n\nThe owner's own questions. When the owner asks you something (they want to know, not to have something done), record it with `questions.question ask` (`mtm questions question ask WORDS`), using the owner's words exactly as typed. After you answer, record the answer with `questions.question answer` (the full answer, or a faithful summary with links to anything longer). Put a follow-up in the same thread with `questions.question follow-up`. Record only questions from the owner's own messages, not from a brief another agent sent you and not your own questions to the owner.\n\nDecisions you need from the owner. Record each with `questions.question pose` (`mtm questions question pose`), with your recommendation (`recommendation`, and a stable `key` so posing again keeps the decision). The owner answers on the Review page. Read decisions with `questions.question decisions`, answer the owner's asks with `questions.question reply`, and after acting on a decision record it with `questions.question applied`. Do not ask for decisions in chat when o-questions is available.",
     "requires": [
       "dir:~/.codex"
     ],

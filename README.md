@@ -234,7 +234,7 @@ Questions page, which keeps showing only the owner's own questions by default.
 
 `o questions setup` adds a managed block to the agents' instruction files
 (`${CLAUDE_CONFIG_DIR:-~/.claude}/CLAUDE.md`, `~/.codex/AGENTS.md`) between
-`<!-- o-questions:begin -->` and `<!-- o-questions:end -->`:
+`<!-- o-questions:begin -->` and `<!-- o-questions:end -->`. The note tells agents to record the owner's questions (`questions.question ask|answer|follow-up`) and pose decisions only through mtm, by MCP `run` or `mtm questions question ...`, never the `o-questions` binary directly:
 
 ```sh
 o questions setup                  # status

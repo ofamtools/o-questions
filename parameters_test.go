@@ -53,13 +53,8 @@ func parameterPage(t *testing.T, host bool) (*page, *Store, *int) {
 			}
 		},
 	})
-	// review is a thing noun in the host (it has a key prop), so the host
-	// generates review.archive and review.delete; the catalog's aliases of the
-	// same names yield to them, which the mount reports as a warning.
-	for _, w := range mounted.Warnings {
-		if !strings.Contains(w, "would shadow the action") {
-			t.Fatal(mounted.Warnings)
-		}
+	if len(mounted.Warnings) != 0 {
+		t.Fatal(mounted.Warnings)
 	}
 	// Hosts import the catalog's noun binding rows separately from pages.
 	for _, row := range doc.Bindings {

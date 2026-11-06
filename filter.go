@@ -13,6 +13,7 @@ import (
 func (a *App) declareFilterProps() {
 	for _, noun := range []string{"question", reviewNoun} {
 		a.r.Define(noun).Props(
+			ochazuke.PropSpec{Name: "id", Key: true, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Record ID"}},
 			ochazuke.PropSpec{Name: "project_id", Aliases: []string{"project"}, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Project ID; empty when unassociated"}},
 			ochazuke.PropSpec{Name: "agent", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Recording harness"}},
 			ochazuke.PropSpec{Name: "direction", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Enum: []string{toAgent, toOwner}, Description: "Who answers the question"}},

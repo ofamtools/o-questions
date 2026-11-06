@@ -21,6 +21,10 @@ func (a *App) declareFilterProps() {
 			ochazuke.PropSpec{Name: "agent_session", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Agent session"}},
 		)
 	}
+	a.r.Define("question").Props(questionStoreProps()...)
+	a.r.Define(reviewNoun).Props(questionStoreProps()[2:]...)
+	a.r.Define("question").Store(a.questionStore())
+	a.r.Define(reviewNoun).Store(a.reviewStore())
 }
 
 // questionRowData preserves the record and exposes the list parameters as

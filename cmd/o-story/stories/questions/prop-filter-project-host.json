@@ -27,7 +27,10 @@
       "question.agent",
       "question.direction",
       "question.pane",
-      "question.agent_session"
+      "question.agent_session",
+      "question.state",
+      "question.archived",
+      "question.tags"
     ]
   },
   "questions": [

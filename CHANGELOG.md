@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The "Questions (o-questions)" setup note is one text for both flows, identical to the owner's global instructions: recording the owner's questions (`ask`, `answer`, `follow-up`) and posing decisions on the Review page (`pose`, `decisions`, `reply`, `applied`).
 - The `claude-md` and `codex-agents` setup note (now "Questions (o-questions)") says to record and read questions only through mtm (MCP `run` with `questions.question ...`, or `mtm questions question ...`), never the `o-questions` binary or another MCP server. It adds the owner's own questions (`ask` with their exact words, `answer`, `follow-up`) beside the decisions text. Markers are unchanged, so `setup install` replaces the old block.
 
 - Open agent writes, replacing the append-only allowlist and owner-title/association restrictions while keeping history attribution. Declare `question.delete` agent-never, add `question.archive` through the retained soft-delete handler and restore archived questions with `question restore --target ID`; existing `restore FILE` still restores backups. Review aliases share archive/restore. `list.hide-archived` defaults to true and opts out of hiding in Questions rows. Undo snapshots record the undoing actor.

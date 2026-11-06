@@ -1,0 +1,172 @@
+# namecheck baseline: file, function, kind, literal, count, reason (tab separated).
+# A row with a reason is a legitimate use that stays. A row without one is debt that may only shrink:
+# NAMECHECK_UPDATE=1 removes rows and lowers counts, never adds them. Adding a row is a reviewed edit.
+actor.go	Store.permit	compare	"agent"	1
+actor.go	Store.permit	compare	"owner"	1
+actor.go	cliActor	compare	"agent"	1
+actor.go	cliActor	compare	"owner"	1
+actor.go	var agentPolicy	table	"delete"	1
+app.go	App.handle	case	"answer"	2
+app.go	App.handle	case	"ask"	1
+app.go	App.handle	case	"backup"	1
+app.go	App.handle	case	"check"	1
+app.go	App.handle	case	"copy"	1
+app.go	App.handle	case	"correct"	1
+app.go	App.handle	case	"follow-up"	1
+app.go	App.handle	case	"history"	1
+app.go	App.handle	case	"list"	1
+app.go	App.handle	case	"note"	1
+app.go	App.handle	case	"open"	1
+app.go	App.handle	case	"path"	2
+app.go	App.handle	case	"question"	1
+app.go	App.handle	case	"restore"	1
+app.go	App.handle	case	"show"	1
+app.go	App.handle	case	"undo"	1
+app.go	App.handle	compare	"add"	1
+app.go	App.handle	compare	"answer"	1
+app.go	App.handle	compare	"correct"	1
+app.go	App.handle	compare	"link"	1
+app.go	App.handle	compare	"new"	1
+app.go	App.handle	compare	"note"	1
+app.go	App.handle	compare	"status"	1
+app.go	App.handle	compare	"tag"	1
+app.go	App.handle	compare	"unlink"	1
+app.go	App.handle	compare	"untag"	1
+app.go	App.handle	cyclo	"-"	46
+app.go	App.rows	compare	"all"	3
+app.go	App.rows	compare	"answer"	1
+app.go	App.rows	cyclo	"-"	38
+app.go	latestAnswer	compare	"answer"	1
+app.go	newApp	compare	"question"	1
+backup.go	Store.Restore	cyclo	"-"	26
+changes.go	Store.Change	case	"annotate"	1
+changes.go	Store.Change	case	"archive"	1
+changes.go	Store.Change	case	"associate"	1
+changes.go	Store.Change	case	"delete"	1
+changes.go	Store.Change	case	"edit"	1
+changes.go	Store.Change	case	"link"	1
+changes.go	Store.Change	case	"merge"	1
+changes.go	Store.Change	case	"moot"	1
+changes.go	Store.Change	case	"rename"	1
+changes.go	Store.Change	case	"reopen"	1
+changes.go	Store.Change	case	"restore"	1
+changes.go	Store.Change	case	"split"	1
+changes.go	Store.Change	case	"star"	1
+changes.go	Store.Change	case	"status"	1
+changes.go	Store.Change	case	"tag"	1
+changes.go	Store.Change	case	"unlink"	1
+changes.go	Store.Change	case	"unstar"	1
+changes.go	Store.Change	case	"untag"	1
+changes.go	Store.Change	compare	"moot"	1
+changes.go	Store.Change	compare	"reopen"	1
+changes.go	Store.Change	cyclo	"-"	30
+check.go	App.check	compare	"text"	1
+editor.go	App.interactive	compare	"associate"	1
+editor.go	App.interactive	compare	"open"	1
+editor.go	App.textEditor	compare	"ask"	2
+editor.go	App.textEditor	compare	"edit"	1
+editor.go	App.textEditor	compare	"rename"	4
+editor.go	var textActions	table	"answer"	1
+editor.go	var textActions	table	"ask"	1
+editor.go	var textActions	table	"edit"	1
+editor.go	var textActions	table	"follow-up"	1
+editor.go	var textActions	table	"rename"	1
+mcp.go	App.callTool	compare	"links"	1
+mcp.go	App.callTool	compare	"owner"	1
+mcp.go	App.callTool	cyclo	"-"	35
+mcp.go	App.tools	compare	"links"	1
+mcp.go	App.tools	compare	"target"	1
+mcp.go	var mcpAllowlist	table	"annotate"	1
+mcp.go	var mcpAllowlist	table	"answer"	1
+mcp.go	var mcpAllowlist	table	"applied"	1
+mcp.go	var mcpAllowlist	table	"ask"	1
+mcp.go	var mcpAllowlist	table	"decisions"	1
+mcp.go	var mcpAllowlist	table	"import"	1
+mcp.go	var mcpAllowlist	table	"list"	1
+mcp.go	var mcpAllowlist	table	"note"	1
+mcp.go	var mcpAllowlist	table	"pose"	1
+mcp.go	var mcpAllowlist	table	"reply"	1
+mcp.go	var mcpAllowlist	table	"show"	1
+model.go	var entryStatuses	table	"answer"	1
+model.go	var entryStatuses	table	"follow-up"	1
+model.go	var entryStatuses	table	"note"	1
+model.go	var entryStatuses	table	"question"	1
+model.go	var entryStatuses	table	"reply"	1
+page.go	registerQuestionUI	compare	"view"	1
+plans.go	Store.ImportPlans	compare	"applied"	1
+plans.go	Store.ImportPlans	compare	"plan"	1
+plans.go	Store.PlanDecisions	case	"moot"	1
+plans.go	Store.PlanDecisions	compare	"applied"	1
+plans.go	Store.PlanDecisions	compare	"ask"	1
+plans.go	Store.PlanDecisions	compare	"plan"	1
+review.go	Store.Applied	compare	"applied"	1
+review.go	Store.Applied	compare	"ask"	1
+review.go	Store.Decide	compare	"applied"	1
+review.go	Store.Decide	compare	"ask"	1
+review.go	Store.Decisions	compare	"applied"	1
+review.go	Store.Pose	compare	"applied"	1
+review.go	Store.Pose	cyclo	"-"	31
+review.go	Store.Reply	compare	"applied"	1
+review.go	Store.Reply	compare	"ask"	1
+review.go	lastOwnerQuestion	compare	"follow-up"	1
+review.go	reviewClass	compare	"applied"	1
+review.go	reviewClass	compare	"ask"	1
+review.go	reviewShown	case	"all"	1
+review.go	reviewShown	case	"pending"	1
+review.go	reviewShown	compare	"applied"	1
+review.go	reviewStatus	compare	"ask"	1
+review.go	reviewStatus	compare	"moot"	1
+review.go	reviewThread	case	"follow-up"	1
+review.go	reviewThread	case	"reply"	1
+review_app.go	App.handleReview	case	"accept"	1
+review_app.go	App.handleReview	case	"applied"	1
+review_app.go	App.handleReview	case	"ask-back"	1
+review_app.go	App.handleReview	case	"decide"	1
+review_app.go	App.handleReview	case	"decision-note"	1
+review_app.go	App.handleReview	case	"decisions"	1
+review_app.go	App.handleReview	case	"import"	1
+review_app.go	App.handleReview	case	"pose"	1
+review_app.go	App.handleReview	case	"reply"	1
+review_app.go	App.handleReview	case	"undecide"	1
+review_app.go	App.handleReview	compare	"plan"	1
+review_app.go	App.reviewRows	case	"applied"	1
+review_app.go	App.reviewRows	compare	"reply"	1
+review_app.go	decisionCell	case	"applied"	1
+review_app.go	recommendationView	compare	"ask"	1
+review_app.go	var reviewAliases	table	"accept"	1
+review_app.go	var reviewAliases	table	"applied"	1
+review_app.go	var reviewAliases	table	"archive"	1
+review_app.go	var reviewAliases	table	"ask-back"	1
+review_app.go	var reviewAliases	table	"associate"	1
+review_app.go	var reviewAliases	table	"copy"	1
+review_app.go	var reviewAliases	table	"decide"	1
+review_app.go	var reviewAliases	table	"decision-note"	1
+review_app.go	var reviewAliases	table	"delete"	1
+review_app.go	var reviewAliases	table	"link"	1
+review_app.go	var reviewAliases	table	"open"	1
+review_app.go	var reviewAliases	table	"path"	1
+review_app.go	var reviewAliases	table	"rename"	1
+review_app.go	var reviewAliases	table	"reply"	1
+review_app.go	var reviewAliases	table	"restore"	1
+review_app.go	var reviewAliases	table	"show"	1
+review_app.go	var reviewAliases	table	"star"	1
+review_app.go	var reviewAliases	table	"tag"	1
+review_app.go	var reviewAliases	table	"undecide"	1
+review_app.go	var reviewAliases	table	"undo"	1
+review_app.go	var reviewAliases	table	"unstar"	1
+review_app.go	var reviewAliases	table	"untag"	1
+review_app.go	var reviewVerbs	table	"accept"	1
+review_app.go	var reviewVerbs	table	"applied"	1
+review_app.go	var reviewVerbs	table	"ask-back"	1
+review_app.go	var reviewVerbs	table	"decide"	1
+review_app.go	var reviewVerbs	table	"decision-note"	1
+review_app.go	var reviewVerbs	table	"decisions"	1
+review_app.go	var reviewVerbs	table	"import"	1
+review_app.go	var reviewVerbs	table	"pose"	1
+review_app.go	var reviewVerbs	table	"reply"	1
+review_app.go	var reviewVerbs	table	"undecide"	1
+review_web.go	Store.syncWeb	compare	"applied"	1
+review_web.go	Store.webSession	case	"applied"	1
+settings.go	statusTable	compare	"follow-up"	1
+settings.go	statusTable	compare	"open"	1
+store.go	Store.appendEntry	compare	"follow-up"	1

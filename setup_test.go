@@ -63,7 +63,7 @@ func TestSetupInstructionNote(t *testing.T) {
 		if strings.Count(text, "<!-- o-questions:begin -->") != 1 || !strings.Contains(text, "## Questions (o-questions)") || !strings.Contains(text, "question pose") || !strings.Contains(text, "`questions.question ask`") || !strings.Contains(text, "`questions.question applied`") {
 			t.Fatalf("%s:\n%s", path, text)
 		}
-		for _, want := range []string{"`questions.question ask`", "`questions.question answer`", "`questions.question follow-up`", "mtm questions question ask"} {
+		for _, want := range []string{"`questions.question ask`", "`questions.question answer`", "`questions.question follow-up`", "`mtm questions question ...`"} {
 			if !strings.Contains(text, want) {
 				t.Fatalf("%s misses %s:\n%s", path, want, text)
 			}

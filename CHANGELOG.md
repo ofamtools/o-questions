@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Changed: requires ochazuke v0.102.0 (the Operations registry and three-part keys; `cmd/opname` moved the code) and oden v0.3.0. o-questions declares its namespace, `question` (`ochazuke.DeclareNamespace`), so its keys are `question.question.<verb>` and the catalog carries `namespace: question`. CLI spellings are unchanged; a host that honours the declared namespace names the MCP verbs `question.question ask` instead of `questions.question ask`.
 - Changed: requires ochazuke v0.101.0 (`Operation.OpensPage`, verb-first CLI words, pair reader) and oden v0.3.0; no code changes were needed.
 - Fixed: the Review page never appeared as a tab in mtm. mtm refuses a page whose title another page has, and its own turn reviews tab is titled "Review"; the page is now titled "Decisions" (`reviewPageTitle`; the verbs and the noun stay `review`). `review.page` declares `OpensPage("review")` in the catalog, so a host that mounts the page opens it (mtm palette: `questions.review.page`) instead of running the verb as a background job with no terminal; run on its own `review` still opens the terminal page or `--web`. Needs ochazuke after v0.100.0 (`Operation.OpensPage`).
 - Fixed: `question open` on a question with no links or transcript says "this question has no links" (CLI and TUI) instead of `choose --link from []` or an empty picker.

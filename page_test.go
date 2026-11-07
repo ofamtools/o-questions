@@ -520,3 +520,29 @@ func TestThreadViewCLI(t *testing.T) {
 		})
 	}
 }
+
+func TestCatalogDeclaresSingularNamespace(t *testing.T) {
+	s := fixture(t)
+	var out bytes.Buffer
+	a, e := newApp(s, strings.NewReader(""), &out, &out)
+	if e != nil {
+		t.Fatal(e)
+	}
+	b, e := ocli.Catalog(a.r, "o-questions", version)
+	if e != nil {
+		t.Fatal(e)
+	}
+	var doc ocli.CatalogDoc
+	if e = json.Unmarshal(b, &doc); e != nil {
+		t.Fatal(e)
+	}
+	if doc.Namespace != "question" || ochazuke.DefaultNamespace != "question" {
+		t.Fatalf("catalog namespace %q, default %q; want question", doc.Namespace, ochazuke.DefaultNamespace)
+	}
+	if got, e := ocli.CatalogNamespace(doc, "o-questions"); e != nil || got != "question" {
+		t.Fatal(got, e)
+	}
+	if op, ok := a.r.Operations.Find("question.ask"); !ok || op.Key.Full() != "question.question.ask" {
+		t.Fatal(op.Key, ok)
+	}
+}

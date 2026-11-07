@@ -60,11 +60,11 @@ func runPose(a *App, c ochazuke.Ctx) ochazuke.Result {
 // declareReviewPage defines review.page, the verb bare `review` runs.
 func declareReviewPage(a *App) {
 	a.r.Define(reviewNoun).Verb(reviewPageVerb, a.reviewPageVerb, "Open the Decisions page (--web: mgmt's browser page)").OpensPage(reviewPageID)
-	op := a.r.Operations[reviewNoun+"."+reviewPageVerb]
+	op := a.r.Operations.At(ochazuke.Key(reviewNoun + "." + reviewPageVerb))
 	op.Parameters = map[string]ochazuke.Parameter{
 		"web": {Type: "boolean", Description: "Serve mgmt's browser page instead of the terminal page"}, "no-open": {Type: "boolean", Description: "With --web: do not open the browser"}, "port": {Type: "integer", Description: "With --web: port to serve on"},
 		"smoke": {Type: "boolean", Description: "Render one frame and exit"}, "width": {Type: "integer", Description: "Frame width for --smoke"}, "height": {Type: "integer", Description: "Frame height for --smoke"}}
-	a.r.Operations[op.Key()] = op
+	a.r.Operations.Set(op)
 }
 
 func (a *App) reviewPageVerb(c ochazuke.Ctx) ochazuke.Result { return runReviewPage(a, c) }

@@ -43,6 +43,18 @@ func param(desc string) ochazuke.Parameter {
 }
 func required(desc string) ochazuke.Parameter { p := param(desc); p.Required = true; return p }
 func prose(desc string) ochazuke.Parameter    { p := required(desc); p.Rest = true; return p }
+
+// Namespace is the singular namespace o-questions declares (lexicon plan):
+// its operations are question.<noun>.<verb> and a host mounts its catalog
+// under it.
+const Namespace = "question"
+
+func init() {
+	if err := ochazuke.DeclareNamespace(Namespace); err != nil {
+		panic(err)
+	}
+}
+
 func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	a := &App{store: s, in: in, out: out, errOut: errOut, run: func(cmd *exec.Cmd) error { return cmd.Run() }}
 	a.r = ochazuke.NewRuntime()
@@ -82,9 +94,9 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 		if alias, ok := reviewAliases[v.name]; ok {
 			b.AliasOn(reviewNoun, alias)
 		}
-		op := a.r.Operations[noun+"."+verb]
+		op := a.r.Operations.At(ochazuke.Key(noun + "." + verb))
 		op.Parameters = v.params
-		a.r.Operations[op.Key()] = op
+		a.r.Operations.Set(op)
 	}
 	a.r.Define("question").Verb("view", func(c ochazuke.Ctx) ochazuke.Result {
 		q, err := a.target(c)
@@ -96,10 +108,10 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 		}
 		return ochazuke.Done(thread(q, a.r.Settings().Bool("detail.provenance")))
 	}, "Read the complete thread").MarkdownResult().AliasOn(reviewNoun, "view").Positional("target")
-	view := a.r.Operations["question.view"]
+	view := a.r.Operations.At("question.view")
 	view.Parameters = map[string]ochazuke.Parameter{"target": {Type: "string", Noun: "question", Description: "Question title, number or ID prefix; defaults to the selected row"}}
 	view.EnabledSetting = "view.thread"
-	a.r.Operations[view.Key()] = view
+	a.r.Operations.Set(view)
 	declareReviewPage(a)
 	a.r.EnsureConfigSettings()
 	a.declareFilterProps()

@@ -37,7 +37,7 @@ func TestEveryCatalogVerbRuns(t *testing.T) {
 	}
 	var keys []string
 	for _, op := range a.r.Catalog() {
-		keys = append(keys, op.Noun+" "+op.Verb)
+		keys = append(keys, op.Noun()+" "+op.Name())
 	}
 	sort.Strings(keys)
 	if len(keys) == 0 {

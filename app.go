@@ -100,6 +100,7 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	view.Parameters = map[string]ochazuke.Parameter{"target": {Type: "string", Noun: "question", Description: "Question title, number or ID prefix; defaults to the selected row"}}
 	view.EnabledSetting = "view.thread"
 	a.r.Operations[view.Key()] = view
+	declareReviewPage(a)
 	a.r.EnsureConfigSettings()
 	a.declareFilterProps()
 	a.r.Define("question").Columns(columns...)

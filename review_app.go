@@ -52,6 +52,45 @@ func runPose(a *App, c ochazuke.Ctx) ochazuke.Result {
 	return result(v, e)
 }
 
+// declareReviewPage defines review.page, the verb bare `review` runs.
+func declareReviewPage(a *App) {
+	a.r.Define(reviewNoun).Verb(reviewPageVerb, a.reviewPageVerb, "Open the Review page (--web: mgmt's browser page)")
+	op := a.r.Operations[reviewNoun+"."+reviewPageVerb]
+	op.Parameters = map[string]ochazuke.Parameter{
+		"web": {Type: "boolean", Description: "Serve mgmt's browser page instead of the terminal page"}, "no-open": {Type: "boolean", Description: "With --web: do not open the browser"}, "port": {Type: "integer", Description: "With --web: port to serve on"},
+		"smoke": {Type: "boolean", Description: "Render one frame and exit"}, "width": {Type: "integer", Description: "Frame width for --smoke"}, "height": {Type: "integer", Description: "Frame height for --smoke"}}
+	a.r.Operations[op.Key()] = op
+}
+
+func (a *App) reviewPageVerb(c ochazuke.Ctx) ochazuke.Result { return runReviewPage(a, c) }
+
+// runReviewPage is review.page: the flags reviewCommand reads, as verb
+// parameters. It is also what bare `review` runs (nounDefaults).
+func runReviewPage(a *App, c ochazuke.Ctx) ochazuke.Result {
+	var args []string
+	for _, k := range []string{"web", "no-open", "smoke"} {
+		if truthy(c.Args[k]) {
+			args = append(args, "--"+k)
+		}
+	}
+	for _, k := range []string{"port", "width", "height"} {
+		if v, ok := c.Args[k]; ok && fmt.Sprint(v) != "" {
+			args = append(args, "--"+k, fmt.Sprint(v))
+		}
+	}
+	return result(nil, a.reviewCommand(args))
+}
+
+func truthy(v any) bool {
+	switch x := v.(type) {
+	case bool:
+		return x
+	case string:
+		return x == "true" || x == "1"
+	}
+	return false
+}
+
 func runQueue(a *App, c ochazuke.Ctx) ochazuke.Result {
 	v, e := a.reviewRows(c.Args)
 	return result(v, e)
@@ -332,6 +371,7 @@ func reviewPage() ocli.CatalogPage {
 // accepts the recommendation, ? asks back, n edits the note, x clears the
 // decision, o cycles review.show.
 const reviewNoun = "review"
+const reviewPageVerb = "page"
 
 // verbHomes are question verbs declared on another noun: review.list
 // answers the Review page's rows and is also question.queue.

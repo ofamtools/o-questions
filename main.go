@@ -72,7 +72,28 @@ func Main(args []string, in io.Reader, out, errOut io.Writer) error {
 	}
 	return dispatch(a, args)
 }
+
+// nounDefaults names the verb a mounted noun runs when it is given no verb
+// word: `review` and `review --web` are `review page` and `review page --web`.
+// Mount's group has no default of its own (library gap), so the words are
+// rewritten before it resolves them.
+var nounDefaults = []struct{ noun, verb string }{{reviewNoun, reviewPageVerb}}
+
+func nounDefault(args []string) []string {
+	verb, ok := "", false
+	for _, d := range nounDefaults {
+		if len(args) > 0 && args[0] == d.noun {
+			verb, ok = d.verb, true
+		}
+	}
+	if !ok || len(args) > 1 && (!strings.HasPrefix(args[1], "-") || args[1] == "-h" || args[1] == "--help") {
+		return args
+	}
+	return append([]string{args[0], verb}, args[1:]...)
+}
+
 func dispatch(a *App, args []string) error {
+	args = nounDefault(args)
 	app := oden.New("o-questions", args, oden.WithBuiltins(), oden.WithStdio(a.in, a.out, a.errOut), oden.WithDefault(func(_ context.Context, args []string) error {
 		if len(args) > 0 {
 			return oden.ErrNotFound
@@ -96,9 +117,6 @@ func dispatch(a *App, args []string) error {
 		return sh.Run(ctx, append([]string{"question", "view"}, words...))
 	}})
 	app.Add(oden.Command{Name: "question", Aliases: []string{"q"}, Summary: "Record and review questions", Children: children})
-	app.Add(oden.Command{Name: "review", Summary: "Review questions for the owner (--web: mgmt's browser page)", Children: []oden.Command{{Name: "view", Summary: "Read the complete thread", Run: func(ctx context.Context, words []string) error {
-		return sh.Run(ctx, append([]string{"review", "view"}, words...))
-	}}}, Run: func(_ context.Context, args []string) error { return a.reviewCommand(args) }})
 	app.Add(oden.Command{Name: "view", Summary: "Questions page", Run: func(_ context.Context, args []string) error { return a.view(args) }})
 	app.Add(oden.Command{Name: "mcp", Summary: "Agent tools over stdio", Run: func(_ context.Context, args []string) error {
 		if len(args) > 0 {

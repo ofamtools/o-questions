@@ -11,6 +11,11 @@ import (
 )
 
 const reviewPageID = "review"
+
+// reviewPageTitle is the Review page's tab. A host that mounts the page
+// refuses a title another of its pages already has (mtm's own Review tab is
+// its turn reviews), so the page is named for what it holds.
+const reviewPageTitle = "Decisions"
 const reviewListID = "review/questions"
 
 func (a *App) reviewSpecs() []verbSpec {
@@ -54,7 +59,7 @@ func runPose(a *App, c ochazuke.Ctx) ochazuke.Result {
 
 // declareReviewPage defines review.page, the verb bare `review` runs.
 func declareReviewPage(a *App) {
-	a.r.Define(reviewNoun).Verb(reviewPageVerb, a.reviewPageVerb, "Open the Review page (--web: mgmt's browser page)")
+	a.r.Define(reviewNoun).Verb(reviewPageVerb, a.reviewPageVerb, "Open the Decisions page (--web: mgmt's browser page)").OpensPage(reviewPageID)
 	op := a.r.Operations[reviewNoun+"."+reviewPageVerb]
 	op.Parameters = map[string]ochazuke.Parameter{
 		"web": {Type: "boolean", Description: "Serve mgmt's browser page instead of the terminal page"}, "no-open": {Type: "boolean", Description: "With --web: do not open the browser"}, "port": {Type: "integer", Description: "With --web: port to serve on"},
@@ -336,7 +341,7 @@ func (a *App) reviewRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 }
 
 func reviewPage() ocli.CatalogPage {
-	return ocli.CatalogPage{ID: reviewPageID, Title: "Review", Layout: ocli.LayoutSplit,
+	return ocli.CatalogPage{ID: reviewPageID, Title: reviewPageTitle, Layout: ocli.LayoutSplit,
 		Lists: []ocli.CatalogList{{ID: reviewListID, Noun: reviewNoun, Source: "review.list", Title: "For you", Tree: true}},
 		Detail: &ocli.CatalogDetail{
 			Fields: []string{"question", "recommendation_view", "choices", "details_view", "topic", "decision"},

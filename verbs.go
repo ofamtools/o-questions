@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -142,13 +143,25 @@ var runCopy = onTarget(func(a *App, q Question, c ochazuke.Ctx) ochazuke.Result 
 	return result(text, nil)
 })
 
-var runOpen = onTarget(func(a *App, q Question, c ochazuke.Ctx) ochazuke.Result {
+// openableLinks are what question.open can open: the question's links, then
+// its source transcript.
+func openableLinks(q Question) []Link {
 	links := append([]Link{}, q.Links...)
 	if q.Source.Transcript != "" {
-		links = append(links, Link{Target: q.Source.Transcript})
+		links = append(links, Link{Target: q.Source.Transcript, Label: "Transcript"})
 	}
+	return links
+}
+
+var errNoLinks = errors.New("this question has no links")
+
+var runOpen = onTarget(func(a *App, q Question, c ochazuke.Ctx) ochazuke.Result {
+	links := openableLinks(q)
 	target := argStr(c, "link")
 	if target == "" {
+		if len(links) == 0 {
+			return result(nil, errNoLinks)
+		}
 		if len(links) != 1 {
 			return result(nil, fmt.Errorf("choose --link from %v", links))
 		}

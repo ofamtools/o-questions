@@ -111,3 +111,55 @@ func TestReviewBareReachesPage(t *testing.T) {
 		t.Fatal(out)
 	}
 }
+
+// A host that mounts the Review page refuses a title another of its pages
+// has (mtm has its own Review tab), and review.page says it opens that page
+// so the host opens it instead of running the verb as a background job.
+func TestReviewPageIsNamedAndDeclaredToHosts(t *testing.T) {
+	a, out := testApp(t, fixture(t))
+	if e := dispatch(a, []string{"catalog"}); e != nil {
+		t.Fatalf("%v: %s", e, out)
+	}
+	data := out.Bytes()
+	var doc struct {
+		Pages []struct{ ID, Title string }
+		Nouns []struct {
+			Name  string
+			Verbs []struct {
+				Name      string
+				OpensPage string
+			}
+		}
+	}
+	if e := json.Unmarshal(data, &doc); e != nil {
+		t.Fatalf("%v: %s", e, data)
+	}
+	titles := map[string]string{}
+	for _, p := range doc.Pages {
+		titles[p.ID] = p.Title
+	}
+	if titles["review"] == "" || titles["review"] == "Review" {
+		t.Fatalf("review page title %q must name what it holds, not collide with a host's Review tab: %v", titles["review"], titles)
+	}
+	opens := ""
+	for _, n := range doc.Nouns {
+		for _, v := range n.Verbs {
+			if n.Name == "review" && v.Name == "page" {
+				opens = v.OpensPage
+			}
+		}
+	}
+	if opens != "review" {
+		t.Fatalf("review.page opensPage = %q", opens)
+	}
+}
+
+func TestOpenWithoutLinksSaysSo(t *testing.T) {
+	s := fixture(t)
+	q := ask(t, s, "No links here?")
+	a, out := testApp(t, s)
+	e := dispatch(a, []string{"question", "open", q.ID})
+	if e == nil || !strings.Contains(e.Error()+out.String(), "this question has no links") || strings.Contains(e.Error()+out.String(), "choose --link") {
+		t.Fatalf("open with no links: %v %s", e, out)
+	}
+}

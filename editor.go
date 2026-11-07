@@ -38,9 +38,9 @@ func (a *App) interactive(verb string, c ochazuke.Ctx) (ochazuke.Result, bool) {
 		if e != nil {
 			return result(nil, e), true
 		}
-		links := append([]Link{}, q.Links...)
-		if q.Source.Transcript != "" {
-			links = append(links, Link{Target: q.Source.Transcript, Label: "Transcript"})
+		links := openableLinks(q)
+		if len(links) == 0 {
+			return result(nil, errNoLinks), true
 		}
 		var rows []ochazuke.PickerRow
 		for _, l := range links {

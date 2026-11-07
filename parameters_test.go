@@ -160,7 +160,7 @@ func TestQuestionParameterBoundInputs(t *testing.T) {
 				p, s, calls := parameterPage(t, host)
 				sendKey(t, p, key)
 				r := p.m.Runtime
-				if r.RecordEditor(ochazuke.ArgsFormID) == nil || r.Focus != ochazuke.ArgsFormID+"/"+name || (host && *calls != 0) {
+				if r.RecordEditor(ochazuke.ArgsFormID) == nil || r.FocusID() != ochazuke.ArgsFormID+"/"+name || (host && *calls != 0) {
 					t.Fatalf("%s must prompt for %s:\n%s", key, name, ansi.Strip(p.View().Content))
 				}
 				sendKey(t, p, "esc")

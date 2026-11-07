@@ -42,11 +42,11 @@ func (a *App) interactive(verb string, c ochazuke.Ctx) (ochazuke.Result, bool) {
 		if q.Source.Transcript != "" {
 			links = append(links, Link{Target: q.Source.Transcript, Label: "Transcript"})
 		}
-		var rows []ochazuke.ChooserRow
+		var rows []ochazuke.PickerRow
 		for _, l := range links {
-			rows = append(rows, ochazuke.ChooserRow{ID: l.Target, Label: l.Label + " " + l.Target})
+			rows = append(rows, ochazuke.PickerRow{ID: l.Target, Label: l.Label + " " + l.Target})
 		}
-		_, e = a.r.OpenChooser(ochazuke.ChooserSpec{Kind: "question-links", Title: "Open link", Rows: rows, Choose: func(row ochazuke.ChooserRow) ochazuke.Result {
+		_, e = a.r.OpenPicker(ochazuke.PickerSpec{Kind: "question-links", Title: "Open link", Rows: rows, Choose: func(row ochazuke.PickerRow) ochazuke.Result {
 			return a.handle("open", ochazuke.Ctx{Runtime: a.r, Args: ochazuke.Arguments{"target": q.ID, "link": row.ID}})
 		}})
 		return result(nil, e), true

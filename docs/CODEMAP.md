@@ -12,10 +12,11 @@
 | check.go | Explicit wording check against transcript user records |
 | settings.go | Settings, defaults and validation |
 | app.go | Shared verb specs/handlers, transport-bound rights, readable thread result, archive/restore, rows with list.hide-archived opt-out, search projection |
+| pickers.go | The question and review noun pickers (PickerDef), listed by the catalog |
 | mcp.go | Tool allowlist, schemas and JSON-RPC stdio lifecycle |
 | page.go | Shared catalog detail Sections, legacy preview kind, binding rows |
 | tui.go | Standalone mount, refresh and smoke frame |
-| editor.go | Commit-on-change question/title/entry and association editors; choosers |
+| editor.go | Commit-on-change question/title/entry and association editors; pickers |
 | thread_view.go | Read-only thread modal and scroll rows |
 | review.go | Questions for the owner: pose, decide, reply, applied, export (mgmt semantics) |
 | review_app.go | Review verbs, rows, the review noun's aliases, page and keys |

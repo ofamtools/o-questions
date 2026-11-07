@@ -52,7 +52,7 @@ requests now use the common form. Large body revisions retain old files for undo
 | r | question.rename | title | Required Rest; empty preset removed. |
 | t | question.tag | tag | Already required; generic form prompts. |
 | m | question.associate | project or task | Both are optional alternatives; shared schema cannot require either one. Standalone association editor remains; hosted call still needs library support. |
-| g x | question.open | link when zero or several available | Conditional requirement; standalone chooser remains. Hosted call still needs a parameter source scoped to the selected question and conditional prompting. |
+| g x | question.open | link when zero or several available | Conditional requirement; standalone picker remains. Hosted call still needs a parameter source scoped to the selected question and conditional prompting. |
 | v / Enter | question.show | none | Selected row supplies the question. |
 | y | question.copy | none | Row supplies question and yank=true; part defaults to thread. |
 | d d | question.delete | none | Selected row supplies the question. |
@@ -77,7 +77,7 @@ same relevant form behavior:
 - `args_form.go:42` detects absent required fields only. There is no required
   group/conditional requirement or data-driven request to collect optional
   parameters, needed by association and link selection. In mtm,
-  `cmd/mtm/extensions.go:924` only adds its pane noun chooser through
+  `cmd/mtm/extensions.go:924` only adds its pane noun picker through
   `cmd/mtm/extension_context.go:86`; it cannot supply those generic forms.
 - `record_editor.go:389` copies Parameter to RecordField without mapping Rest
   to Multiline. The generic input remains one line despite the prose metadata.
@@ -94,7 +94,7 @@ same relevant form behavior:
   Store.Get and declared prop. The mounted question noun has neither that
   adapter nor a current-value contract. The enum is complete but its current
   value is not marked; edit/rename likewise start empty. Do not add a status
-  chooser branch to compensate.
+  picker branch to compensate.
 
 The regression tests mount a fresh namespaced catalog runtime and proxy the
 domain handler, so no standalone editor can hide missing host metadata. This
@@ -109,7 +109,7 @@ The comparison was checked against the installed Vim 9.1 help files under
 | --- | --- | --- |
 | `/pattern` | `/` | Similar: filters rows by title, question, complete answers and tags, rather than moving within a buffer. |
 | `n`, `N` | `n`, `N` | Similar: move down/up among shown matches; clamp at the edges. No create action uses n. |
-| `gx` | `netrw-externapp` | Similar: g x opens a record link; a chooser handles several links. |
+| `gx` | `netrw-externapp` | Similar: g x opens a record link; a picker handles several links. |
 | `gf` | `gf` | n/a: source files are links opened by question.open; there is no buffer filename under a cursor. |
 | `yy` | `yy` | Similar: y copies the thread; copy --part selects question or answer. |
 | `u` | `u` | Similar: undo one store change, including across records; no buffer-local redo tree. |

@@ -127,6 +127,9 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 			return nil, e
 		}
 	}
+	if e := declarePickers(a.r); e != nil {
+		return nil, e
+	}
 	return a, nil
 }
 func frameworkActor(a Actor) ochazuke.Actor {

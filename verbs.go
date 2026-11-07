@@ -13,7 +13,7 @@ import (
 type verbRun func(a *App, c ochazuke.Ctx) ochazuke.Result
 
 // invoke runs the spec's handler: settings are applied, and in the TUI a
-// verb missing its input first opens its editor or chooser.
+// verb missing its input first opens its editor or picker.
 func (a *App) invoke(v verbSpec, c ochazuke.Ctx) ochazuke.Result {
 	a.configure()
 	if a.tui {

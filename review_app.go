@@ -13,9 +13,6 @@ import (
 const reviewPageID = "review"
 const reviewListID = "review/questions"
 
-// reviewVerbs are handled by handleReview, before the shared target path.
-var reviewVerbs = map[string]bool{"pose": true, "queue": true, "decide": true, "accept": true, "undecide": true, "ask-back": true, "decision-note": true, "reply": true, "applied": true, "decisions": true, "import": true}
-
 func (a *App) reviewSpecs() []verbSpec {
 	target := ochazuke.Parameter{Type: "string", Description: "Question title, number or ID prefix; omitted uses the selected row", Noun: "question"}
 	arr := func(d string) ochazuke.Parameter { return ochazuke.Parameter{Type: "array", Description: d} }
@@ -30,96 +27,117 @@ func (a *App) reviewSpecs() []verbSpec {
 		"key": param("Stable id; posing it again updates the question and keeps the decision"),
 	}
 	return []verbSpec{
-		{"pose", "Record a question for the owner, with your recommendation", pose, []string{"question"}, false},
-		{"queue", "List questions for the owner, grouped by topic", map[string]ochazuke.Parameter{"show": {Type: "string", Enum: reviewFilters, Description: "Review state shown; default review.show"}, "group": param("Topic")}, nil, true},
-		{"decide", "Decide a question for the owner (owner)", map[string]ochazuke.Parameter{"target": target, "action": param("One of the item's actions, ask, or any action"), "choice": {Type: "integer", Description: "Numbered action, 1 first"}, "note": param("Note for the agent")}, []string{"target", "action"}, false},
-		{"accept", "Accept the recommendation (owner)", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false},
-		{"undecide", "Clear the decision, keeping its note (owner)", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false},
-		{"ask-back", "Ask the agent before deciding (owner)", map[string]ochazuke.Parameter{"target": target, "text": prose("Your question")}, []string{"target", "text"}, false},
-		{"decision-note", "Set the note on a decision (owner)", map[string]ochazuke.Parameter{"target": target, "note": prose("Note for the agent")}, []string{"target", "note"}, false},
-		{"reply", "Answer the owner's ask on a question for the owner", map[string]ochazuke.Parameter{"target": target, "text": prose("Your answer"), "recommendation": param("Replace the recommendation"), "recommended_action": param("Replace the recommended action"), "question": param("The owner's question, when the thread lacks it")}, []string{"target", "text"}, false},
-		{"applied", "Record the result of applying a decision; done locks it", map[string]ochazuke.Parameter{"target": target, "outcome": {Type: "string", Required: true, Enum: []string{"done", "failed"}, Description: "done or failed"}, "result": prose("What changed and how it was checked, or the failure")}, []string{"target", "outcome", "result"}, false},
-		{"decisions", "The owner's decisions, asks and undecided items, for the agent", map[string]ochazuke.Parameter{"group": param("Topic"), "all": {Type: "boolean", Description: "Include applied decisions"}, "render": {Type: "string", Enum: []string{"json", "plan"}, Description: "json (default) or plan: Owner decisions sections for plan-imported items"}, "date": param("Date for plan sections (YYYY-MM-DD)")}, nil, false},
-		{"import", "Pose the open owner questions of a plans folder", map[string]ochazuke.Parameter{"root": param("Plans folder; default review.plans-root"), "include_answered": {Type: "boolean", Description: "Also pose questions the plan already answers"}}, []string{"root"}, false},
+		{"pose", "Record a question for the owner, with your recommendation", pose, []string{"question"}, false, runPose, nil},
+		{"queue", "List questions for the owner, grouped by topic", map[string]ochazuke.Parameter{"show": {Type: "string", Enum: reviewFilters, Description: "Review state shown; default review.show"}, "group": param("Topic")}, nil, true, runQueue, nil},
+		{"decide", "Decide a question for the owner (owner)", map[string]ochazuke.Parameter{"target": target, "action": param("One of the item's actions, ask, or any action"), "choice": {Type: "integer", Description: "Numbered action, 1 first"}, "note": param("Note for the agent")}, []string{"target", "action"}, false, decisionVerb(decide), nil},
+		{"accept", "Accept the recommendation (owner)", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false, decisionVerb(accept), nil},
+		{"undecide", "Clear the decision, keeping its note (owner)", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false, decisionVerb(undecide), nil},
+		{"ask-back", "Ask the agent before deciding (owner)", map[string]ochazuke.Parameter{"target": target, "text": prose("Your question")}, []string{"target", "text"}, false, decisionVerb(askBack), nil},
+		{"decision-note", "Set the note on a decision (owner)", map[string]ochazuke.Parameter{"target": target, "note": prose("Note for the agent")}, []string{"target", "note"}, false, decisionVerb(decisionNote), nil},
+		{"reply", "Answer the owner's ask on a question for the owner", map[string]ochazuke.Parameter{"target": target, "text": prose("Your answer"), "recommendation": param("Replace the recommendation"), "recommended_action": param("Replace the recommended action"), "question": param("The owner's question, when the thread lacks it")}, []string{"target", "text"}, false, decisionVerb(reply), nil},
+		{"applied", "Record the result of applying a decision; done locks it", map[string]ochazuke.Parameter{"target": target, "outcome": {Type: "string", Required: true, Enum: []string{"done", "failed"}, Description: "done or failed"}, "result": prose("What changed and how it was checked, or the failure")}, []string{"target", "outcome", "result"}, false, decisionVerb(applied), nil},
+		{"decisions", "The owner's decisions, asks and undecided items, for the agent", map[string]ochazuke.Parameter{"group": param("Topic"), "all": {Type: "boolean", Description: "Include applied decisions"}, "render": {Type: "string", Enum: []string{"json", "plan"}, Description: "json (default) or plan: Owner decisions sections for plan-imported items"}, "date": param("Date for plan sections (YYYY-MM-DD)")}, nil, false, runDecisions, nil},
+		{"import", "Pose the open owner questions of a plans folder", map[string]ochazuke.Parameter{"root": param("Plans folder; default review.plans-root"), "include_answered": {Type: "boolean", Description: "Also pose questions the plan already answers"}}, []string{"root"}, false, runImport, nil},
 	}
 }
 
-func (a *App) handleReview(verb string, c ochazuke.Ctx) (ochazuke.Result, bool) {
-	if !reviewVerbs[verb] {
-		return ochazuke.Result{}, false
+func runPose(a *App, c ochazuke.Ctx) ochazuke.Result {
+	var p Pose
+	if e := decodeArgs(c.Args, &p); e != nil {
+		return result(nil, e)
 	}
-	str := func(k string) string { return ochazuke.StringArg(c.Args, k, "") }
-	switch verb {
-	case "pose":
-		var p Pose
-		if e := decodeArgs(c.Args, &p); e != nil {
-			return result(nil, e), true
-		}
-		p.Provenance = sourceFromEnv(a.store.Actor)
-		v, e := a.store.Pose(p)
-		a.refresh()
-		return result(v, e), true
-	case "queue":
-		v, e := a.reviewRows(c.Args)
-		return result(v, e), true
-	case "decisions":
-		if str("render") == "plan" {
-			v, e := a.store.PlanDecisions(str("date"))
-			return result(v, e), true
-		}
-		all, _ := c.Args["all"].(bool)
-		v, e := a.store.Decisions(str("group"), all)
-		return result(v, e), true
-	case "import":
-		root := str("root")
-		if root == "" {
-			root = a.r.Settings().String("review.plans-root")
-		}
-		answered, _ := c.Args["include_answered"].(bool)
-		v, e := a.store.ImportPlans(root, answered)
-		a.refresh()
-		return result(v, e), true
-	}
-	q, e := a.target(c)
-	if e != nil {
-		return result(nil, e), true
-	}
-	var v Question
-	switch verb {
-	case "decide":
-		d := Decision{Action: str("action")}
-		d.Choice = intArg(c.Args["choice"])
-		if _, ok := c.Args["note"]; ok {
-			n := str("note")
-			d.Note = &n
-		}
-		v, e = a.store.Decide(q.ID, d)
-	case "accept":
-		v, e = a.store.Decide(q.ID, Decision{Accept: true})
-	case "undecide":
-		v, e = a.store.Decide(q.ID, Decision{Clear: true})
-	case "ask-back":
-		text := str("text")
-		v, e = a.store.Decide(q.ID, Decision{Action: askOut, Note: &text})
-	case "decision-note":
-		note := str("note")
-		v, e = a.store.Decide(q.ID, Decision{Note: &note})
-	case "reply":
-		rp := Reply{Text: str("text"), Question: str("question")}
-		if _, ok := c.Args["recommendation"]; ok {
-			s := str("recommendation")
-			rp.Recommendation = &s
-		}
-		if _, ok := c.Args["recommended_action"]; ok {
-			s := str("recommended_action")
-			rp.RecommendedAction = &s
-		}
-		v, e = a.store.Reply(q.ID, rp)
-	case "applied":
-		v, e = a.store.Applied(q.ID, str("outcome"), str("result"))
-	}
+	p.Provenance = sourceFromEnv(a.store.Actor)
+	v, e := a.store.Pose(p)
 	a.refresh()
-	return result(v, e), true
+	return result(v, e)
+}
+
+func runQueue(a *App, c ochazuke.Ctx) ochazuke.Result {
+	v, e := a.reviewRows(c.Args)
+	return result(v, e)
+}
+
+func runDecisions(a *App, c ochazuke.Ctx) ochazuke.Result {
+	for _, r := range decisionRenders {
+		if r.name == argStr(c, "render") {
+			v, e := r.render(a, c)
+			return result(v, e)
+		}
+	}
+	all, _ := c.Args["all"].(bool)
+	v, e := a.store.Decisions(argStr(c, "group"), all)
+	return result(v, e)
+}
+
+// decisionRenders are the "render" values other than the default json.
+var decisionRenders = []struct {
+	name   string
+	render func(a *App, c ochazuke.Ctx) (any, error)
+}{{"plan", func(a *App, c ochazuke.Ctx) (any, error) { return a.store.PlanDecisions(argStr(c, "date")) }}}
+
+func runImport(a *App, c ochazuke.Ctx) ochazuke.Result {
+	root := argStr(c, "root")
+	if root == "" {
+		root = a.r.Settings().String("review.plans-root")
+	}
+	answered, _ := c.Args["include_answered"].(bool)
+	v, e := a.store.ImportPlans(root, answered)
+	a.refresh()
+	return result(v, e)
+}
+
+// decisionVerb runs a store call on one resolved question and refreshes.
+func decisionVerb(f func(a *App, id string, c ochazuke.Ctx) (Question, error)) verbRun {
+	return onTarget(func(a *App, q Question, c ochazuke.Ctx) ochazuke.Result {
+		v, e := f(a, q.ID, c)
+		a.refresh()
+		return result(v, e)
+	})
+}
+
+func decide(a *App, id string, c ochazuke.Ctx) (Question, error) {
+	d := Decision{Action: argStr(c, "action")}
+	d.Choice = intArg(c.Args["choice"])
+	if _, ok := c.Args["note"]; ok {
+		n := argStr(c, "note")
+		d.Note = &n
+	}
+	return a.store.Decide(id, d)
+}
+
+func accept(a *App, id string, _ ochazuke.Ctx) (Question, error) {
+	return a.store.Decide(id, Decision{Accept: true})
+}
+
+func undecide(a *App, id string, _ ochazuke.Ctx) (Question, error) {
+	return a.store.Decide(id, Decision{Clear: true})
+}
+
+func askBack(a *App, id string, c ochazuke.Ctx) (Question, error) {
+	text := argStr(c, "text")
+	return a.store.Decide(id, Decision{Action: askOut, Note: &text})
+}
+
+func decisionNote(a *App, id string, c ochazuke.Ctx) (Question, error) {
+	note := argStr(c, "note")
+	return a.store.Decide(id, Decision{Note: &note})
+}
+
+func reply(a *App, id string, c ochazuke.Ctx) (Question, error) {
+	rp := Reply{Text: argStr(c, "text"), Question: argStr(c, "question")}
+	if _, ok := c.Args["recommendation"]; ok {
+		s := argStr(c, "recommendation")
+		rp.Recommendation = &s
+	}
+	if _, ok := c.Args["recommended_action"]; ok {
+		s := argStr(c, "recommended_action")
+		rp.RecommendedAction = &s
+	}
+	return a.store.Reply(id, rp)
+}
+
+func applied(a *App, id string, c ochazuke.Ctx) (Question, error) {
+	return a.store.Applied(id, argStr(c, "outcome"), argStr(c, "result"))
 }
 
 func intArg(v any) int {

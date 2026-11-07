@@ -46,7 +46,7 @@ func TestStoreThreadUndo(t *testing.T) {
 	if e != nil || q.Status != "follow-up" {
 		t.Fatal(q, e)
 	}
-	_, e = s.Change("moot", q.ID, Change{})
+	_, e = s.Change(opMoot, q.ID, Change{})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -69,7 +69,7 @@ func TestStoreThreadUndo(t *testing.T) {
 func TestStoreRights(t *testing.T) {
 	s := fixture(t)
 	q := ask(t, s, "Question?")
-	_, e := s.Change("rename", q.ID, Change{Annotation: Annotation{Title: "Owner title"}})
+	_, e := s.Change(opRename, q.ID, Change{Annotation: Annotation{Title: "Owner title"}})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -81,13 +81,13 @@ func TestStoreRights(t *testing.T) {
 	if _, e = s.Annotate(q.ID, Annotation{Project: "other", Task: "other-task"}); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.Change("edit", q.ID, Change{Value: "Amended question?"}); e != nil {
+	if _, e = s.Change(opEdit, q.ID, Change{Value: "Amended question?"}); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.Change("moot", q.ID, Change{}); e != nil {
+	if _, e = s.Change(opMoot, q.ID, Change{}); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.Change("untag", q.ID, Change{Value: "tag"}); e != nil {
+	if _, e = s.Change(opUntag, q.ID, Change{Value: "tag"}); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = s.Append(q.ID, Entry{Kind: "answer", Text: "Agent answer"}); e != nil {
@@ -106,7 +106,7 @@ func TestStoreRights(t *testing.T) {
 			t.Fatalf("lost write attribution: %+v", snapshot)
 		}
 	}
-	if _, e = s.Change("delete", q.ID, Change{}); e == nil {
+	if _, e = s.Change(opDelete, q.ID, Change{}); e == nil {
 		t.Fatal("agent deleted the question")
 	}
 	if e = s.Undo(); e != nil {
@@ -159,7 +159,7 @@ func TestStoreLargeEntryBackupRecovery(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	_, e = s.Change("delete", q.ID, Change{})
+	_, e = s.Change(opDelete, q.ID, Change{})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -194,7 +194,7 @@ func TestStoreResolveMergeSplit(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	_, e = s.Change("split", q.ID, Change{Entry: q.Entries[0].ID})
+	_, e = s.Change(opSplit, q.ID, Change{Entry: q.Entries[0].ID})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -202,7 +202,7 @@ func TestStoreResolveMergeSplit(t *testing.T) {
 	if e != nil || len(rows) != 3 {
 		t.Fatal(rows, e)
 	}
-	_, e = s.Change("merge", q.ID, Change{Other: r.ID})
+	_, e = s.Change(opMerge, q.ID, Change{Other: r.ID})
 	if e != nil {
 		t.Fatal(e)
 	}

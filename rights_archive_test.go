@@ -138,7 +138,7 @@ func TestRestoreBackupCLI(t *testing.T) {
 	if e = json.Unmarshal(out.Bytes(), &file); e != nil {
 		t.Fatal(out.String(), e)
 	}
-	if _, e = s.Change("edit", q.ID, Change{Value: "Changed wording?"}); e != nil {
+	if _, e = s.Change(opEdit, q.ID, Change{Value: "Changed wording?"}); e != nil {
 		t.Fatal(e)
 	}
 	out.Reset()

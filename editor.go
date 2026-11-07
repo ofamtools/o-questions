@@ -84,9 +84,9 @@ func (a *App) textEditor(verb string, spec textAction, c ochazuke.Ctx) ochazuke.
 			v, err := a.store.Ask(Ask{Question: text, Key: "editor:" + key})
 			q, e = v.Question, err
 		case spec.question:
-			q, e = a.store.Change("edit", q.ID, Change{Value: text})
+			q, e = a.store.Change(opEdit, q.ID, Change{Value: text})
 		case verb == "rename":
-			q, e = a.store.Change("rename", q.ID, Change{Annotation: Annotation{Title: text}})
+			q, e = a.store.Change(opRename, q.ID, Change{Annotation: Annotation{Title: text}})
 		case entryID == "":
 			q, e = a.store.Append(q.ID, Entry{Kind: spec.entry, Text: text})
 			if e == nil {

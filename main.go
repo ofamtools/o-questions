@@ -83,11 +83,14 @@ func dispatch(a *App, args []string) error {
 	var children []oden.Command
 	for _, v := range a.specs() {
 		v := v
-		run := func(ctx context.Context, words []string) error {
-			return sh.Run(ctx, append([]string{"question", v.name}, words...))
+		for _, name := range append([]string{v.name}, v.aliases...) {
+			name := name
+			run := func(ctx context.Context, words []string) error {
+				return sh.Run(ctx, append([]string{"question", name}, words...))
+			}
+			children = append(children, oden.Command{Name: name, Summary: v.description, Run: run})
+			app.Add(oden.Command{Name: name, Summary: v.description, Run: run})
 		}
-		children = append(children, oden.Command{Name: v.name, Summary: v.description, Run: run})
-		app.Add(oden.Command{Name: v.name, Summary: v.description, Run: run})
 	}
 	children = append(children, oden.Command{Name: "view", Summary: "Read the complete thread", Run: func(ctx context.Context, words []string) error {
 		return sh.Run(ctx, append([]string{"question", "view"}, words...))

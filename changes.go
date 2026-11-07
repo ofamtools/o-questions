@@ -68,98 +68,161 @@ type Change struct {
 	Annotation Annotation
 }
 
-func (s *Store) Change(action, target string, c Change) (Question, error) {
-	return s.mutate(action, target, func(q *Question, rows *[]Question) error {
-		switch action {
-		case "annotate", "associate", "tag", "link", "rename":
-			annotate(q, c.Annotation)
-		case "untag":
-			q.Tags = slices.DeleteFunc(q.Tags, func(v string) bool { return v == c.Value })
-		case "unlink":
-			q.Links = slices.DeleteFunc(q.Links, func(v Link) bool { return v.Target == c.Value })
-		case "star":
-			q.Starred = !q.Starred
-		case "unstar":
-			q.Starred = false
-		case "delete", "archive":
-			q.Deleted = true
-		case "restore":
-			q.Deleted = false
-		case "edit":
-			if strings.TrimSpace(c.Value) == "" {
-				return errors.New("question must not be empty")
-			}
-			q.Text = c.Value
-			q.Verbatim = "unchecked"
-		case "status", "reopen", "moot":
-			status := c.Value
-			if action == "reopen" {
-				status = "open"
-			}
-			if action == "moot" {
-				status = "moot"
-			}
-			if !slices.Contains(statuses, status) {
-				return fmt.Errorf("status must be one of %s", strings.Join(statuses, ", "))
-			}
-			q.Status = status
-			q.StatusExplicit = true
-		case "merge":
-			other, e := resolve(*rows, c.Other)
-			if e != nil {
-				return e
-			}
-			if other.ID == q.ID {
-				return errors.New("cannot merge a question into itself")
-			}
-			if e = s.hydrate(&other); e != nil {
-				return e
-			}
-			if e = s.appendEntry(q, Entry{Kind: "note", Text: other.Text, Summary: other.Title, Links: []Link{{Kind: "question", Target: other.ID}}}); e != nil {
-				return e
-			}
-			q.Entries = append(q.Entries, other.Entries...)
-			q.Tags = addUnique(q.Tags, other.Tags)
-			q.Links = addUnique(q.Links, other.Links)
-			for i := range *rows {
-				if (*rows)[i].ID == other.ID {
-					(*rows)[i].Deleted = true
-				}
-			}
-		case "split":
-			if e := s.hydrate(q); e != nil {
-				return e
-			}
-			idx := slices.IndexFunc(q.Entries, func(en Entry) bool { return en.ID == c.Entry })
-			if idx < 0 {
-				return errors.New("entry not found")
-			}
-			en := q.Entries[idx]
-			id, e := token()
-			if e != nil {
-				return e
-			}
-			newQ := Question{ID: "q-" + id, Title: en.Summary, Text: en.Text, Verbatim: "unchecked", AskedBy: Owner(), RecordedBy: s.Actor, Created: s.now(), Updated: s.now(), AskedAt: en.At, Status: "open", Parent: q.ID, Project: q.Project, Cwd: q.Cwd, Source: q.Source, Key: "split:" + q.ID + ":" + en.ID, Entries: []Entry{}}
-			if newQ.Title == "" {
-				newQ.Title = string([]rune(en.Text)[:min(80, len([]rune(en.Text)))])
-			}
-			for _, v := range *rows {
-				if v.Key == newQ.Key {
-					return errors.New("entry already split")
-				}
-			}
-			newQ.Created = s.now()
-			for _, old := range *rows {
-				if !newQ.Created.After(old.Created) {
-					newQ.Created = old.Created.Add(time.Nanosecond)
-				}
-			}
-			newQ.FileName = newQ.Created.Format("20060102T150405.000000000Z") + "-" + slug(newQ.Title) + "-" + newQ.ID + ".json"
-			*rows = append(*rows, newQ)
-			q.Links = append(q.Links, Link{Kind: "question", Target: newQ.ID, Label: "split entry " + en.ID})
-		default:
-			return fmt.Errorf("unsupported change %q", action)
-		}
-		return nil
+// ChangeOp is one store change: its name (for policy and history) and what
+// it does to the question. Each verb row names its op, so nothing looks a
+// handler up by the verb's name.
+type ChangeOp struct {
+	Name string
+	Do   func(s *Store, c Change, q *Question, rows *[]Question) error
+}
+
+var (
+	opAnnotate  = ChangeOp{"annotate", changeAnnotate}
+	opAssociate = ChangeOp{"associate", changeAnnotate}
+	opTag       = ChangeOp{"tag", changeAnnotate}
+	opLink      = ChangeOp{"link", changeAnnotate}
+	opRename    = ChangeOp{"rename", changeAnnotate}
+	opUntag     = ChangeOp{"untag", changeUntag}
+	opUnlink    = ChangeOp{"unlink", changeUnlink}
+	opStar      = ChangeOp{"star", changeStar}
+	opUnstar    = ChangeOp{"unstar", changeUnstar}
+	opDelete    = ChangeOp{"delete", changeDelete}
+	opArchive   = ChangeOp{"archive", changeDelete}
+	opRestore   = ChangeOp{"restore", changeRestore}
+	opEdit      = ChangeOp{"edit", changeEdit}
+	opStatus    = ChangeOp{"status", changeStatus}
+	opReopen    = ChangeOp{"reopen", changeReopen}
+	opMoot      = ChangeOp{"moot", changeMoot}
+	opMerge     = ChangeOp{"merge", changeMerge}
+	opSplit     = ChangeOp{"split", changeSplit}
+)
+
+func (s *Store) Change(op ChangeOp, target string, c Change) (Question, error) {
+	return s.mutate(op.Name, target, func(q *Question, rows *[]Question) error {
+		return op.Do(s, c, q, rows)
 	})
+}
+
+func changeAnnotate(s *Store, c Change, q *Question, rows *[]Question) error {
+	annotate(q, c.Annotation)
+	return nil
+}
+
+func changeUntag(s *Store, c Change, q *Question, rows *[]Question) error {
+	q.Tags = slices.DeleteFunc(q.Tags, func(v string) bool { return v == c.Value })
+	return nil
+}
+
+func changeUnlink(s *Store, c Change, q *Question, rows *[]Question) error {
+	q.Links = slices.DeleteFunc(q.Links, func(v Link) bool { return v.Target == c.Value })
+	return nil
+}
+
+func changeStar(s *Store, c Change, q *Question, rows *[]Question) error {
+	q.Starred = !q.Starred
+	return nil
+}
+
+func changeUnstar(s *Store, c Change, q *Question, rows *[]Question) error {
+	q.Starred = false
+	return nil
+}
+
+func changeDelete(s *Store, c Change, q *Question, rows *[]Question) error {
+	q.Deleted = true
+	return nil
+}
+
+func changeRestore(s *Store, c Change, q *Question, rows *[]Question) error {
+	q.Deleted = false
+	return nil
+}
+
+func changeEdit(s *Store, c Change, q *Question, rows *[]Question) error {
+	if strings.TrimSpace(c.Value) == "" {
+		return errors.New("question must not be empty")
+	}
+	q.Text = c.Value
+	q.Verbatim = "unchecked"
+	return nil
+}
+
+func changeStatus(s *Store, c Change, q *Question, rows *[]Question) error {
+	return setStatus(q, c.Value)
+}
+
+func changeReopen(s *Store, c Change, q *Question, rows *[]Question) error {
+	return setStatus(q, "open")
+}
+
+func changeMoot(s *Store, c Change, q *Question, rows *[]Question) error {
+	return setStatus(q, "moot")
+}
+
+func setStatus(q *Question, status string) error {
+	if !slices.Contains(statuses, status) {
+		return fmt.Errorf("status must be one of %s", strings.Join(statuses, ", "))
+	}
+	q.Status = status
+	q.StatusExplicit = true
+	return nil
+}
+
+func changeMerge(s *Store, c Change, q *Question, rows *[]Question) error {
+	other, e := resolve(*rows, c.Other)
+	if e != nil {
+		return e
+	}
+	if other.ID == q.ID {
+		return errors.New("cannot merge a question into itself")
+	}
+	if e = s.hydrate(&other); e != nil {
+		return e
+	}
+	if e = s.appendEntry(q, Entry{Kind: "note", Text: other.Text, Summary: other.Title, Links: []Link{{Kind: "question", Target: other.ID}}}); e != nil {
+		return e
+	}
+	q.Entries = append(q.Entries, other.Entries...)
+	q.Tags = addUnique(q.Tags, other.Tags)
+	q.Links = addUnique(q.Links, other.Links)
+	for i := range *rows {
+		if (*rows)[i].ID == other.ID {
+			(*rows)[i].Deleted = true
+		}
+	}
+	return nil
+}
+
+func changeSplit(s *Store, c Change, q *Question, rows *[]Question) error {
+	if e := s.hydrate(q); e != nil {
+		return e
+	}
+	idx := slices.IndexFunc(q.Entries, func(en Entry) bool { return en.ID == c.Entry })
+	if idx < 0 {
+		return errors.New("entry not found")
+	}
+	en := q.Entries[idx]
+	id, e := token()
+	if e != nil {
+		return e
+	}
+	newQ := Question{ID: "q-" + id, Title: en.Summary, Text: en.Text, Verbatim: "unchecked", AskedBy: Owner(), RecordedBy: s.Actor, Created: s.now(), Updated: s.now(), AskedAt: en.At, Status: "open", Parent: q.ID, Project: q.Project, Cwd: q.Cwd, Source: q.Source, Key: "split:" + q.ID + ":" + en.ID, Entries: []Entry{}}
+	if newQ.Title == "" {
+		newQ.Title = string([]rune(en.Text)[:min(80, len([]rune(en.Text)))])
+	}
+	for _, v := range *rows {
+		if v.Key == newQ.Key {
+			return errors.New("entry already split")
+		}
+	}
+	newQ.Created = s.now()
+	for _, old := range *rows {
+		if !newQ.Created.After(old.Created) {
+			newQ.Created = old.Created.Add(time.Nanosecond)
+		}
+	}
+	newQ.FileName = newQ.Created.Format("20060102T150405.000000000Z") + "-" + slug(newQ.Title) + "-" + newQ.ID + ".json"
+	*rows = append(*rows, newQ)
+	q.Links = append(q.Links, Link{Kind: "question", Target: newQ.ID, Label: "split entry " + en.ID})
+	return nil
 }

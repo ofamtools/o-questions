@@ -77,16 +77,16 @@ func (a *App) questionStore() ochazuke.Store {
 			}
 			defer a.refresh()
 			if v, ok := t["title"].(string); ok && v != q.Title {
-				if q, e = a.store.Change("rename", q.ID, Change{Annotation: Annotation{Title: v}}); e != nil {
+				if q, e = a.store.Change(opRename, q.ID, Change{Annotation: Annotation{Title: v}}); e != nil {
 					return nil, e
 				}
 			}
 			if v, ok := t["archived"].(bool); ok && v != q.Deleted {
-				action := "restore"
+				op := opRestore
 				if v {
-					action = "archive"
+					op = opArchive
 				}
-				if q, e = a.store.Change(action, q.ID, Change{}); e != nil {
+				if q, e = a.store.Change(op, q.ID, Change{}); e != nil {
 					return nil, e
 				}
 			}
@@ -97,7 +97,7 @@ func (a *App) questionStore() ochazuke.Store {
 			if e != nil {
 				return e
 			}
-			_, e = a.store.Change("delete", q.ID, Change{})
+			_, e = a.store.Change(opDelete, q.ID, Change{})
 			a.refresh()
 			return e
 		},

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Changed: each verb spec row names its own `run` handler (verbs.go); the verb switches in `handle`, `handleReview` and `Store.Change` are gone (store changes are `ChangeOp` values). `add` and `new` are now `NounBuilder.Alias` rows of `ask`; their CLI summary is ask's.
 - Changed: question is a thing noun with a store (list, get, set of title and archived, delete); review is a read-only thing noun over the questions for the owner. Every named verb stays (list, edit, rename, delete, archive, restore); `set` with `@label` renames and `@archive` archives or restores.
 - The "Questions (o-questions)" setup note is one text for both flows, identical to the owner's global instructions: recording the owner's questions (`ask`, `answer`, `follow-up`) and posing decisions on the Review page (`pose`, `decisions`, `reply`, `applied`).
 - The `claude-md` and `codex-agents` setup note (now "Questions (o-questions)") says to record and read questions only through mtm (MCP `run` with `questions.question ...`, or `mtm questions question ...`), never the `o-questions` binary or another MCP server. It adds the owner's own questions (`ask` with their exact words, `answer`, `follow-up`) beside the decisions text. Markers are unchanged, so `setup install` replaces the old block.

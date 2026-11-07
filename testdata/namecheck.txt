@@ -6,60 +6,12 @@ actor.go	Store.permit	compare	"owner"	1
 actor.go	cliActor	compare	"agent"	1
 actor.go	cliActor	compare	"owner"	1
 actor.go	var agentPolicy	table	"delete"	1
-app.go	App.handle	case	"answer"	2
-app.go	App.handle	case	"ask"	1
-app.go	App.handle	case	"backup"	1
-app.go	App.handle	case	"check"	1
-app.go	App.handle	case	"copy"	1
-app.go	App.handle	case	"correct"	1
-app.go	App.handle	case	"follow-up"	1
-app.go	App.handle	case	"history"	1
-app.go	App.handle	case	"list"	1
-app.go	App.handle	case	"note"	1
-app.go	App.handle	case	"open"	1
-app.go	App.handle	case	"path"	2
-app.go	App.handle	case	"question"	1
-app.go	App.handle	case	"restore"	1
-app.go	App.handle	case	"show"	1
-app.go	App.handle	case	"undo"	1
-app.go	App.handle	compare	"add"	1
-app.go	App.handle	compare	"answer"	1
-app.go	App.handle	compare	"correct"	1
-app.go	App.handle	compare	"link"	1
-app.go	App.handle	compare	"new"	1
-app.go	App.handle	compare	"note"	1
-app.go	App.handle	compare	"status"	1
-app.go	App.handle	compare	"tag"	1
-app.go	App.handle	compare	"unlink"	1
-app.go	App.handle	compare	"untag"	1
-app.go	App.handle	cyclo	"-"	46
 app.go	App.rows	compare	"all"	3
 app.go	App.rows	compare	"answer"	1
 app.go	App.rows	cyclo	"-"	38
 app.go	latestAnswer	compare	"answer"	1
 app.go	newApp	compare	"question"	1
 backup.go	Store.Restore	cyclo	"-"	26
-changes.go	Store.Change	case	"annotate"	1
-changes.go	Store.Change	case	"archive"	1
-changes.go	Store.Change	case	"associate"	1
-changes.go	Store.Change	case	"delete"	1
-changes.go	Store.Change	case	"edit"	1
-changes.go	Store.Change	case	"link"	1
-changes.go	Store.Change	case	"merge"	1
-changes.go	Store.Change	case	"moot"	1
-changes.go	Store.Change	case	"rename"	1
-changes.go	Store.Change	case	"reopen"	1
-changes.go	Store.Change	case	"restore"	1
-changes.go	Store.Change	case	"split"	1
-changes.go	Store.Change	case	"star"	1
-changes.go	Store.Change	case	"status"	1
-changes.go	Store.Change	case	"tag"	1
-changes.go	Store.Change	case	"unlink"	1
-changes.go	Store.Change	case	"unstar"	1
-changes.go	Store.Change	case	"untag"	1
-changes.go	Store.Change	compare	"moot"	1
-changes.go	Store.Change	compare	"reopen"	1
-changes.go	Store.Change	cyclo	"-"	30
 check.go	App.check	compare	"text"	1
 editor.go	App.interactive	compare	"associate"	1
 editor.go	App.interactive	compare	"open"	1
@@ -118,17 +70,6 @@ review.go	reviewStatus	compare	"ask"	1
 review.go	reviewStatus	compare	"moot"	1
 review.go	reviewThread	case	"follow-up"	1
 review.go	reviewThread	case	"reply"	1
-review_app.go	App.handleReview	case	"accept"	1
-review_app.go	App.handleReview	case	"applied"	1
-review_app.go	App.handleReview	case	"ask-back"	1
-review_app.go	App.handleReview	case	"decide"	1
-review_app.go	App.handleReview	case	"decision-note"	1
-review_app.go	App.handleReview	case	"decisions"	1
-review_app.go	App.handleReview	case	"import"	1
-review_app.go	App.handleReview	case	"pose"	1
-review_app.go	App.handleReview	case	"reply"	1
-review_app.go	App.handleReview	case	"undecide"	1
-review_app.go	App.handleReview	compare	"plan"	1
 review_app.go	App.reviewRows	case	"applied"	1
 review_app.go	App.reviewRows	compare	"reply"	1
 review_app.go	decisionCell	case	"applied"	1
@@ -155,16 +96,6 @@ review_app.go	var reviewAliases	table	"undecide"	1
 review_app.go	var reviewAliases	table	"undo"	1
 review_app.go	var reviewAliases	table	"unstar"	1
 review_app.go	var reviewAliases	table	"untag"	1
-review_app.go	var reviewVerbs	table	"accept"	1
-review_app.go	var reviewVerbs	table	"applied"	1
-review_app.go	var reviewVerbs	table	"ask-back"	1
-review_app.go	var reviewVerbs	table	"decide"	1
-review_app.go	var reviewVerbs	table	"decision-note"	1
-review_app.go	var reviewVerbs	table	"decisions"	1
-review_app.go	var reviewVerbs	table	"import"	1
-review_app.go	var reviewVerbs	table	"pose"	1
-review_app.go	var reviewVerbs	table	"reply"	1
-review_app.go	var reviewVerbs	table	"undecide"	1
 review_web.go	Store.syncWeb	compare	"applied"	1
 review_web.go	Store.webSession	case	"applied"	1
 settings.go	statusTable	compare	"follow-up"	1

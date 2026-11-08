@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.3.0 (2026-11-08)
 
 - Changed, breaking (lexicon, one shot: no old-name aliases; every rename is in `docs/lexicon-renames-v0.3.tsv`): the Decisions page's noun is `decision`, not `review`. The page was already titled Decisions.
   - Noun `review` is `decision` (`question.decision`: create, edit, get, list, open-page, set, watch and the question verbs it shares: decide, accept, undecide, ask-back, decision-note, reply, applied, show, yank, tag, ...). `o-questions review [--web]` is `o-questions decision [--web]`; the page id, picker, key rows (`decision/normal`, `decision.decide`, ...) and the mgmt session directory (`decision-web`) follow.

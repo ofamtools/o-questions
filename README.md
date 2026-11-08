@@ -178,11 +178,12 @@ items locked once applied.
 # agent
 o questions question pose "Turn the Decisions page on by default?" \
   --group Decisions --source plans/x.md:42 --details "context" \
-  --recommendation "Yes, with decision.page to opt out" --key x-42
+  --options '["Turn it on","Leave it off"]' --recommended "Turn it on" \
+  --recommendation "Opt-out setting exists" --key x-42
 o questions question import            # pose the open "Owner questions" of decision.plans-root
 o questions decision export            # JSON: asked questions, decisions, undecided
 o questions decision export --render plan | jq -r .   # "## Owner decisions (date)" per plan
-o questions question reply Q "answer" [--recommendation T] [--recommended_action A]
+o questions question reply Q "answer" [--recommendation T] [--recommended OPTION_ID]
 o questions question applied Q done "what changed, how checked"   # locks it
 # owner
 o questions decision                     # the Decisions page (also a tab in mtm)
@@ -228,7 +229,7 @@ executable `mgmt.py` on `PATH`. Existing installations in the legacy hub home
 location are used as a final fallback. Python 3 is required for this page.
 
 Settings: `decision.page` (default true; false removes the page), `decision.show`
-(pending), `decision.actions` (yes, no, later, moot), `decision.ask` (true),
+(pending), `decision.outcomes` (the answers that are not options: later, moot, ask, other),
 `decision.plans-root` (the folder to import planning documents from), `decision.mgmt`
 (empty; discovers `mgmt.py` at run time), and `filter.direction` (to-agent) for the
 Questions page, which keeps showing only the owner's own questions by default.

@@ -43,11 +43,11 @@ var mcpAllowlist = map[string][]string{
 	"show":     {"target"},
 	// Questions for the owner: agents pose, read decisions, reply to asks and
 	// record results; deciding stays the owner's (not listed).
-	"pose":            {"question", "title", "group", "source", "details", "recommendation", "recommended_action", "actions", "project", "cwd", "task", "tags", "links", "key"},
+	"pose":            {"question", "title", "group", "source", "details", "recommendation", "recommended", "options", "items", "project", "cwd", "task", "tags", "links", "key"},
 	"queue":           {"show", "group"},
 	"decision-export": {"group", "all", "render", "date"},
-	"reply":           {"target", "text", "recommendation", "recommended_action", "question"},
-	"applied":         {"target", "outcome", "result"},
+	"reply":           {"target", "text", "recommendation", "recommended", "question"},
+	"applied":         {"target", "item", "outcome", "result"},
 	"import":          {"root", "include_answered"},
 }
 

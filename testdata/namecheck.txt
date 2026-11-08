@@ -13,6 +13,32 @@ app.go	latestAnswer	compare	"answer"	1
 app.go	newApp	compare	"question"	1
 backup.go	Store.Restore	cyclo	"-"	26
 check.go	App.check	compare	"text"	1
+decision.go	decisionThread	case	"follow-up"	1
+decision.go	decisionThread	case	"reply"	1
+decision.go	lastOwnerQuestion	compare	"follow-up"	1
+decision_app.go	var decisionAliases	table	"accept"	1
+decision_app.go	var decisionAliases	table	"applied"	1
+decision_app.go	var decisionAliases	table	"archive"	1
+decision_app.go	var decisionAliases	table	"ask-back"	1
+decision_app.go	var decisionAliases	table	"associate"	1
+decision_app.go	var decisionAliases	table	"decide"	1
+decision_app.go	var decisionAliases	table	"decision-note"	1
+decision_app.go	var decisionAliases	table	"delete"	1
+decision_app.go	var decisionAliases	table	"link"	1
+decision_app.go	var decisionAliases	table	"open"	1
+decision_app.go	var decisionAliases	table	"rename"	1
+decision_app.go	var decisionAliases	table	"reply"	1
+decision_app.go	var decisionAliases	table	"restore"	1
+decision_app.go	var decisionAliases	table	"show"	1
+decision_app.go	var decisionAliases	table	"star"	1
+decision_app.go	var decisionAliases	table	"tag"	1
+decision_app.go	var decisionAliases	table	"undecide"	1
+decision_app.go	var decisionAliases	table	"undo"	1
+decision_app.go	var decisionAliases	table	"unstar"	1
+decision_app.go	var decisionAliases	table	"untag"	1
+decision_app.go	var decisionAliases	table	"yank"	1	question verbs also named decision.VERB (was copy)
+decision_web.go	Store.syncWeb	compare	"applied"	1
+decision_web.go	Store.webSession	case	"applied"	1
 editor.go	App.interactive	compare	"associate"	1
 editor.go	App.interactive	compare	"open"	1
 editor.go	App.textEditor	compare	"ask"	2
@@ -46,52 +72,9 @@ page.go	registerQuestionUI	compare	"show"	1	the thread-viewer guard follows the 
 plans.go	Store.ImportPlans	compare	"applied"	1
 plans.go	Store.PlanDecisions	case	"moot"	1
 plans.go	Store.PlanDecisions	compare	"applied"	1
-plans.go	Store.PlanDecisions	compare	"ask"	1
-decision.go	Store.Applied	compare	"applied"	1
-decision.go	Store.Applied	compare	"ask"	1
-decision.go	Store.Decide	compare	"applied"	1
-decision.go	Store.Decide	compare	"ask"	1
-decision.go	Store.DecisionExport	compare	"applied"	1
-decision.go	Store.Pose	compare	"applied"	1
-decision.go	Store.Pose	cyclo	"-"	31
-decision.go	Store.Reply	compare	"applied"	1
-decision.go	Store.Reply	compare	"ask"	1
-decision.go	lastOwnerQuestion	compare	"follow-up"	1
-decision.go	decisionClass	compare	"applied"	1
-decision.go	decisionClass	compare	"ask"	1
-decision.go	decisionShown	case	"all"	1
-decision.go	decisionShown	case	"pending"	1
-decision.go	decisionShown	compare	"applied"	1
-decision.go	decisionStatus	compare	"ask"	1
-decision.go	decisionStatus	compare	"moot"	1
-decision.go	decisionThread	case	"follow-up"	1
-decision.go	decisionThread	case	"reply"	1
-decision_app.go	App.decisionRows	case	"applied"	1
-decision_app.go	decisionCell	case	"applied"	1
-decision_app.go	recommendationView	compare	"ask"	1
-decision_app.go	var decisionAliases	table	"accept"	1
-decision_app.go	var decisionAliases	table	"applied"	1
-decision_app.go	var decisionAliases	table	"archive"	1
-decision_app.go	var decisionAliases	table	"ask-back"	1
-decision_app.go	var decisionAliases	table	"associate"	1
-decision_app.go	var decisionAliases	table	"decide"	1
-decision_app.go	var decisionAliases	table	"decision-note"	1
-decision_app.go	var decisionAliases	table	"delete"	1
-decision_app.go	var decisionAliases	table	"link"	1
-decision_app.go	var decisionAliases	table	"open"	1
-decision_app.go	var decisionAliases	table	"rename"	1
-decision_app.go	var decisionAliases	table	"reply"	1
-decision_app.go	var decisionAliases	table	"restore"	1
-decision_app.go	var decisionAliases	table	"show"	1
-decision_app.go	var decisionAliases	table	"star"	1
-decision_app.go	var decisionAliases	table	"tag"	1
-decision_app.go	var decisionAliases	table	"undecide"	1
-decision_app.go	var decisionAliases	table	"undo"	1
-decision_app.go	var decisionAliases	table	"unstar"	1
-decision_app.go	var decisionAliases	table	"untag"	1
-decision_app.go	var decisionAliases	table	"yank"	1	question verbs also named decision.VERB (was copy)
-decision_web.go	Store.syncWeb	compare	"applied"	1
-decision_web.go	Store.webSession	case	"applied"	1
 settings.go	statusTable	compare	"follow-up"	1
 settings.go	statusTable	compare	"open"	1
 store.go	Store.appendEntry	compare	"follow-up"	1
+decision.go	Store.decisionShown	case	"all"	1	filter name, carried from decisionShown
+decision.go	Store.decisionShown	case	"pending"	1	filter name, carried from decisionShown
+decision.go	isApplied	compare	"applied"	1	the one place the applied status is tested (replaces seven scattered comparisons)

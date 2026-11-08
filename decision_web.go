@@ -59,14 +59,14 @@ func (s *Store) webSession() (mgmtSession, error) {
 		return mgmtSession{}, e
 	}
 	qs = sortByGroup(qs)
-	defaults := s.decisionDefaults()
+	_, asks := s.replyOutcome()
 	stamp := s.now().Format(time.RFC3339)
-	out := mgmtSession{Version: 1, Title: "Questions for the owner", Scope: "Questions agents posed in o-questions (" + s.Dir + "). Decisions are written back to o-questions while this page is served.", DefaultAction: defaults[0], Actions: slices.Clone(defaults), Kind: "o-questions", Ask: s.DecisionAsk, Groups: groupOrder(qs), GeneratedAt: stamp, CreatedAt: stamp, UpdatedAt: stamp, Items: []mgmtItem{}}
+	out := mgmtSession{Version: 1, Title: "Questions for the owner", Scope: "Questions agents posed in o-questions (" + s.Dir + "). Decisions are written back to o-questions while this page is served.", DefaultAction: "", Actions: []string{}, Kind: "o-questions", Ask: asks, Groups: groupOrder(qs), GeneratedAt: stamp, CreatedAt: stamp, UpdatedAt: stamp, Items: []mgmtItem{}}
 	for _, q := range qs {
 		r := q.Decision
-		for _, act := range r.Actions {
-			if !slices.Contains(out.Actions, act) {
-				out.Actions = append(out.Actions, act)
+		for _, o := range s.optionsOf(r) {
+			if !slices.Contains(out.Actions, o.ID) {
+				out.Actions = append(out.Actions, o.ID)
 			}
 		}
 		details := strings.TrimSpace(q.Text)
@@ -77,9 +77,7 @@ func (s *Store) webSession() (mgmtSession, error) {
 		if it.Source == "" {
 			it.Source = "o-questions:" + q.ID
 		}
-		if it.Recommendation != "" || r.RecommendedAction != "" {
-			it.RecommendedAction = recommended(r, defaults)
-		}
+		it.RecommendedAction = r.recommendedID()
 		if t := decisionThread(q); len(t) > 0 {
 			it.Thread = t
 		}
@@ -91,6 +89,12 @@ func (s *Store) webSession() (mgmtSession, error) {
 		}
 		out.Items = append(out.Items, it)
 	}
+	for _, id := range s.outcomeIDs() {
+		if !slices.Contains(out.Actions, id) {
+			out.Actions = append(out.Actions, id)
+		}
+	}
+	out.DefaultAction = out.Actions[0]
 	return out, nil
 }
 

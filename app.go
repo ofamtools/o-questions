@@ -170,8 +170,9 @@ func (a *App) configure() {
 	a.store.MaxBytes = s.Int("entry.max-bytes")
 	a.store.BackupDaily = s.Bool("backup.daily")
 	a.store.BackupKeep = s.Int("backup.keep")
-	a.store.DecisionActions = s.Strings("decision.actions")
-	a.store.DecisionAsk = s.Bool("decision.ask")
+	if out, e := parseOutcomes(s.Strings("decision.outcomes")); e == nil {
+		a.store.Outcomes = out
+	}
 	a.store.Permit = func(action string) error {
 		op, ok := a.r.Operation("question." + action)
 		if !ok {

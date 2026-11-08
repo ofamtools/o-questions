@@ -48,8 +48,7 @@ func TestEveryCatalogVerbRuns(t *testing.T) {
 
 func TestDecisionListJSON(t *testing.T) {
 	s := fixture(t)
-	s.DecisionAsk = true
-	if _, e := agentStore(s).Pose(Pose{Question: "Ship the Decisions page?", Group: "Decision", Recommendation: "Yes", Key: "k1"}); e != nil {
+	if _, e := agentStore(s).Pose(Pose{Question: "Ship the Decisions page?", Group: "Decision", Recommendation: "Yes", Options: []Option{{ID: "yes"}}, Recommended: "yes", Key: "k1"}); e != nil {
 		t.Fatal(e)
 	}
 	a, out := testApp(t, s)

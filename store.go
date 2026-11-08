@@ -25,8 +25,7 @@ type Store struct {
 	StatusFromEntry map[string]string
 	BackupDaily     bool
 	BackupKeep      int
-	DecisionActions []string
-	DecisionAsk     bool
+	Outcomes        []Outcome
 }
 
 func (s *Store) now() time.Time {

@@ -1,0 +1,103 @@
+{
+  "format": "o-questions-decisions/1",
+  "exported_at": "2026-11-08T12:00:26Z",
+  "counts": {
+    "accepted": 1,
+    "asked": 1,
+    "decided": 2,
+    "undecided": 1
+  },
+  "groups": [
+    "Release",
+    "Web"
+  ],
+  "questions": [
+    {
+      "id": "q-why",
+      "key": "why",
+      "group": "Web",
+      "title": "Why?",
+      "question": "Why now?",
+      "thread": [
+        {
+          "role": "owner",
+          "text": "Why now?",
+          "at": "2026-11-08T12:00:19Z"
+        }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "q-rel",
+      "key": "rel",
+      "group": "Release",
+      "title": "Push main and cut a gem release, or leave hiiro local?",
+      "options": [
+        {
+          "id": "release",
+          "label": "Push main and cut the gem release",
+          "description": "git push, gem build"
+        },
+        {
+          "id": "local",
+          "label": "Leave hiiro local"
+        }
+      ],
+      "action": "release",
+      "answer": {
+        "kind": "option",
+        "id": "release",
+        "label": "Push main and cut the gem release"
+      },
+      "recommended": "release",
+      "recommended_action": "release",
+      "recommendation": "main is green",
+      "accepted_recommendation": true,
+      "context_changed": false,
+      "new_reply": false
+    },
+    {
+      "id": "q-port",
+      "key": "port",
+      "group": "Web",
+      "title": "Which port?",
+      "action": "other",
+      "answer": {
+        "kind": "outcome",
+        "id": "other",
+        "label": "Write your own answer",
+        "text": "random above 9000"
+      },
+      "accepted_recommendation": false,
+      "note": "random above 9000",
+      "context_changed": false,
+      "new_reply": false
+    }
+  ],
+  "undecided": [
+    {
+      "id": "q-list",
+      "key": "list",
+      "group": "Release",
+      "title": "Which branches go?",
+      "picks": [
+        {
+          "item": "a",
+          "label": "feat/a",
+          "checked": true
+        },
+        {
+          "item": "b",
+          "label": "feat/b",
+          "checked": false,
+          "note": "Why now?"
+        }
+      ],
+      "progress": "1/2",
+      "accepted_recommendation": false,
+      "context_changed": false,
+      "new_reply": false
+    }
+  ]
+}

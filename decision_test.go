@@ -20,11 +20,10 @@ func agentStore(s *Store) *Store {
 
 func TestPoseDecideReplyCarryExport(t *testing.T) {
 	s := fixture(t)
-	s.DecisionAsk = true
 	ag := agentStore(s)
-	p := Pose{Question: "Ship the Decisions page on by default?", Group: "Decision", Source: "plan.md:3", Details: "context v1", Recommendation: "Yes, with an opt-out", Key: "k1"}
+	p := Pose{Question: "Ship the Decisions page on by default?", Group: "Decision", Source: "plan.md:3", Details: "context v1", Recommendation: "Yes, with an opt-out", Recommended: "on", Options: []Option{{ID: "on", Label: "Turn it on by default"}, {ID: "off", Label: "Leave it off"}}, Key: "k1"}
 	posed, e := ag.Pose(p)
-	if e != nil || posed.Existed || !posed.Question.forOwner() || posed.Question.Decision.RecommendedAction != "yes" || posed.Question.AskedBy.Kind != "agent" {
+	if e != nil || posed.Existed || !posed.Question.forOwner() || posed.Question.Decision.Recommended != "on" || len(posed.Warnings) != 0 || posed.Question.AskedBy.Kind != "agent" {
 		t.Fatal(posed, e)
 	}
 	id := posed.Question.ID
@@ -45,7 +44,7 @@ func TestPoseDecideReplyCarryExport(t *testing.T) {
 	}
 	// 1 picks the first numbered action; same as the recommendation, so it is an accept.
 	q, e := s.Decide(id, DecisionChange{Choice: 1})
-	if e != nil || q.Decision.Action != "yes" || q.Status != "answered" {
+	if e != nil || q.Decision.Action != "on" || q.Status != "answered" {
 		t.Fatal(q, e)
 	}
 	x, _ = s.DecisionExport("", false)
@@ -59,7 +58,7 @@ func TestPoseDecideReplyCarryExport(t *testing.T) {
 	}
 	p.Details = "context v2"
 	again, e = ag.Pose(p)
-	if e != nil || !again.Changed || again.Question.Decision.Action != "yes" || !again.Question.Decision.ContextChanged {
+	if e != nil || !again.Changed || again.Question.Decision.Action != "on" || !again.Question.Decision.ContextChanged {
 		t.Fatal(again, e)
 	}
 	x, _ = s.DecisionExport("", false)
@@ -67,11 +66,11 @@ func TestPoseDecideReplyCarryExport(t *testing.T) {
 		t.Fatal("changed context must be read", x)
 	}
 	// Ask back: open for the agent, listed as a question with its thread.
-	if _, e = s.Decide(id, DecisionChange{Choice: 6}); e == nil {
+	if _, e = s.Decide(id, DecisionChange{Choice: 3}); e == nil {
 		t.Fatal("choice out of range accepted")
 	}
 	note := "Why on by default?"
-	q, e = s.Decide(id, DecisionChange{Action: askOut, Note: &note})
+	q, e = s.Decide(id, DecisionChange{Action: "ask", Note: &note})
 	if e != nil || q.Status != "follow-up" || q.Decision.ContextChanged {
 		t.Fatal(q, e)
 	}
@@ -90,15 +89,15 @@ func TestPoseDecideReplyCarryExport(t *testing.T) {
 	}
 	// Owner accepts; nothing to read.
 	q, e = s.Decide(id, DecisionChange{Accept: true})
-	if e != nil || q.Decision.Action != "yes" || q.Decision.NewReply || !accepted(q.Decision) {
+	if e != nil || q.Decision.Action != "on" || q.Decision.NewReply || !accepted(q.Decision) {
 		t.Fatal(*q.Decision, e)
 	}
 	// Applying: undecided items refuse; done locks.
-	other, _ := ag.Pose(Pose{Question: "Second?", Key: "k2", Actions: []string{"a", "b"}})
-	if _, e = ag.Applied(other.Question.ID, "done", "x"); e == nil {
+	other, _ := ag.Pose(Pose{Question: "Second?", Key: "k2", Options: []Option{{ID: "a"}, {ID: "b"}}})
+	if _, e = ag.Applied(other.Question.ID, "", "done", "x"); e == nil {
 		t.Fatal("applied an undecided item")
 	}
-	if q, e = ag.Applied(id, "done", "Set decision.page default true; tests pass"); e != nil || q.Decision.Status != decisionApplied {
+	if q, e = ag.Applied(id, "", "done", "Set decision.page default true; tests pass"); e != nil || q.Decision.Status != decisionApplied {
 		t.Fatal(q, e)
 	}
 	if _, e = s.Decide(id, DecisionChange{Clear: true}); e == nil {
@@ -115,24 +114,26 @@ func TestPoseDecideReplyCarryExport(t *testing.T) {
 	if len(x.Items) != 1 || x.Items[0].Status != decisionApplied {
 		t.Fatal(x)
 	}
-	// Item actions: choice 2 is the item's own second action; 3 is ask.
+	// Choice 2 is the question's own second option; outcomes are not numbered.
 	if q, e = s.Decide(other.Question.ID, DecisionChange{Choice: 2}); e != nil || q.Decision.Action != "b" {
 		t.Fatal(q, e)
 	}
-	if got := decisionActions(other.Question, s.decisionDefaults(), true); strings.Join(got, ",") != "a,b,ask" {
+	if got := s.optionsOf(other.Question.Decision); len(got) != 2 {
 		t.Fatal(got)
 	}
 }
 
 func TestDecisionUndoAndAnswerGuards(t *testing.T) {
 	s := fixture(t)
-	s.DecisionAsk = true
 	plain := ask(t, s, "Owner's own question?")
 	if _, e := s.Decide(plain.ID, DecisionChange{Choice: 1}); e == nil {
 		t.Fatal("decided an owner's question")
 	}
 	posed, _ := agentStore(s).Pose(Pose{Question: "Q?", Key: "k"})
-	if _, e := s.Decide(posed.Question.ID, DecisionChange{Choice: 1}); e != nil {
+	if _, e := s.Decide(posed.Question.ID, DecisionChange{Choice: 1}); e == nil {
+		t.Fatal("picked a numbered option of a question with none")
+	}
+	if _, e := s.Decide(posed.Question.ID, DecisionChange{Action: "later"}); e != nil {
 		t.Fatal(e)
 	}
 	if e := s.Undo(); e != nil {
@@ -178,7 +179,6 @@ func itoa(n int) string { b, _ := json.Marshal(n); return string(b) }
 
 func TestImportPlansCarriesDecisionsAndRendersDecisions(t *testing.T) {
 	s := fixture(t)
-	s.DecisionAsk = true
 	root := filepath.Join(t.TempDir(), "plans")
 	if e := os.CopyFS(root, os.DirFS("testdata/plans")); e != nil {
 		t.Fatal(e)
@@ -245,7 +245,7 @@ func TestDecisionWebRoundTrip(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	first, _ := ag.Pose(Pose{Question: "First?", Group: "G", Recommendation: "do it", Key: "a"})
+	first, _ := ag.Pose(Pose{Question: "First?", Group: "G", Recommendation: "do it", Recommended: "yes", Options: []Option{{ID: "yes"}, {ID: "no"}}, Key: "a"})
 	second, _ := ag.Pose(Pose{Question: "Second?", Group: "G", Key: "b"})
 	mgmt := filepath.Join(t.TempDir(), "mgmt.py")
 	if e = os.WriteFile(mgmt, []byte("# fake"), 0600); e != nil {
@@ -299,8 +299,8 @@ func decisionFixturePage(t *testing.T, settings map[string]any) (*Store, *page, 
 	ag := agentStore(s)
 	var qs []Question
 	for _, p := range []Pose{
-		{Question: "Turn the Decisions page on?", Group: "Decision", Recommendation: "Yes, opt-out setting", Key: "r1"},
-		{Question: "Which port?", Group: "Web", Actions: []string{"8765", "random"}, Key: "w1"},
+		{Question: "Turn the Decisions page on?", Group: "Decision", Recommendation: "Yes, opt-out setting", Recommended: "yes", Options: []Option{{ID: "yes", Label: "yes"}, {ID: "no", Label: "no"}}, Key: "r1"},
+		{Question: "Which port?", Group: "Web", Options: []Option{{ID: "8765"}, {ID: "random"}}, Key: "w1"},
 	} {
 		posed, e := ag.Pose(p)
 		if e != nil {
@@ -335,7 +335,7 @@ func TestDecisionPageKeys(t *testing.T) {
 		t.Fatal(e)
 	}
 	frame := frameText(p)
-	for _, want := range []string{"Decision  0/1 decided", "yes?", "recommended · not confirmed", "1 yes · 2 no · 3 later · 4 moot · 5 ask"} {
+	for _, want := range []string{"Decision  0/1 decided", "yes?", "recommended · not confirmed", "1 yes · 2 no · Later · Moot · Ask the agent · Write your own answer"} {
 		if !strings.Contains(frame, want) {
 			t.Fatalf("missing %q:\n%s", want, frame)
 		}

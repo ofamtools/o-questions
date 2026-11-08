@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Changed, breaking (decisions with options, one shot; the stored-data and settings migration is a later change, so old `actions` still read as options): a question for the owner carries its own options.
+  - `pose` takes `options` (strings or `{id, label, description}`), `recommended` (an option id; never implied) and `items` (a checklist: strings or `{id, label, description, recommended}`). `actions` and `recommended_action` are refused with an error naming the new parameter. A question posed with no options and no items is still stored; the result carries `warnings` telling the poser to supply options. Option ids must be unique and may not equal an outcome id.
+  - No default options: `yes, no, later, moot` is gone as an implicit set. Plan import states its own yes/no options.
+  - New setting `decision.outcomes` (rows `id|label|status|class|flags`; default later, moot, ask, other) is the table of answers that are not options. It drives the question status and the `decision.show` class (a new `later` class); flags `note` (needs text) and `reply` (the note goes to the agent, a reply reopens). `decision.actions` and `decision.ask` are no longer read.
+  - Checklists are two-state: `decide item=ID [checked=BOOL]` marks an item, `decide confirm` decides the list as it stands, `accept` checks the recommended items, `undecide item=ID` clears one mark, `applied item=ID` applies one checked item (the decision locks when all checked items are applied). `decide option=ID` is new beside `action` and `choice`.
+  - Repose by `key` keeps the owner's pick while its option or item id exists; otherwise the pick is cleared, the question flagged context changed, and the lost choice noted in the thread. `reply` takes `recommended` (an option id).
+  - `decision export` adds `answer` (kind, id, label, text), `options`, `picks`, `progress` and `recommended`; `action` and `recommended_action` stay.
+
 ## v0.3.0 (2026-11-08)
 
 - Changed, breaking (lexicon, one shot: no old-name aliases; every rename is in `docs/lexicon-renames-v0.3.tsv`): the Decisions page's noun is `decision`, not `review`. The page was already titled Decisions.

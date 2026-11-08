@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -27,8 +28,9 @@ func (a *App) decisionSpecs() []verbSpec {
 		"question": {Type: "string", Required: true, Rest: true, Description: "The question for the owner"},
 		"title":    param("Short title"), "group": param("Topic; default the source file"),
 		"source": param("Where it comes from, for example plan.md:42"), "details": param("Context the owner needs to decide"),
-		"recommendation": param("Your recommendation; shown unconfirmed until accepted"), "recommended_action": param("The action you recommend (default the first action)"),
-		"actions": arr("Allowed actions; default the decision.actions setting"),
+		"recommendation": param("Why you recommend it; shown unconfirmed until accepted"), "recommended": param("Id of the option you recommend (never implied)"),
+		"options": arr("What the owner picks from: each a label (or {id, label, description}) in the owner's own words; give them, there are no defaults"),
+		"items":   arr("A checklist: each a label (or {id, label, description, recommended}); the owner checks what to do"),
 		"project": param("Project ID"), "cwd": param("Project directory"), "task": param("Task ID"),
 		"tags": arr("Values to append"), "links": arr("Values to append"),
 		"key": param("Stable id; posing it again updates the question and keeps the decision"),
@@ -36,13 +38,13 @@ func (a *App) decisionSpecs() []verbSpec {
 	return []verbSpec{
 		{"pose", "Record a question for the owner, with your recommendation", pose, []string{"question"}, false, runPose, nil},
 		{"queue", "List questions for the owner, grouped by topic", map[string]ochazuke.Parameter{"show": {Type: "string", Enum: decisionFilters, Description: "Decision state shown; default decision.show"}, "group": param("Topic"), "flat": {Type: "boolean", Description: "Only the questions, no topic header rows (what a picker lists)"}}, nil, true, runQueue, nil},
-		{"decide", "Decide a question for the owner (owner)", map[string]ochazuke.Parameter{"target": target, "action": param("One of the item's actions, ask, or any action"), "choice": {Type: "integer", Description: "Numbered action, 1 first"}, "note": param("Note for the agent")}, []string{"target", "action"}, false, decisionVerb(decide), nil},
-		{"accept", "Accept the recommendation (owner)", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false, decisionVerb(accept), nil},
-		{"undecide", "Clear the decision, keeping its note (owner)", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false, decisionVerb(undecide), nil},
+		{"decide", "Decide a question for the owner (owner)", map[string]ochazuke.Parameter{"target": target, "action": param("An option id or an outcome id"), "option": param("An option id"), "choice": {Type: "integer", Description: "Numbered option, 1 first"}, "item": param("A checklist item id: set its mark instead of the decision"), "checked": {Type: "boolean", Description: "With item: checked or not (default: flip it)"}, "confirm": {Type: "boolean", Description: "Decide the checklist as it stands: unchecked means do not"}, "pick_note": param("With item: a note on that item"), "note": param("Note for the agent")}, []string{"target", "action"}, false, decisionVerb(decide), nil},
+		{"accept", "Accept the recommendation: the recommended option, and check the recommended items (owner)", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false, decisionVerb(accept), nil},
+		{"undecide", "Clear the decision, keeping its note; with item, clear that item's mark (owner)", map[string]ochazuke.Parameter{"target": target, "item": param("A checklist item id")}, []string{"target"}, false, decisionVerb(undecide), nil},
 		{"ask-back", "Ask the agent before deciding (owner)", map[string]ochazuke.Parameter{"target": target, "text": prose("Your question")}, []string{"target", "text"}, false, decisionVerb(askBack), nil},
 		{"decision-note", "Set the note on a decision (owner)", map[string]ochazuke.Parameter{"target": target, "note": prose("Note for the agent")}, []string{"target", "note"}, false, decisionVerb(decisionNote), nil},
-		{"reply", "Answer the owner's ask on a question for the owner", map[string]ochazuke.Parameter{"target": target, "text": prose("Your answer"), "recommendation": param("Replace the recommendation"), "recommended_action": param("Replace the recommended action"), "question": param("The owner's question, when the thread lacks it")}, []string{"target", "text"}, false, decisionVerb(reply), nil},
-		{"applied", "Record the result of applying a decision; done locks it", map[string]ochazuke.Parameter{"target": target, "outcome": {Type: "string", Required: true, Enum: []string{"done", "failed"}, Description: "done or failed"}, "result": prose("What changed and how it was checked, or the failure")}, []string{"target", "outcome", "result"}, false, decisionVerb(applied), nil},
+		{"reply", "Answer the owner's ask on a question for the owner", map[string]ochazuke.Parameter{"target": target, "text": prose("Your answer"), "recommendation": param("Replace the recommendation"), "recommended": param("Replace the recommended option (an option id)"), "question": param("The owner's question, when the thread lacks it")}, []string{"target", "text"}, false, decisionVerb(reply), nil},
+		{"applied", "Record the result of applying a decision; done locks it", map[string]ochazuke.Parameter{"target": target, "item": param("A checked checklist item id: apply that item alone"), "outcome": {Type: "string", Required: true, Enum: []string{"done", "failed"}, Description: "done or failed"}, "result": prose("What changed and how it was checked, or the failure")}, []string{"target", "outcome", "result"}, false, decisionVerb(applied), nil},
 		{"decision-export", "The owner's decisions, asks and undecided items, for the agent", map[string]ochazuke.Parameter{"group": param("Topic"), "all": {Type: "boolean", Description: "Include applied decisions"}, "render": {Type: "string", Enum: []string{"json", "plan"}, Description: "json (default) or plan: Owner decisions sections for plan-imported items"}, "date": param("Date for plan sections (YYYY-MM-DD)")}, nil, false, runDecisionExport, nil},
 		{"import", "Pose the open owner questions of a plans folder", map[string]ochazuke.Parameter{"root": param("Plans folder; default decision.plans-root"), "include_answered": {Type: "boolean", Description: "Also pose questions the plan already answers"}}, []string{"root"}, false, runImport, nil},
 	}
@@ -142,8 +144,16 @@ func decisionVerb(f func(a *App, id string, c ochazuke.Ctx) (Question, error)) v
 }
 
 func decide(a *App, id string, c ochazuke.Ctx) (Question, error) {
-	d := DecisionChange{Action: argStr(c, "action")}
+	d := DecisionChange{Action: argStr(c, "action"), Option: argStr(c, "option"), Item: argStr(c, "item"), Confirm: truthy(c.Args["confirm"])}
 	d.Choice = intArg(c.Args["choice"])
+	if v, ok := c.Args["checked"]; ok {
+		b := truthy(v)
+		d.Checked = &b
+	}
+	if _, ok := c.Args["pick_note"]; ok {
+		n := argStr(c, "pick_note")
+		d.PickNote = &n
+	}
 	if _, ok := c.Args["note"]; ok {
 		n := argStr(c, "note")
 		d.Note = &n
@@ -155,13 +165,17 @@ func accept(a *App, id string, _ ochazuke.Ctx) (Question, error) {
 	return a.store.Decide(id, DecisionChange{Accept: true})
 }
 
-func undecide(a *App, id string, _ ochazuke.Ctx) (Question, error) {
-	return a.store.Decide(id, DecisionChange{Clear: true})
+func undecide(a *App, id string, c ochazuke.Ctx) (Question, error) {
+	return a.store.Decide(id, DecisionChange{Clear: true, Item: argStr(c, "item")})
 }
 
 func askBack(a *App, id string, c ochazuke.Ctx) (Question, error) {
 	text := argStr(c, "text")
-	return a.store.Decide(id, DecisionChange{Action: askOut, Note: &text})
+	out, ok := a.store.replyOutcome()
+	if !ok {
+		return Question{}, errors.New("no outcome asks the agent; add a row with the reply flag to decision.outcomes")
+	}
+	return a.store.Decide(id, DecisionChange{Action: out.ID, Note: &text})
 }
 
 func decisionNote(a *App, id string, c ochazuke.Ctx) (Question, error) {
@@ -175,15 +189,15 @@ func reply(a *App, id string, c ochazuke.Ctx) (Question, error) {
 		s := argStr(c, "recommendation")
 		rp.Recommendation = &s
 	}
-	if _, ok := c.Args["recommended_action"]; ok {
-		s := argStr(c, "recommended_action")
-		rp.RecommendedAction = &s
+	if _, ok := c.Args["recommended"]; ok {
+		s := argStr(c, "recommended")
+		rp.Recommended = &s
 	}
 	return a.store.Reply(id, rp)
 }
 
 func applied(a *App, id string, c ochazuke.Ctx) (Question, error) {
-	return a.store.Applied(id, argStr(c, "outcome"), argStr(c, "result"))
+	return a.store.Applied(id, argStr(c, "item"), argStr(c, "outcome"), argStr(c, "result"))
 }
 
 func intArg(v any) int {
@@ -202,24 +216,29 @@ func intArg(v any) int {
 	return 0
 }
 
-// decisionCell is the Status column of a decision row: the decision, the
-// unconfirmed recommendation ("yes?"), asked, or applied, with "!" when the
-// context changed or the agent replied since the owner last touched it.
-func decisionCell(q Question, ask bool) string {
+// decisionCell is the Status column of a decision row: the pick's label, the
+// unconfirmed recommendation ("Push?"), a checklist's progress ("2/5"), the
+// outcome's label, or applied, with "!" when the context changed or the agent
+// replied since the owner last touched it.
+func (s *Store) decisionCell(q Question) string {
 	r := q.Decision
 	cell := ""
-	switch decisionClass(q, ask) {
-	case "applied":
-		cell = "✓ " + r.Action
-	case "asked":
-		cell = "asked"
-	case "undecided":
+	class := s.decisionClass(q)
+	cell = s.answerLabel(r)
+	if r.Action == "" {
+		cell = r.progress()
+	}
+	if r.locked() {
+		cell = "✓ " + cell
+	}
+	if class == classUndecided {
 		cell = "·"
-		if r.RecommendedAction != "" || r.Recommendation != "" {
-			cell = recommended(r, nil) + "?"
+		if rec := s.recommendedLabel(r); rec != "" {
+			cell = rec + "?"
 		}
-	default:
-		cell = r.Action
+		if p := r.progress(); p != "" {
+			cell = p
+		}
 	}
 	if r.Status == decisionFailed {
 		cell += " ✗"
@@ -230,41 +249,49 @@ func decisionCell(q Question, ask bool) string {
 	return cell
 }
 
-func recommended(r *Decision, defaults []string) string {
-	if r.RecommendedAction != "" {
-		return r.RecommendedAction
+// recommendedLabel is the recommended option's label; empty when none.
+func (s *Store) recommendedLabel(r *Decision) string {
+	id := r.recommendedID()
+	for _, o := range r.rawOptions() {
+		if o.ID == id && id != "" {
+			return o.label()
+		}
 	}
-	if len(defaults) > 0 {
-		return defaults[0]
-	}
-	return defaultActions[0]
+	return ""
 }
 
 // recommendationView is the recommendation as the detail shows it: marked
 // unconfirmed until the owner accepts it or decides otherwise.
-func recommendationView(q Question, defaults []string, ask bool) string {
+func (s *Store) recommendationView(q Question) string {
 	r := q.Decision
-	if r.Recommendation == "" && r.RecommendedAction == "" {
+	rec := s.recommendedLabel(r)
+	if rec == "" && r.Recommendation == "" {
 		return ""
 	}
-	rec := recommended(r, defaults)
 	state := "recommended · not confirmed"
 	switch {
-	case r.Action == rec:
+	case accepted(r):
 		state = "recommended · accepted"
-	case r.Action != "" && !(r.Action == askOut && ask):
-		state = "recommended · you chose " + r.Action
+	case r.Action != "" && r.recommendedID() != "":
+		state = "recommended · you chose " + s.answerLabel(r)
+	}
+	if rec == "" {
+		return r.Recommendation
 	}
 	return fmt.Sprintf("**%s** (%s)\n\n%s", rec, state, r.Recommendation)
 }
 
-func choicesView(q Question, defaults []string, ask bool) string {
+// choicesView lists the numbered options, then the outcomes.
+func (s *Store) choicesView(q Question) string {
 	var out []string
-	for i, act := range decisionActions(q, defaults, ask) {
+	for i, o := range s.optionsOf(q.Decision) {
 		if i >= 9 {
 			break
 		}
-		out = append(out, fmt.Sprintf("%d %s", i+1, act))
+		out = append(out, fmt.Sprintf("%d %s", i+1, o.label()))
+	}
+	for _, o := range s.outcomes() {
+		out = append(out, o.Label)
 	}
 	return strings.Join(out, " · ")
 }
@@ -276,7 +303,7 @@ func (a *App) decisionRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 	if e != nil {
 		return nil, e
 	}
-	ask, defaults := a.store.DecisionAsk, a.store.decisionDefaults()
+	st := a.store
 	show := ochazuke.StringArg(args, "show", "")
 	if show == "" {
 		show = a.r.Settings().String("decision.show")
@@ -292,24 +319,25 @@ func (a *App) decisionRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 			tally[g] = &counts{}
 		}
 		tally[g].n++
-		switch decisionClass(q, ask) {
-		case "decided", "applied":
-			tally[g].decided++
-		case "asked":
+		switch st.decisionClass(q) {
+		case classUndecided:
+		case classAsked:
 			tally[g].asked++
+		default:
+			tally[g].decided++
 		}
 	}
 	lines := map[string][]string{}
 	for _, q := range qs {
-		if g := groupOf(q); (group == "" || g == group) && decisionShown(q, ask, show) {
-			lines[g] = append(lines[g], fmt.Sprintf("- %s · %s", decisionCell(q, ask), q.Title))
+		if g := groupOf(q); (group == "" || g == group) && st.decisionShown(q, show) {
+			lines[g] = append(lines[g], fmt.Sprintf("- %s · %s", st.decisionCell(q), q.Title))
 		}
 	}
 	out := []ocli.Row{}
 	last := ""
 	for _, q := range qs {
 		g := groupOf(q)
-		if (group != "" && g != group) || !decisionShown(q, ask, show) {
+		if (group != "" && g != group) || !st.decisionShown(q, show) {
 			continue
 		}
 		if g != last && !flat {
@@ -325,15 +353,15 @@ func (a *App) decisionRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		r := q.Decision
 		data["question"] = q.Text
 		data["topic"] = g
-		data["decision_view"] = decisionCell(q, ask)
-		data["recommendation_view"] = recommendationView(q, defaults, ask)
-		data["choices"] = choicesView(q, defaults, ask)
+		data["decision_view"] = st.decisionCell(q)
+		data["recommendation_view"] = st.recommendationView(q)
+		data["choices"] = st.choicesView(q)
 		data["details_view"] = r.Details
 		data["thread"] = thread(q, false)
 		search := strings.Join([]string{q.Title, q.Text, r.Details, r.Recommendation, r.Note, g}, " ")
 		data["search"] = search
 		replies := len(q.Entries)
-		out = append(out, ocli.Row{Parent: parentOf(g, flat), Noun: decisionNoun, ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{decisionCell(q, ask), q.Title, q.RecordedBy.Name, age(q.AskedAt, a.store.now()), strconv.Itoa(replies), search}})
+		out = append(out, ocli.Row{Parent: parentOf(g, flat), Noun: decisionNoun, ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{st.decisionCell(q), q.Title, q.RecordedBy.Name, age(q.AskedAt, a.store.now()), strconv.Itoa(replies), search}})
 	}
 	return out, nil
 }
@@ -354,14 +382,14 @@ func decisionPage() ocli.CatalogPage {
 			Sections: []ocli.CatalogDetailSection{
 				{Kind: "markdown", Field: "question", Heading: true},
 				{Kind: "markdown", Title: "Recommendation", Field: "recommendation_view"},
-				{Kind: "markdown", Title: "Actions", Field: "choices"},
+				{Kind: "markdown", Title: "Options", Field: "choices"},
 				{Kind: "thread", Title: "Notes, asks and replies", Field: "entries", Author: "by.kind", At: "at", Body: "text"},
 				{Kind: "markdown", Title: "Context", Field: "details_view"},
 				{Kind: "fields", Title: "Decision", Region: "side", Fields: []ocli.CatalogDetailField{
 					{Label: "Topic", Field: "topic", Format: "text"},
 					{Label: "Decision", Field: "decision_view", Format: "badge"},
 					{Label: "Note", Field: "decision.note", Format: "text"},
-					{Label: "Recommended", Field: "decision.recommended_action", Format: "text"},
+					{Label: "Recommended", Field: "decision.recommended", Format: "text"},
 					{Label: "Changed", Field: "decision.context_changed", Format: "text"},
 					{Label: "New reply", Field: "decision.new_reply", Format: "text"},
 					{Label: "Applied", Field: "decision.status", Format: "badge"},

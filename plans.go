@@ -301,8 +301,11 @@ func (q PlanQuestion) pose() Pose {
 		details = append(details, "", "Already answered: "+q.Answered)
 	}
 	p := Pose{Question: q.Question, Title: planItemTitle(q.Number, q.Question), Group: planGroup(q.Rel), Source: fmt.Sprintf("%s:%d", q.Path, q.Line), Details: strings.Join(details, "\n"), Recommendation: q.Recommendation, Key: "plan:" + q.ID, Origin: "plan", Plan: q.Rel, Section: q.Section, Number: q.Number}
+	// A plan question is a yes/no on its recommendation: the importer states
+	// those options; it is not a default for other questions.
+	p.Options = []Option{{ID: "yes", Label: "Yes"}, {ID: "no", Label: "No"}}
 	if q.Recommendation != "" {
-		p.RecommendedAction = "yes"
+		p.Recommended = "yes"
 	}
 	return p
 }
@@ -387,7 +390,7 @@ func (s *Store) PlanDecisions(date string) (string, error) {
 	byPlan := map[string][]Question{}
 	for _, q := range qs {
 		r := q.Decision
-		if r.Origin != "plan" || r.Action == "" || (r.Action == askOut && s.DecisionAsk) || r.Status == decisionApplied {
+		if r.Origin != "plan" || !r.decided() || s.awaitsReply(r) || r.Status == decisionApplied {
 			continue
 		}
 		byPlan[r.Plan] = append(byPlan[r.Plan], q)

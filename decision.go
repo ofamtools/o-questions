@@ -250,10 +250,13 @@ func (s *Store) Decide(target string, d DecisionChange) (Question, error) {
 		if !set && d.Note == nil {
 			return errors.New("name an action, a choice, accept, clear or a note")
 		}
+		asking := action == askOut && s.DecisionAsk
 		if d.Note != nil {
-			r.Note = *d.Note
+			if e := s.recordNote(q, *d.Note, asking); e != nil {
+				return e
+			}
 		}
-		if action == askOut && s.DecisionAsk {
+		if asking {
 			text := strings.TrimSpace(r.Note)
 			if text == "" {
 				return errors.New("ask needs the question in the note")
@@ -281,6 +284,21 @@ func (s *Store) Decide(target string, d DecisionChange) (Question, error) {
 		}
 		return nil
 	})
+}
+
+// recordNote sets the decision's current note. Every distinct note also joins
+// the thread, so a later note never replaces an earlier one; an ask records
+// its text as the follow-up instead, not twice.
+func (s *Store) recordNote(q *Question, note string, asking bool) error {
+	r := q.Decision
+	text := strings.TrimSpace(note)
+	if text != "" && text != strings.TrimSpace(r.Note) && !asking {
+		if e := s.appendEntry(q, Entry{Kind: "note", Text: text}); e != nil {
+			return e
+		}
+	}
+	r.Note = note
+	return nil
 }
 
 // decisionStatus maps a decision to the shared statuses: open waits for the

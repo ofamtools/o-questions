@@ -70,7 +70,7 @@ func declareReviewPage(a *App) {
 func (a *App) reviewPageVerb(c ochazuke.Ctx) ochazuke.Result { return runReviewPage(a, c) }
 
 // runReviewPage is review.page: the flags reviewCommand reads, as verb
-// parameters. It is also what bare `review` runs (nounDefaults).
+// parameters. It is also what bare `review` runs ((the review noun's default action)).
 func runReviewPage(a *App, c ochazuke.Ctx) ochazuke.Result {
 	var args []string
 	for _, k := range []string{"web", "no-open", "smoke"} {

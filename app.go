@@ -68,7 +68,8 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	if e := a.r.DeclareSetting(appSettings()...); e != nil {
 		return nil, e
 	}
-	a.r.Define(reviewNoun) // review.VERB aliases name question verbs (reviewAliases)
+	a.r.Define("question").Main()                        // the tool's main noun: `o-questions ask` is `question ask`
+	a.r.Define(reviewNoun).DefaultAction(reviewPageVerb) // review.VERB aliases name question verbs (reviewAliases); bare `review` opens the page
 	for _, v := range a.specs() {
 		v := v
 		// A verb homed on another noun (verbHomes) keeps question.NAME as an alias.

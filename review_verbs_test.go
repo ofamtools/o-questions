@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -25,16 +24,6 @@ func testApp(t *testing.T, s *Store) (*App, *bytes.Buffer) {
 func TestEveryCatalogVerbRuns(t *testing.T) {
 	s := fixture(t)
 	a, _ := testApp(t, s)
-	// Known gap, outside this lane: the hand-written question command lists
-	// only the verb specs and shadows Mount's group; the och-099 lane removes
-	// it after the ochazuke upgrade. Until then its standard verbs skip.
-	handWritten := map[string]bool{"view": true}
-	for _, v := range a.specs() {
-		handWritten[v.name] = true
-		for _, al := range v.aliases {
-			handWritten[al] = true
-		}
-	}
 	var keys []string
 	for _, op := range a.r.Catalog() {
 		keys = append(keys, op.Noun()+" "+op.Name())
@@ -46,9 +35,6 @@ func TestEveryCatalogVerbRuns(t *testing.T) {
 	for _, key := range keys {
 		words := append(strings.Fields(key), "--help")
 		t.Run(key, func(t *testing.T) {
-			if noun, verb, _ := strings.Cut(key, " "); noun == "question" && !handWritten[verb] {
-				t.Skip("question is still the hand-written command (och-099)")
-			}
 			a, out := testApp(t, fixture(t))
 			if e := dispatch(a, words); e != nil && strings.Contains(e.Error(), "not found") {
 				t.Fatalf("%v: %v\n%s", words, e, out)
@@ -86,23 +72,8 @@ func TestReviewListJSON(t *testing.T) {
 }
 
 // Bare `review` and its flags still reach the review page: the words are
-// read as the noun's default verb (nounDefaults), and verbs and help are not.
+// read as the noun's default verb ((the review noun's default action)), and verbs and help are not.
 func TestReviewBareReachesPage(t *testing.T) {
-	for in, want := range map[string][]string{
-		"review":              {"review", "page"},
-		"review --web":        {"review", "page", "--web"},
-		"review --smoke":      {"review", "page", "--smoke"},
-		"review list":         {"review", "list"},
-		"review --help":       {"review", "--help"},
-		"review view --x":     {"review", "view", "--x"},
-		"question":            {"question"},
-		"review -h":           {"review", "-h"},
-		"review page --smoke": {"review", "page", "--smoke"},
-	} {
-		if got := nounDefault(strings.Fields(in)); !reflect.DeepEqual(got, want) {
-			t.Errorf("%q = %v, want %v", in, got, want)
-		}
-	}
 	a, out := testApp(t, fixture(t))
 	if e := dispatch(a, []string{"review", "--smoke", "--width", "100", "--height", "20"}); e != nil {
 		t.Fatalf("%v: %s", e, out)

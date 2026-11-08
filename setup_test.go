@@ -60,15 +60,15 @@ func TestSetupInstructionNote(t *testing.T) {
 	for _, path := range []string{claude, codex} {
 		b, _ := os.ReadFile(path)
 		text := string(b)
-		if strings.Count(text, "<!-- o-questions:begin -->") != 1 || !strings.Contains(text, "## Questions (o-questions)") || !strings.Contains(text, "question pose") || !strings.Contains(text, "`questions.question ask`") || !strings.Contains(text, "`questions.question applied`") {
+		if strings.Count(text, "<!-- o-questions:begin -->") != 1 || !strings.Contains(text, "## Questions (o-questions)") || !strings.Contains(text, "question pose") || !strings.Contains(text, "`question.question ask`") || !strings.Contains(text, "`question.question applied`") {
 			t.Fatalf("%s:\n%s", path, text)
 		}
-		for _, want := range []string{"`questions.question ask`", "`questions.question answer`", "`questions.question follow-up`", "`mtm questions question ...`"} {
+		for _, want := range []string{"`question.question ask`", "`question.question answer`", "`question.question follow-up`", "`question.question pose`", "`mtm question ask WORDS`", "`mtm question answer ID TEXT`"} {
 			if !strings.Contains(text, want) {
 				t.Fatalf("%s misses %s:\n%s", path, want, text)
 			}
 		}
-		for _, bad := range []string{"o-questions question ", "o-questions review", "o-questions ask"} {
+		for _, bad := range []string{"o-questions question ", "o-questions review", "o-questions ask", "`questions.question", "mtm questions", "question question"} {
 			if strings.Contains(text, bad) {
 				t.Fatalf("%s holds a direct o-questions command %q:\n%s", path, bad, text)
 			}

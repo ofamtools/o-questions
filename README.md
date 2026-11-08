@@ -17,7 +17,7 @@ keys, forms, list motions, settings and page layout.
 ```sh
 go install ofam.dev/oden/cmd/o@latest   # oden's o: o questions runs o-questions, no dash needed
 go install ofam.dev/o-questions@latest
-mtm extension register questions # mounts the questions.* verbs (and its pages) in mtm
+mtm extension register questions # mounts the question.* verbs (and its pages) in mtm
 ```
 
 ## Quick start
@@ -28,7 +28,7 @@ and pass `--data /tmp/oq-core/demo` on every invocation:
 
 ```sh
 ./o-questions --data /tmp/oq-core/demo ask 'How does the question journal work?'
-./o-questions --data /tmp/oq-core/demo question answer 1 'Questions have append-only threads and provenance.'
+./o-questions --data /tmp/oq-core/demo answer 1 'Questions have append-only threads and provenance.'
 ./o-questions --data /tmp/oq-core/demo list
 ./o-questions --data /tmp/oq-core/demo show 1
 ./o-questions --data /tmp/oq-core/demo undo
@@ -234,7 +234,7 @@ Questions page, which keeps showing only the owner's own questions by default.
 
 `o questions setup` adds a managed block to the agents' instruction files
 (`${CLAUDE_CONFIG_DIR:-~/.claude}/CLAUDE.md`, `~/.codex/AGENTS.md`) between
-`<!-- o-questions:begin -->` and `<!-- o-questions:end -->`. The note tells agents to record the owner's questions (`questions.question ask|answer|follow-up`) and pose decisions only through mtm, by MCP `run` or `mtm questions question ...`, never the `o-questions` binary directly:
+`<!-- o-questions:begin -->` and `<!-- o-questions:end -->`. The note tells agents to record the owner's questions (`question.question ask|answer|follow-up`) and pose decisions only through mtm, by MCP `run` or `mtm question ...` (`mtm question ask WORDS`, `mtm question answer ID TEXT`), never the `o-questions` binary directly:
 
 ```sh
 o questions setup                  # status

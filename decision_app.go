@@ -19,7 +19,9 @@ const decisionPageTitle = "Decisions"
 const decisionListID = "decision/questions"
 
 func (a *App) decisionSpecs() []verbSpec {
-	target := ochazuke.Parameter{Type: "string", Description: "Question title, number or ID prefix; omitted uses the selected row", Noun: "question"}
+	// The target picker lists the decisions (not topic headers), each by its
+	// title; it opens on the selected row, which an omitted target uses.
+	target := ochazuke.Parameter{Type: "string", Description: "Question title, number or ID prefix; omitted uses the selected row", Noun: decisionNoun, Focus: true, Source: "decision.list", SourceFixed: map[string]any{"flat": true}}
 	arr := func(d string) ochazuke.Parameter { return ochazuke.Parameter{Type: "array", Description: d} }
 	pose := map[string]ochazuke.Parameter{
 		"question": {Type: "string", Required: true, Rest: true, Description: "The question for the owner"},
@@ -33,7 +35,7 @@ func (a *App) decisionSpecs() []verbSpec {
 	}
 	return []verbSpec{
 		{"pose", "Record a question for the owner, with your recommendation", pose, []string{"question"}, false, runPose, nil},
-		{"queue", "List questions for the owner, grouped by topic", map[string]ochazuke.Parameter{"show": {Type: "string", Enum: decisionFilters, Description: "Decision state shown; default decision.show"}, "group": param("Topic")}, nil, true, runQueue, nil},
+		{"queue", "List questions for the owner, grouped by topic", map[string]ochazuke.Parameter{"show": {Type: "string", Enum: decisionFilters, Description: "Decision state shown; default decision.show"}, "group": param("Topic"), "flat": {Type: "boolean", Description: "Only the questions, no topic header rows (what a picker lists)"}}, nil, true, runQueue, nil},
 		{"decide", "Decide a question for the owner (owner)", map[string]ochazuke.Parameter{"target": target, "action": param("One of the item's actions, ask, or any action"), "choice": {Type: "integer", Description: "Numbered action, 1 first"}, "note": param("Note for the agent")}, []string{"target", "action"}, false, decisionVerb(decide), nil},
 		{"accept", "Accept the recommendation (owner)", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false, decisionVerb(accept), nil},
 		{"undecide", "Clear the decision, keeping its note (owner)", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false, decisionVerb(undecide), nil},
@@ -280,6 +282,7 @@ func (a *App) decisionRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		show = a.r.Settings().String("decision.show")
 	}
 	group := ochazuke.StringArg(args, "group", "")
+	flat, _ := args["flat"].(bool)
 	qs = sortByGroup(qs)
 	type counts struct{ n, decided, asked int }
 	tally := map[string]*counts{}
@@ -309,7 +312,7 @@ func (a *App) decisionRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		if (group != "" && g != group) || !decisionShown(q, ask, show) {
 			continue
 		}
-		if g != last {
+		if g != last && !flat {
 			last = g
 			t := tally[g]
 			label := fmt.Sprintf("%s  %d/%d decided", g, t.decided, t.n)
@@ -335,9 +338,17 @@ func (a *App) decisionRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 				replies++
 			}
 		}
-		out = append(out, ocli.Row{Parent: "topic/" + g, Noun: decisionNoun, ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{decisionCell(q, ask), q.Title, q.RecordedBy.Name, age(q.AskedAt, a.store.now()), strconv.Itoa(replies), search}})
+		out = append(out, ocli.Row{Parent: parentOf(g, flat), Noun: decisionNoun, ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{decisionCell(q, ask), q.Title, q.RecordedBy.Name, age(q.AskedAt, a.store.now()), strconv.Itoa(replies), search}})
 	}
 	return out, nil
+}
+
+// parentOf is a decision row's parent topic row; a flat answer has none.
+func parentOf(group string, flat bool) string {
+	if flat {
+		return ""
+	}
+	return "topic/" + group
 }
 
 func decisionPage() ocli.CatalogPage {

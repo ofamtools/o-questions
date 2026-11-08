@@ -65,13 +65,13 @@ idempotency keys, so retrying a hidden question does not recreate it.
 `question restore --target ID` restores it; `restore FILE` keeps its existing
 backup meaning. Both operations are repeatable and undoable. The Review aliases
 share these handlers. Archived questions remain addressable by ID or title.
-`list.hide-archived` defaults to true; false includes archived Questions rows.
+`collection.hide-archived` defaults to true; false includes archived Questions rows.
 Archived rows show `-` instead of a positional number, so live numbers remain
 stable. Use a stable ID or title for an archived record.
 
 Entry statuses come from the `status.from-entry` setting. Explicit statuses
 stick across new entries. Entries over `entry.max-bytes` are linked private files;
-show/copy and search hydrate their full text. Daily backups run before the first
+show/yank and search hydrate their full text. Daily backups run before the first
 write of each UTC day. `backup --to DIR` writes a manual tar.gz;
 `restore FILE` restores records and bodies through the same undo mechanism.
 History remains private and is not compacted automatically.
@@ -91,11 +91,14 @@ content width at which metadata moves from below the discussion to its right.
 `list.refresh=0` opt out of their UI behaviors. The old `detail.answer-lines`
 setting remains registered for compatibility but is deprecated: Sections always
 show the complete discussion, regardless of its value.
-`question.view` and its `review.view` alias return the complete thread as
+`question.show` and its `review.show` alias return the complete thread as
 declared Markdown to a catalog host. Enter and `v` use this readable result;
-standalone they keep the existing thread modal. `question.show` still returns
-the structured record. `view.thread=false` disables the viewer and publishes
-that state in the catalog; refresh a host's catalog after changing it.
+standalone they keep the existing thread modal. The structured record is
+`question get`, and the thread, the latest answer and the record file are its
+computed props (`question get --prop thread`, `latest_answer`, `record_path`; the store
+directory is the collection prop `question path`). `view.thread=false` disables
+the viewer and publishes that state in the catalog; refresh a host's catalog
+after changing it.
 
 Hook and HTML settings are reserved for the separate Q4/Q5 lanes.
 
@@ -115,15 +118,15 @@ import, installation and owner config registration are separate work.
 ## MCP
 
 `o questions --data DIR mcp` serves newline-delimited JSON-RPC over stdin/stdout.
-The owner-question tools are `q_ask`, `q_answer`, `q_note`, `q_annotate`, `q_list`, `q_show`;
+The owner-question tools are `q_ask`, `q_answer`, `q_annotate`, `q_list`, `q_show`;
 the review tools (questions for the owner) are `q_pose`, `q_queue`, `q_decisions`,
 `q_reply`, `q_applied`, `q_import`. The curated MCP tools still omit decisions;
 the CLI and mounted catalog permit them as attributed writes.
 `q_ask` requires `question` (verbatim); passing the same `key` returns the existing
-record with `existed: true`. `q_answer` requires `target` and `answer`. `q_note`
-requires `target` and `text`, accepts kind `note` or `correction`, and an optional
-`replaces` entry ID. `q_annotate` requires `target`, adding tags/links and filling
-associations or proposing a title. `q_show` requires `target`; `q_list` takes
+record with `existed: true`. `q_answer` requires `target` and `answer`. `q_annotate`
+requires `target`; with `text` it appends a note (kind `note` or `correction`, an
+optional `replaces` entry ID), and it adds tags/links and fills associations or
+proposes a title. `q_show` requires `target`; `q_list` takes
 optional text/status/project/pane/agent_session/since/limit filters.
 
 `tags` is an array of strings. `links` is an array of objects with required
@@ -191,7 +194,7 @@ o questions question ask-back Q "why?"
 
 A question for the owner is a `Question` with `direction: to-owner` and a
 `review` record (topic, source, details, recommendation, recommended action,
-allowed actions, action, note, flags, applied state). Posing the same `key`
+allowed actions, action, note, flags, applied status). Posing the same `key`
 again updates the text and keeps the decision; a decided item whose question,
 details or recommendation changed is flagged `context_changed` until the owner
 touches it. Asking appends the owner's question to the thread (`follow-up`
@@ -237,8 +240,8 @@ Questions page, which keeps showing only the owner's own questions by default.
 `<!-- o-questions:begin -->` and `<!-- o-questions:end -->`. The note tells agents to record the owner's questions (`question.question ask|answer|follow-up`) and pose decisions only through mtm, by MCP `run` or `mtm question ...` (`mtm question ask WORDS`, `mtm question answer ID TEXT`), never the `o-questions` binary directly:
 
 ```sh
-o questions setup                  # status
-o questions setup plan             # dry run
+o questions setup                  # check
+o questions setup install --dry-run   # dry run
 o questions setup install --yes    # or: setup install claude-md --yes
 o questions setup uninstall --yes
 ```

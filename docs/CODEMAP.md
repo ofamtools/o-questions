@@ -11,7 +11,7 @@
 | backup.go | Daily/manual archives, retention, validated undoable restore |
 | check.go | Explicit wording check against transcript user records |
 | settings.go | Settings, defaults and validation |
-| app.go | Shared verb specs/handlers, transport-bound rights, readable thread result, archive/restore, rows with list.hide-archived opt-out, search projection |
+| app.go | Shared verb specs/handlers, transport-bound rights, readable thread result, archive/restore, rows with collection.hide-archived opt-out, search projection |
 | pickers.go | The question and review noun pickers (PickerDef), listed by the catalog |
 | mcp.go | Tool allowlist, schemas and JSON-RPC stdio lifecycle |
 | page.go | Shared catalog detail Sections, legacy preview kind, binding rows |

@@ -99,20 +99,11 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 		op.Parameters = v.params
 		a.r.Operations.Set(op)
 	}
-	a.r.Define("question").Verb("view", func(c ochazuke.Ctx) ochazuke.Result {
-		q, err := a.target(c)
-		if err != nil {
-			return result(nil, err)
-		}
-		if a.tui && a.showThread != nil {
-			return result(nil, a.showThread(q))
-		}
-		return ochazuke.Done(thread(q, a.r.Settings().Bool("detail.provenance")))
-	}, "Read the complete thread").MarkdownResult().AliasOn(reviewNoun, "view").Positional("target")
-	view := a.r.Operations.At("question.view")
-	view.Parameters = map[string]ochazuke.Parameter{"target": {Type: "string", Noun: "question", Description: "Question title, number or ID prefix; defaults to the selected row"}}
-	view.EnabledSetting = "view.thread"
-	a.r.Operations.Set(view)
+	// show reads the thread: markdown, or the thread viewer in the TUI (setting view.thread).
+	show := a.r.Operations.At("question.show")
+	show.Result = ochazuke.ResultMarkdown
+	show.EnabledSetting = "view.thread"
+	a.r.Operations.Set(show)
 	declareReviewPage(a)
 	a.r.EnsureConfigSettings()
 	a.declareFilterProps()
@@ -213,16 +204,15 @@ func (a *App) specs() []verbSpec {
 	out := []verbSpec{
 		{"ask", "Record the owner's verbatim question", ask, []string{"question"}, false, runAsk, []string{"add", "new"}},
 		{"list", "List questions, newest last", map[string]ochazuke.Parameter{"filter": param("Search title, text, entries and tags"), "status": {Type: "string", Enum: append([]string{"all"}, statuses...)}, "project": param("Project ID"), "agent": param("Recording harness"), "direction": {Type: "string", Enum: directions, Description: "Who answers: to-agent (the owner asked), to-owner (an agent asked); default filter.direction"}, "pane": param("Asking pane"), "agent_session": param("Agent session"), "since": param("RFC3339, today, 7d or 30d"), "limit": {Type: "integer"}}, nil, true, runList, nil},
-		{"show", "Show the complete thread", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false, runShow, nil},
+		{"show", "Read the complete thread: the markdown thread, or the thread viewer in the TUI", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false, runShow, nil},
 		{"answer", "Append the answer given", map[string]ochazuke.Parameter{"target": target, "answer": prose("Full answer"), "summary": param("Short answer summary"), "model": param("Answering model"), "links": arr, "tags": arr}, []string{"target", "answer"}, false, entryVerb("answer", "answer"), nil},
-		{"note", "Append a note or correction", map[string]ochazuke.Parameter{"target": target, "text": prose("Entry text"), "kind": {Type: "string", Enum: []string{"note", "correction"}}, "replaces": param("Entry corrected")}, []string{"target", "text"}, false, entryVerb("note", "text"), nil},
 		{"follow-up", "Append the owner's follow-up", map[string]ochazuke.Parameter{"target": target, "text": prose("Verbatim follow-up")}, []string{"target", "text"}, false, entryVerb("follow-up", "text"), nil},
 		{"correct", "Append a correction, preserving old words", map[string]ochazuke.Parameter{"target": target, "text": prose("Correction"), "replaces": param("Entry corrected")}, []string{"target", "text"}, false, entryVerb("correction", "text"), nil},
-		{"annotate", "Add associations, tags, links or a title", map[string]ochazuke.Parameter{"target": target, "tags": arr, "links": arr, "project": param("Project ID"), "task": param("Task ID"), "title": param("Title")}, []string{"target"}, false, changeVerb(opAnnotate, "text", nil), nil},
-		{"status", "Set an explicit, sticky status", map[string]ochazuke.Parameter{"target": target, "status": {Type: "string", Required: true, Description: "New status", Enum: statuses}}, []string{"target", "status"}, false, changeVerb(opStatus, "status", nil), nil},
+		{"annotate", "Annotate a question: append a note or correction (text), or add tags, links, a project, a task or a title", map[string]ochazuke.Parameter{"target": target, "text": {Type: "string", Rest: true, Description: "Entry text; appends a note (or the correction kind)"}, "kind": {Type: "string", Enum: []string{"note", "correction"}}, "replaces": param("Entry corrected"), "tags": arr, "links": arr, "project": param("Project ID"), "task": param("Task ID"), "title": param("Title")}, []string{"target", "text"}, false, runAnnotate, nil},
+		{"choose-status", "Choose the question's status (open, answered, follow-up or moot): the status prop's write, with the status asked for as a required argument; explicit and sticky", map[string]ochazuke.Parameter{"target": target, "status": {Type: "string", Required: true, Description: "New status", Enum: statuses}}, []string{"target", "status"}, false, changeVerb(opStatus, "status", nil), nil},
 		{"rename", "Change the title", map[string]ochazuke.Parameter{"target": target, "title": prose("New title")}, []string{"target", "title"}, false, changeVerb(opRename, "text", nil), nil},
 		{"edit", "Change the owner's question, retaining undo", map[string]ochazuke.Parameter{"target": target, "text": prose("Question text")}, []string{"target", "text"}, false, changeVerb(opEdit, "text", nil), nil},
-		{"copy", "Return question, latest answer or thread", map[string]ochazuke.Parameter{"target": target, "part": {Type: "string", Enum: []string{"question", "answer", "thread"}}, "yank": {Type: "boolean"}}, []string{"target"}, false, runCopy, nil},
+		{"yank", "Copy the thread, the question or the latest answer to the clipboard; answers the text", map[string]ochazuke.Parameter{"target": target, "part": {Type: "string", Enum: []string{"question", "answer", "thread"}}}, []string{"target"}, false, runYank, nil},
 		{"tag", "Append a tag", map[string]ochazuke.Parameter{"target": target, "tag": required("Tag")}, []string{"target", "tag"}, false, changeVerb(opTag, "text", func(an *Annotation, str func(string) string) { an.Tags = []string{str("tag")} }), nil},
 		{"untag", "Remove a tag", map[string]ochazuke.Parameter{"target": target, "tag": required("Tag")}, []string{"target", "tag"}, false, changeVerb(opUntag, "tag", nil), nil},
 		{"link", "Append a link", map[string]ochazuke.Parameter{"target": target, "link": required("URL or file")}, []string{"target", "link"}, false, changeVerb(opLink, "text", func(an *Annotation, str func(string) string) { an.Links = []Link{{Target: str("link")}} }), nil},
@@ -237,7 +227,7 @@ func (a *App) specs() []verbSpec {
 	for _, v := range []struct {
 		name, desc string
 		run        verbRun
-	}{{"reopen", "Explicitly reopen", changeVerb(opReopen, "text", nil)}, {"moot", "Mark moot", changeVerb(opMoot, "text", nil)}, {"delete", "Hide, preserving history; agents use question.archive", changeVerb(opDelete, "text", nil)}, {"archive", "Archive a question, retaining its text and history; restore --target brings it back", changeVerb(opArchive, "text", nil)}, {"star", "Toggle star", changeVerb(opStar, "text", nil)}, {"unstar", "Remove star", changeVerb(opUnstar, "text", nil)}, {"path", "Record path or store directory", runPath}, {"check", "Check wording against source transcript", runCheck}} {
+	}{{"reopen", "Explicitly reopen", changeVerb(opReopen, "text", nil)}, {"moot", "Mark moot", changeVerb(opMoot, "text", nil)}, {"delete", "Hide, preserving history; agents use question.archive", changeVerb(opDelete, "text", nil)}, {"archive", "Archive a question, retaining its text and history; restore --target brings it back", changeVerb(opArchive, "text", nil)}, {"star", "Toggle star", changeVerb(opStar, "text", nil)}, {"unstar", "Remove star", changeVerb(opUnstar, "text", nil)}, {"check", "Check wording against source transcript", runCheck}} {
 		out = append(out, verbSpec{name: v.name, description: v.desc, params: map[string]ochazuke.Parameter{"target": target}, positional: []string{"target"}, run: v.run})
 	}
 	out = append(out, a.reviewSpecs()...)
@@ -317,7 +307,7 @@ func age(at, now time.Time) string {
 	return fmt.Sprintf("%dd", int(d.Hours()/24))
 }
 func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
-	qs, e := a.store.records(!a.r.Settings().Bool("list.hide-archived"))
+	qs, e := a.store.records(!a.r.Settings().Bool("collection.hide-archived"))
 	if e != nil {
 		return nil, e
 	}

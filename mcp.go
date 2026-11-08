@@ -37,8 +37,7 @@ type mcpTool struct {
 var mcpAllowlist = map[string][]string{
 	"ask":      {"question", "title", "project", "cwd", "task", "tags", "links", "asked_at", "follow_up_of", "key"},
 	"answer":   {"target", "answer", "summary", "model", "links", "tags"},
-	"note":     {"target", "text", "kind", "replaces"},
-	"annotate": {"target", "tags", "links", "project", "task", "title"},
+	"annotate": {"target", "text", "kind", "replaces", "tags", "links", "project", "task", "title"},
 	"list":     {"filter", "status", "project", "pane", "agent_session", "since", "limit"},
 	"show":     {"target"},
 	// Questions for the owner: agents pose, read decisions, reply to asks and

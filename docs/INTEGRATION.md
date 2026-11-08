@@ -47,17 +47,17 @@ requests now use the common form. Large body revisions retain old files for undo
 | c | question.ask | question | Required Rest; empty preset removed, including the empty-page row. |
 | a | question.answer | answer | Required Rest; empty preset removed. |
 | f | question.follow-up | text | Required Rest; empty preset removed. |
-| s | question.status | status | Required model enum: open, answered, follow-up, moot. |
+| s | question.choose-status | status | Required model enum: open, answered, follow-up, moot. |
 | e | question.edit | text | Required Rest; empty preset removed. |
 | r | question.rename | title | Required Rest; empty preset removed. |
 | t | question.tag | tag | Already required; generic form prompts. |
 | m | question.associate | project or task | Both are optional alternatives; shared schema cannot require either one. Standalone association editor remains; hosted call still needs library support. |
 | g x | question.open | link when zero or several available | Conditional requirement; standalone picker remains. Hosted call still needs a parameter source scoped to the selected question and conditional prompting. |
 | v / Enter | question.show | none | Selected row supplies the question. |
-| y | question.copy | none | Row supplies question and yank=true; part defaults to thread. |
+| y | question.yank | none | Row supplies question; part defaults to thread; copies to the clipboard. |
 | d d | question.delete | none | Selected row supplies the question. |
 | u | question.undo | none | Store-wide action. |
-| n / N | ochazuke.list.move | none | Rows supply delta/clamp/count. |
+| n / N | ochazuke.collection.move | none | Rows supply delta/clamp/count. |
 | o | ochazuke.setting.cycle | none | Row supplies filter.status. |
 
 Unbound CLI twins `note` and `correct` also declare required Rest prose. Tag,

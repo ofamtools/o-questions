@@ -45,7 +45,7 @@ func TestAgentArchiveRestore(t *testing.T) {
 	if e != nil || !archived.Deleted || archived.Text != q.Text {
 		t.Fatal(archived, e)
 	}
-	if _, e := a.r.Settings().SetSession("list.hide-archived", false); e != nil {
+	if _, e := a.r.Settings().SetSession("collection.hide-archived", false); e != nil {
 		t.Fatal(e)
 	}
 	call("question", "list")

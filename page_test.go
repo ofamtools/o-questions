@@ -507,7 +507,7 @@ func TestThreadViewCLI(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := dispatch(a, []string{noun, "view", "--target", q.ID, "--json", "{}"}); err != nil {
+			if err := dispatch(a, []string{noun, "show", "--target", q.ID, "--json", "{}"}); err != nil {
 				t.Fatalf("%v: %s", err, &errOut)
 			}
 			var text string

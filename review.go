@@ -31,7 +31,7 @@ var directions = []string{"all", toAgent, toOwner}
 // review.actions setting names them (mgmt's owner-questions actions).
 var defaultActions = []string{"yes", "no", "later", "moot"}
 
-// Review states (Review.State): empty is pending; applied is locked.
+// Review states (Review.Status): empty is pending; applied is locked.
 const (
 	reviewApplied = "applied"
 	reviewFailed  = "failed"
@@ -53,7 +53,7 @@ type Review struct {
 	DecidedAt         *time.Time `json:"decided_at,omitempty"`
 	ContextChanged    bool       `json:"context_changed,omitempty"`
 	NewReply          bool       `json:"new_reply,omitempty"`
-	State             string     `json:"state,omitempty"`
+	Status            string     `json:"status,omitempty"`
 	Result            string     `json:"result,omitempty"`
 	AppliedAt         *time.Time `json:"applied_at,omitempty"`
 }
@@ -157,7 +157,7 @@ func (s *Store) Pose(p Pose) (out Posed, err error) {
 				out.Question = q
 				return nil
 			}
-			if changed && r.State != reviewApplied && (r.Action != "" || r.Note != "") {
+			if changed && r.Status != reviewApplied && (r.Action != "" || r.Note != "") {
 				r.ContextChanged = true
 			}
 			out.Changed = changed
@@ -223,7 +223,7 @@ func (s *Store) Decide(target string, d Decision) (Question, error) {
 			return errors.New("not a question for the owner; use answer")
 		}
 		r := q.Review
-		if r.State == reviewApplied {
+		if r.Status == reviewApplied {
 			return errors.New("decision already applied; it is locked")
 		}
 		action, set := r.Action, false
@@ -266,8 +266,8 @@ func (s *Store) Decide(target string, d Decision) (Question, error) {
 		}
 		r.Action = action
 		r.ContextChanged, r.NewReply = false, false
-		if r.State == reviewFailed && set {
-			r.State, r.Result = "", ""
+		if r.Status == reviewFailed && set {
+			r.Status, r.Result = "", ""
 		}
 		if set {
 			now := s.now()
@@ -323,7 +323,7 @@ func (s *Store) Reply(target string, rp Reply) (Question, error) {
 			return errors.New("not a question for the owner; use answer")
 		}
 		r := q.Review
-		if r.State == reviewApplied {
+		if r.Status == reviewApplied {
 			return errors.New("decision already applied; it is locked")
 		}
 		if strings.TrimSpace(rp.Text) == "" {
@@ -369,7 +369,7 @@ func (s *Store) Applied(target, outcome, result string) (Question, error) {
 			return errors.New("not a question for the owner")
 		}
 		r := q.Review
-		if r.State == reviewApplied {
+		if r.Status == reviewApplied {
 			return errors.New("decision already applied; it is locked")
 		}
 		if r.Action == "" || (r.Action == askOut && s.ReviewAsk) {
@@ -380,9 +380,9 @@ func (s *Store) Applied(target, outcome, result string) (Question, error) {
 		}
 		switch outcome {
 		case "done":
-			r.State = reviewApplied
+			r.Status = reviewApplied
 		case "failed":
-			r.State = reviewFailed
+			r.Status = reviewFailed
 		default:
 			return errors.New("outcome must be done or failed")
 		}
@@ -402,7 +402,7 @@ func accepted(r *Review) bool {
 func reviewClass(q Question, ask bool) string {
 	r := q.Review
 	switch {
-	case r.State == reviewApplied:
+	case r.Status == reviewApplied:
 		return "applied"
 	case r.Action == askOut && ask:
 		return "asked"
@@ -511,7 +511,7 @@ type ExportItem struct {
 	Recommendation         string `json:"recommendation,omitempty"`
 	AcceptedRecommendation bool   `json:"accepted_recommendation"`
 	Note                   string `json:"note,omitempty"`
-	State                  string `json:"state,omitempty"`
+	Status                 string `json:"status,omitempty"`
 	Result                 string `json:"result,omitempty"`
 	ContextChanged         bool   `json:"context_changed"`
 	NewReply               bool   `json:"new_reply"`
@@ -562,7 +562,7 @@ func (s *Store) Decisions(group string, includeApplied bool) (Export, error) {
 			x.Groups = append(x.Groups, g)
 		}
 		r := q.Review
-		item := ExportItem{ID: q.ID, Key: q.Key, Group: g, Source: r.Source, Title: q.Title, Action: r.Action, RecommendedAction: r.RecommendedAction, Recommendation: r.Recommendation, AcceptedRecommendation: accepted(r), Note: r.Note, State: r.State, Result: r.Result, ContextChanged: r.ContextChanged, NewReply: r.NewReply}
+		item := ExportItem{ID: q.ID, Key: q.Key, Group: g, Source: r.Source, Title: q.Title, Action: r.Action, RecommendedAction: r.RecommendedAction, Recommendation: r.Recommendation, AcceptedRecommendation: accepted(r), Note: r.Note, Status: r.Status, Result: r.Result, ContextChanged: r.ContextChanged, NewReply: r.NewReply}
 		switch class {
 		case "asked":
 			x.Questions = append(x.Questions, ExportQuestion{ID: q.ID, Key: q.Key, Group: g, Source: r.Source, Title: q.Title, Question: lastOwnerQuestion(q), Thread: reviewThread(q)})

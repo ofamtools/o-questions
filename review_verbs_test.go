@@ -84,7 +84,7 @@ func TestReviewBareReachesPage(t *testing.T) {
 }
 
 // A host that mounts the Review page refuses a title another of its pages
-// has (mtm has its own Review tab), and review.page says it opens that page
+// has (mtm has its own Review tab), and review.open-page says it opens that page
 // so the host opens it instead of running the verb as a background job.
 func TestReviewPageIsNamedAndDeclaredToHosts(t *testing.T) {
 	a, out := testApp(t, fixture(t))
@@ -115,13 +115,13 @@ func TestReviewPageIsNamedAndDeclaredToHosts(t *testing.T) {
 	opens := ""
 	for _, n := range doc.Nouns {
 		for _, v := range n.Verbs {
-			if n.Name == "review" && v.Name == "page" {
+			if n.Name == "review" && v.Name == "open-page" {
 				opens = v.OpensPage
 			}
 		}
 	}
 	if opens != "review" {
-		t.Fatalf("review.page opensPage = %q", opens)
+		t.Fatalf("review.open-page opensPage = %q", opens)
 	}
 }
 

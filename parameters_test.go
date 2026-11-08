@@ -179,7 +179,7 @@ func TestCLIParameterProseAndInvalidStatus(t *testing.T) {
 	t.Setenv("O_QUESTIONS_ACTOR", "owner")
 	q := ask(t, s, "Question?")
 	var out bytes.Buffer
-	for _, verb := range []string{"answer", "follow-up", "note", "correct"} {
+	for _, verb := range []string{"answer", "follow-up", "annotate", "correct"} {
 		out.Reset()
 		if err := Main([]string{"--data", s.Dir, "question", verb, q.ID, "  first", "second  "}, strings.NewReader(""), &out, &out); err != nil {
 			t.Fatalf("%s: %v", verb, err)
@@ -190,7 +190,7 @@ func TestCLIParameterProseAndInvalidStatus(t *testing.T) {
 		}
 	}
 	out.Reset()
-	err := Main([]string{"--data", s.Dir, "question", "status", q.ID, "bogus"}, strings.NewReader(""), &out, &out)
+	err := Main([]string{"--data", s.Dir, "question", "set", q.ID, "status", "bogus"}, strings.NewReader(""), &out, &out)
 	if err == nil || !strings.Contains(err.Error(), "status must be one of "+strings.Join(statuses, ", ")) || strings.Contains(err.Error(), "unknown status") {
 		t.Fatalf("invalid status must list choices: %v", err)
 	}
@@ -201,14 +201,14 @@ func TestCLIParameterMissingPrompts(t *testing.T) {
 	s := fixture(t)
 	t.Setenv("O_QUESTIONS_ACTOR", "owner")
 	q := ask(t, s, "Question?")
-	for _, verb := range []string{"status", "follow-up", "answer", "edit", "rename", "tag"} {
+	for _, verb := range []string{"choose-status", "follow-up", "answer", "edit", "rename", "tag"} {
 		t.Run(verb, func(t *testing.T) {
 			var out bytes.Buffer
 			err := Main([]string{"--data", s.Dir, "question", verb, q.ID}, strings.NewReader(""), &out, &out)
 			if err != nil {
 				t.Fatalf("missing input should prompt or describe choices: %v", err)
 			}
-			if verb == "status" {
+			if verb == "choose-status" {
 				for _, status := range statuses {
 					if !strings.Contains(out.String(), status) {
 						t.Fatalf("missing choice %s in %q", status, out.String())

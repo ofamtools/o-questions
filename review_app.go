@@ -57,7 +57,7 @@ func runPose(a *App, c ochazuke.Ctx) ochazuke.Result {
 	return result(v, e)
 }
 
-// declareReviewPage defines review.page, the verb bare `review` runs.
+// declareReviewPage defines review.open-page, the verb bare `review` runs.
 func declareReviewPage(a *App) {
 	a.r.Define(reviewNoun).Verb(reviewPageVerb, a.reviewPageVerb, "Open the Decisions page (--web: mgmt's browser page)").OpensPage(reviewPageID)
 	op := a.r.Operations.At(ochazuke.Key(reviewNoun + "." + reviewPageVerb))
@@ -69,7 +69,7 @@ func declareReviewPage(a *App) {
 
 func (a *App) reviewPageVerb(c ochazuke.Ctx) ochazuke.Result { return runReviewPage(a, c) }
 
-// runReviewPage is review.page: the flags reviewCommand reads, as verb
+// runReviewPage is review.open-page: the flags reviewCommand reads, as verb
 // parameters. It is also what bare `review` runs ((the review noun's default action)).
 func runReviewPage(a *App, c ochazuke.Ctx) ochazuke.Result {
 	var args []string
@@ -219,7 +219,7 @@ func decisionCell(q Question, ask bool) string {
 	default:
 		cell = r.Action
 	}
-	if r.State == reviewFailed {
+	if r.Status == reviewFailed {
 		cell += " ✗"
 	}
 	if r.ContextChanged || r.NewReply {
@@ -358,7 +358,7 @@ func reviewPage() ocli.CatalogPage {
 					{Label: "Recommended", Field: "review.recommended_action", Format: "text"},
 					{Label: "Changed", Field: "review.context_changed", Format: "text"},
 					{Label: "New reply", Field: "review.new_reply", Format: "text"},
-					{Label: "Applied", Field: "review.state", Format: "badge"},
+					{Label: "Applied", Field: "review.status", Format: "badge"},
 					{Label: "Result", Field: "review.result", Format: "text"},
 					{Label: "Source", Field: "review.source", Format: "path"},
 					{Label: "Agent", Field: "recorded_by.name", Format: "text"},
@@ -376,14 +376,14 @@ func reviewPage() ocli.CatalogPage {
 // accepts the recommendation, ? asks back, n edits the note, x clears the
 // decision, o cycles review.show.
 const reviewNoun = "review"
-const reviewPageVerb = "page"
+const reviewPageVerb = "open-page"
 
 // verbHomes are question verbs declared on another noun: review.list
 // answers the Review page's rows and is also question.queue.
 var verbHomes = map[string][2]string{"queue": {reviewNoun, "list"}}
 
 // reviewAliases are the question verbs also named review.VERB.
-var reviewAliases = map[string]string{"decide": "decide", "accept": "accept", "undecide": "undecide", "ask-back": "ask-back", "decision-note": "decision-note", "reply": "reply", "applied": "applied", "show": "show", "copy": "copy", "tag": "tag", "untag": "untag", "link": "link", "open": "open", "star": "star", "unstar": "unstar", "delete": "delete", "archive": "archive", "restore": "restore", "path": "path", "associate": "associate", "rename": "rename", "undo": "undo"}
+var reviewAliases = map[string]string{"decide": "decide", "accept": "accept", "undecide": "undecide", "ask-back": "ask-back", "decision-note": "decision-note", "reply": "reply", "applied": "applied", "show": "show", "yank": "yank", "tag": "tag", "untag": "untag", "link": "link", "open": "open", "star": "star", "unstar": "unstar", "delete": "delete", "archive": "archive", "restore": "restore", "associate": "associate", "rename": "rename", "undo": "undo"}
 
 var reviewColumns = []ochazuke.Column{{Title: "Decision", Width: 12}, {Title: "Question", Min: 18}, {Title: "Agent", Max: 15, Priority: 1}, {Title: "Age", Width: 7, Priority: 2}, {Title: "Replies", Width: 7, Priority: 2}}
 
@@ -403,9 +403,9 @@ func reviewKeys() []keyRow {
 		keyRow{"n", "review.decision-note", nil},
 		keyRow{"x", "review.undecide", nil},
 		keyRow{"o", "ochazuke.setting.cycle", ochazuke.Arguments{"name": "review.show"}},
-		keyRow{"v", "review.view", nil},
-		keyRow{"enter", "review.view", nil},
-		keyRow{"y", "review.copy", ochazuke.Arguments{"yank": true}},
+		keyRow{"v", "review.show", nil},
+		keyRow{"enter", "review.show", nil},
+		keyRow{"y", "review.yank", nil},
 		keyRow{"t", "review.tag", nil},
 		keyRow{"g x", "review.open", nil},
 		keyRow{"d d", "review.delete", nil},
@@ -424,7 +424,7 @@ func registerReviewUI(a *App) {
 				row = row.Hide()
 			}
 		}
-		if k.verb == "review.view" {
+		if k.verb == "review.show" {
 			row = row.Guard("question-thread-enabled")
 		}
 		b.Bind(k.key, row)

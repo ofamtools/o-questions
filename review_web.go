@@ -83,7 +83,7 @@ func (s *Store) webSession() (mgmtSession, error) {
 		if t := reviewThread(q); len(t) > 0 {
 			it.Thread = t
 		}
-		switch r.State {
+		switch r.Status {
 		case reviewApplied:
 			it.Status, it.Result = "done", r.Result
 		case reviewFailed:
@@ -117,7 +117,7 @@ func (s *Store) syncWeb(path string) (int, error) {
 	var errs []error
 	for _, it := range sess.Items {
 		q, ok := byID[it.ID]
-		if !ok || it.Status == "done" || q.Review.State == reviewApplied {
+		if !ok || it.Status == "done" || q.Review.Status == reviewApplied {
 			continue
 		}
 		if it.Action == q.Review.Action && it.Note == q.Review.Note {

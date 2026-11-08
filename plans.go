@@ -357,7 +357,7 @@ func (s *Store) ImportPlans(root string, includeAnswered bool) (Imported, error)
 		return out, e
 	}
 	for _, q := range owned {
-		if q.Review.Origin == "plan" && !seen[q.Key] && strings.HasPrefix(q.Review.Source, root+string(filepath.Separator)) && q.Review.State != reviewApplied {
+		if q.Review.Origin == "plan" && !seen[q.Key] && strings.HasPrefix(q.Review.Source, root+string(filepath.Separator)) && q.Review.Status != reviewApplied {
 			out.Stale = append(out.Stale, q.ID)
 		}
 	}
@@ -387,7 +387,7 @@ func (s *Store) PlanDecisions(date string) (string, error) {
 	byPlan := map[string][]Question{}
 	for _, q := range qs {
 		r := q.Review
-		if r.Origin != "plan" || r.Action == "" || (r.Action == askOut && s.ReviewAsk) || r.State == reviewApplied {
+		if r.Origin != "plan" || r.Action == "" || (r.Action == askOut && s.ReviewAsk) || r.Status == reviewApplied {
 			continue
 		}
 		byPlan[r.Plan] = append(byPlan[r.Plan], q)

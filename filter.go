@@ -8,8 +8,7 @@ import (
 
 // Declare the scalar fields carried by both question lists. The project
 // parameter names project_id through an alias so the project record remains
-// available to details. status is a derived row prop: question.status is an
-// existing action, and declared props cannot take an action's name.
+// available to details.
 func (a *App) declareFilterProps() {
 	for _, noun := range []string{"question", reviewNoun} {
 		a.r.Define(noun).Props(
@@ -21,8 +20,8 @@ func (a *App) declareFilterProps() {
 			ochazuke.PropSpec{Name: "agent_session", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Agent session"}},
 		)
 	}
-	a.r.Define("question").Props(questionStoreProps()...)
-	a.r.Define(reviewNoun).Props(questionStoreProps()[2:]...)
+	a.r.Define("question").Props(a.questionStoreProps()...)
+	a.r.Define(reviewNoun).Props(a.reviewStoreProps()...)
 	a.r.Define("question").Store(a.questionStore())
 	a.r.Define(reviewNoun).Store(a.reviewStore())
 }

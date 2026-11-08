@@ -1,0 +1,22 @@
+kind	old	new	note
+verb	question.question.status	question.question.set {prop: status}	the status is a prop; CLI: question set ID status answered; MCP: question.question.set {prop: status, value}
+verb	question.question.status (the Questions page s row)	question.question.choose-status	the page row asks for the status as a required choice; same write as set
+prop	state	status	the question store's prop `state` is the writable prop `status` (open, answered, follow-up, moot) with those values as its Enum
+verb	question.question.note	question.question.annotate {text, kind, replaces}	annotate also takes the old annotate arguments (tags, links, project, task, title); text appends a note or correction, the rest changes metadata; both may be given
+verb	question.question.view	question.question.show	markdown thread, or the thread viewer in the TUI (setting view.thread)
+verb	question.question.show (the structured record)	question.question.get	computed props of get: thread, latest_answer, record_path
+verb	question.question.copy {yank}	question.question.yank {part}	always copies to the clipboard and answers the text; printing the text is show, get --prop latest_answer or get --prop text
+verb	question.question.path	question.question.get {prop: path} (the store directory) and {prop: record_path} (one record file)	read-only verb became a collection prop and a thing prop
+alias	question.review.view	question.review.show	
+alias	question.review.copy	question.review.yank	
+alias	question.review.note	(none)	the note verb is annotate
+mcp	q_note	q_annotate {text, kind, replaces}	the curated MCP tools
+mcp	q_show (the structured record)	q_show (the thread as markdown)	q_show follows question.show
+setting	list.hide-archived	collection.hide-archived	ochazuke v0.104 renamed the list.* settings
+json	review.state (stored questions)	review.status	stored question files: read old key, written back as status on the next write of the file
+json	ExportItem.state (decisions export, o-questions-decisions/1)	status	the format name is unchanged
+binding	question/normal s -> question.status	question/normal s -> question.choose-status	
+binding	question/normal y -> question.copy {yank: true}	question/normal y -> question.yank	
+binding	question/normal v, enter -> question.view	question/normal v, enter -> question.show	
+binding	review/normal v, enter -> review.view; y -> review.copy {yank: true}	review/normal v, enter -> review.show; y -> review.yank	
+go	Review.State, ExportItem.State, Store review state	Review.Status, ExportItem.Status	

@@ -35,7 +35,6 @@ mcp.go	var mcpAllowlist	table	"ask"	1
 mcp.go	var mcpAllowlist	table	"decisions"	1
 mcp.go	var mcpAllowlist	table	"import"	1
 mcp.go	var mcpAllowlist	table	"list"	1
-mcp.go	var mcpAllowlist	table	"note"	1
 mcp.go	var mcpAllowlist	table	"pose"	1
 mcp.go	var mcpAllowlist	table	"reply"	1
 mcp.go	var mcpAllowlist	table	"show"	1
@@ -44,13 +43,11 @@ model.go	var entryStatuses	table	"follow-up"	1
 model.go	var entryStatuses	table	"note"	1
 model.go	var entryStatuses	table	"question"	1
 model.go	var entryStatuses	table	"reply"	1
-page.go	registerQuestionUI	compare	"view"	1
+page.go	registerQuestionUI	compare	"show"	1	the thread-viewer guard follows the show row (was view)
 plans.go	Store.ImportPlans	compare	"applied"	1
-plans.go	Store.ImportPlans	compare	"plan"	1
 plans.go	Store.PlanDecisions	case	"moot"	1
 plans.go	Store.PlanDecisions	compare	"applied"	1
 plans.go	Store.PlanDecisions	compare	"ask"	1
-plans.go	Store.PlanDecisions	compare	"plan"	1
 review.go	Store.Applied	compare	"applied"	1
 review.go	Store.Applied	compare	"ask"	1
 review.go	Store.Decide	compare	"applied"	1
@@ -79,13 +76,11 @@ review_app.go	var reviewAliases	table	"applied"	1
 review_app.go	var reviewAliases	table	"archive"	1
 review_app.go	var reviewAliases	table	"ask-back"	1
 review_app.go	var reviewAliases	table	"associate"	1
-review_app.go	var reviewAliases	table	"copy"	1
 review_app.go	var reviewAliases	table	"decide"	1
 review_app.go	var reviewAliases	table	"decision-note"	1
 review_app.go	var reviewAliases	table	"delete"	1
 review_app.go	var reviewAliases	table	"link"	1
 review_app.go	var reviewAliases	table	"open"	1
-review_app.go	var reviewAliases	table	"path"	1
 review_app.go	var reviewAliases	table	"rename"	1
 review_app.go	var reviewAliases	table	"reply"	1
 review_app.go	var reviewAliases	table	"restore"	1
@@ -96,6 +91,7 @@ review_app.go	var reviewAliases	table	"undecide"	1
 review_app.go	var reviewAliases	table	"undo"	1
 review_app.go	var reviewAliases	table	"unstar"	1
 review_app.go	var reviewAliases	table	"untag"	1
+review_app.go	var reviewAliases	table	"yank"	1	question verbs also named review.VERB (was copy)
 review_web.go	Store.syncWeb	compare	"applied"	1
 review_web.go	Store.webSession	case	"applied"	1
 settings.go	statusTable	compare	"follow-up"	1

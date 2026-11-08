@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"slices"
 
 	"ofam.dev/ochazuke"
@@ -21,7 +22,7 @@ import (
 // owner), read only: a facts store; its verbs are question verbs under
 // review names (reviewAliases).
 
-func questionStoreProps() []ochazuke.PropSpec {
+func (a *App) questionStoreProps() []ochazuke.PropSpec {
 	text := func(name, desc string) ochazuke.PropSpec {
 		return ochazuke.PropSpec{Name: name, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: desc}}
 	}
@@ -29,17 +30,46 @@ func questionStoreProps() []ochazuke.PropSpec {
 		{Name: "title", Role: ochazuke.RoleLabel, Parameter: ochazuke.Parameter{Type: "string", Description: "The question's short title"}},
 		{Name: "archived", Role: ochazuke.RoleArchive, Parameter: ochazuke.Parameter{Type: ochazuke.SettingBoolean, Description: "Hidden from the default views; the record and its history are kept"}},
 		text("text", "The owner's question (question edit changes it)"),
-		text("state", "open, answered, follow-up or moot (question status sets it)"),
+		{Name: "status", Parameter: ochazuke.Parameter{Type: ochazuke.SettingString, Enum: statuses, Description: "open, answered, follow-up or moot; writing it sets an explicit, sticky status"}},
 		{Name: "starred", ReadOnly: true, Parameter: ochazuke.Parameter{Type: ochazuke.SettingBoolean, Description: "Starred (question star toggles it)"}},
 		{Name: "tags", ReadOnly: true, Parameter: ochazuke.Parameter{Type: ochazuke.SettingList, Description: "Tags (question tag and untag change them)"}},
 		text("asked_at", "When it was asked (RFC 3339)"),
+		a.thingRead("thread", "The complete thread as markdown", func(q Question) any { return thread(q, a.r.Settings().Bool("detail.provenance")) }),
+		a.thingRead("latest_answer", "The latest answer's text", func(q Question) any { return latestAnswer(q) }),
+		a.thingRead("record_path", "The question's record file", func(q Question) any { return a.store.path(q) }),
+		{Name: "path", Subject: ochazuke.SubjectCollection, Parameter: ochazuke.Parameter{Type: ochazuke.SettingString, Description: "The store directory"},
+			Read: func(ochazuke.Ctx, ochazuke.Thing) (any, error) { return a.store.Dir, nil }},
 	}
+}
+
+// thingRead is a read-only computed prop of one question: Read finds the
+// question from the thing's id when the prop is asked for.
+func (a *App) thingRead(name, desc string, from func(Question) any) ochazuke.PropSpec {
+	return ochazuke.PropSpec{Name: name, ReadOnly: true, Parameter: ochazuke.Parameter{Type: ochazuke.SettingString, Description: desc},
+		Read: func(_ ochazuke.Ctx, t ochazuke.Thing) (any, error) {
+			q, e := a.store.Resolve(fmt.Sprint(t["id"]), false)
+			if e != nil {
+				return nil, e
+			}
+			return from(q), nil
+		}}
+}
+
+// reviewStoreProps are the question props the review noun shares: the
+// things' values, not the label, the archive role or a collection's.
+func (a *App) reviewStoreProps() []ochazuke.PropSpec {
+	var out []ochazuke.PropSpec
+	for _, p := range a.questionStoreProps() {
+		if p.Role == "" && p.Subject == "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func questionThing(q Question) ochazuke.Thing {
 	t := ochazuke.Thing(questionRowData(q))
-	t["state"] = q.Status
-	delete(t, "status")
+	t["status"] = q.Status
 	t["archived"] = q.Deleted
 	if q.Tags == nil {
 		t["tags"] = []string{}
@@ -48,7 +78,7 @@ func questionThing(q Question) ochazuke.Thing {
 }
 
 func (a *App) questionStore() ochazuke.Store {
-	return ochazuke.Store{Kind: ochazuke.Collection,
+	return ochazuke.Store{Kind: ochazuke.KindCollection,
 		Get: func(_ ochazuke.Ctx, id string) (ochazuke.Thing, error) {
 			q, e := a.store.Resolve(id, false)
 			if e != nil {
@@ -81,6 +111,11 @@ func (a *App) questionStore() ochazuke.Store {
 					return nil, e
 				}
 			}
+			if v, ok := t["status"].(string); ok && v != q.Status {
+				if q, e = a.store.Change(opStatus, q.ID, Change{Value: v}); e != nil {
+					return nil, e
+				}
+			}
 			if v, ok := t["archived"].(bool); ok && v != q.Deleted {
 				op := opRestore
 				if v {
@@ -105,7 +140,7 @@ func (a *App) questionStore() ochazuke.Store {
 }
 
 func (a *App) reviewStore() ochazuke.Store {
-	return ochazuke.Store{Kind: ochazuke.Collection, Facts: true,
+	return ochazuke.Store{Kind: ochazuke.KindCollection, Facts: true,
 		Get: func(_ ochazuke.Ctx, id string) (ochazuke.Thing, error) {
 			q, e := a.store.Resolve(id, false)
 			if e != nil {

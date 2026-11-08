@@ -50,6 +50,9 @@ func (s *Store) locked(fn func() error) error {
 	defer unix.Flock(int(f.Fd()), unix.LOCK_UN)
 	if b, e := os.ReadFile(filepath.Join(s.Dir, ".transaction.json")); e == nil {
 		var rows []Question
+		if b, e = migrateLegacy(b); e != nil {
+			return e
+		}
 		if e = json.Unmarshal(b, &rows); e != nil {
 			return e
 		}
@@ -82,6 +85,9 @@ func (s *Store) all() ([]Question, error) {
 			return nil, e
 		}
 		var q Question
+		if b, e = migrateLegacy(b); e != nil {
+			return nil, fmt.Errorf("%s: %w", f.Name(), e)
+		}
 		if e = json.Unmarshal(b, &q); e != nil {
 			return nil, fmt.Errorf("%s: %w", f.Name(), e)
 		}
@@ -440,6 +446,9 @@ func (s *Store) Undo() (err error) {
 				return e
 			}
 			var snap Snapshot
+			if b, e = migrateLegacy(b); e != nil {
+				return e
+			}
 			if e = json.Unmarshal(b, &snap); e != nil {
 				return e
 			}
@@ -483,6 +492,9 @@ func (s *Store) History() (out []Snapshot, err error) {
 				return e
 			}
 			var snap Snapshot
+			if b, e = migrateLegacy(b); e != nil {
+				return e
+			}
 			if e = json.Unmarshal(b, &snap); e != nil {
 				return e
 			}

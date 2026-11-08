@@ -55,16 +55,16 @@ func registerQuestionUI(a *App) {
 		key, verb string
 		args      ochazuke.Arguments
 	}{
-		{"v", "view", nil}, {"enter", "view", nil}, {"c", "ask", nil}, {"a", "answer", nil}, {"f", "follow-up", nil}, {"s", "status", nil}, {"y", "copy", ochazuke.Arguments{"yank": true}}, {"e", "edit", nil}, {"r", "rename", nil}, {"m", "associate", nil}, {"t", "tag", nil}, {"g x", "open", nil}, {"d d", "delete", nil}, {"u", "undo", nil},
+		{"v", "show", nil}, {"enter", "show", nil}, {"c", "ask", nil}, {"a", "answer", nil}, {"f", "follow-up", nil}, {"s", "choose-status", nil}, {"y", "yank", nil}, {"e", "edit", nil}, {"r", "rename", nil}, {"m", "associate", nil}, {"t", "tag", nil}, {"g x", "open", nil}, {"d d", "delete", nil}, {"u", "undo", nil},
 	} {
 		row := ochazuke.Do("question."+v.verb, v.args)
-		if v.verb == "view" {
+		if v.verb == "show" {
 			row = row.Guard("question-thread-enabled")
 		}
 		b.Bind(v.key, row)
 	}
-	b.Bind("n", ochazuke.Do("ochazuke.list.move", ochazuke.Arguments{"delta": 1, "clamp": true}).FromPayload("steps", "count"))
-	b.Bind("N", ochazuke.Do("ochazuke.list.move", ochazuke.Arguments{"delta": -1, "clamp": true}).FromPayload("steps", "count"))
+	b.Bind("n", ochazuke.Do("ochazuke.collection.move", ochazuke.Arguments{"delta": 1, "clamp": true}).FromPayload("steps", "count"))
+	b.Bind("N", ochazuke.Do("ochazuke.collection.move", ochazuke.Arguments{"delta": -1, "clamp": true}).FromPayload("steps", "count"))
 	b.Bind("o", ochazuke.Do("ochazuke.setting.cycle", ochazuke.Arguments{"name": "filter.status"}))
 
 	registerReviewUI(a)

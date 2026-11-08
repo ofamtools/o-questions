@@ -46,7 +46,7 @@ func TestMCPLifecycleAndIdempotency(t *testing.T) {
 	if e = json.Unmarshal([]byte(lines[1]), &tools); e != nil {
 		t.Fatal(e)
 	}
-	if len(tools.Result.Tools) != 12 {
+	if len(tools.Result.Tools) != 11 {
 		t.Fatal(tools)
 	}
 	rows, e := s.List()
@@ -77,7 +77,7 @@ func TestMCPSchemaAndRefusals(t *testing.T) {
 	if !strings.Contains(out.String(), "-32700") || !strings.Contains(out.String(), "-32601") {
 		t.Fatal(out.String())
 	}
-	for _, c := range []struct{ name, raw string }{{"q_ask", `{}`}, {"q_ask", `{"question":""}`}, {"q_ask", `{"question":"Q?","actor":"owner"}`}, {"q_ask", `{"question":"Q?","links":["url"]}`}, {"q_list", `{"limit":1.5}`}, {"q_note", `{"target":"1","text":"x","kind":"answer"}`}, {"q_annotate", `{"target":"1","status":"moot"}`}, {"q_ask", `null`}} {
+	for _, c := range []struct{ name, raw string }{{"q_ask", `{}`}, {"q_ask", `{"question":""}`}, {"q_ask", `{"question":"Q?","actor":"owner"}`}, {"q_ask", `{"question":"Q?","links":["url"]}`}, {"q_list", `{"limit":1.5}`}, {"q_annotate", `{"target":"1","text":"x","kind":"answer"}`}, {"q_annotate", `{"target":"1","status":"moot"}`}, {"q_ask", `null`}} {
 		b, _ := json.Marshal(a.callTool(c.name, json.RawMessage(c.raw), "fixture"))
 		if !strings.Contains(string(b), `"isError":true`) {
 			t.Fatalf("%s %s: %s", c.name, c.raw, b)
@@ -87,7 +87,7 @@ func TestMCPSchemaAndRefusals(t *testing.T) {
 	if strings.Contains(string(b), `"isError":true`) {
 		t.Fatal(string(b))
 	}
-	b, _ = json.Marshal(a.callTool("q_note", json.RawMessage(`{"target":"1","text":"Note"}`), "fixture"))
+	b, _ = json.Marshal(a.callTool("q_annotate", json.RawMessage(`{"target":"1","text":"Note"}`), "fixture"))
 	if strings.Contains(string(b), `"isError":true`) {
 		t.Fatal(string(b))
 	}

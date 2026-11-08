@@ -98,7 +98,7 @@ func TestPoseDecideReplyCarryExport(t *testing.T) {
 	if _, e = ag.Applied(other.Question.ID, "done", "x"); e == nil {
 		t.Fatal("applied an undecided item")
 	}
-	if q, e = ag.Applied(id, "done", "Set review.page default true; tests pass"); e != nil || q.Review.State != reviewApplied {
+	if q, e = ag.Applied(id, "done", "Set review.page default true; tests pass"); e != nil || q.Review.Status != reviewApplied {
 		t.Fatal(q, e)
 	}
 	if _, e = s.Decide(id, Decision{Clear: true}); e == nil {
@@ -112,7 +112,7 @@ func TestPoseDecideReplyCarryExport(t *testing.T) {
 		t.Fatal("applied items leave the default export", x)
 	}
 	x, _ = s.Decisions("", true)
-	if len(x.Items) != 1 || x.Items[0].State != reviewApplied {
+	if len(x.Items) != 1 || x.Items[0].Status != reviewApplied {
 		t.Fatal(x)
 	}
 	// Item actions: choice 2 is the item's own second action; 3 is ask.

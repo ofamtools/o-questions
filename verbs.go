@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -104,41 +105,33 @@ func onTarget(f func(a *App, q Question, c ochazuke.Ctx) ochazuke.Result) verbRu
 	}
 }
 
-func runPath(a *App, c ochazuke.Ctx) ochazuke.Result {
-	if argStr(c, "target") == "" && c.Instance == nil {
-		return result(a.store.Dir, nil)
-	}
-	return onTarget(func(a *App, q Question, _ ochazuke.Ctx) ochazuke.Result { return result(a.store.path(q), nil) })(a, c)
-}
-
+// runShow reads the complete thread: the viewer in the TUI, else the markdown.
 var runShow = onTarget(func(a *App, q Question, _ ochazuke.Ctx) ochazuke.Result {
 	if a.tui && a.showThread != nil {
 		return result(nil, a.showThread(q))
 	}
-	return result(q, nil)
+	return ochazuke.Done(thread(q, a.r.Settings().Bool("detail.provenance")))
 })
 
 var runCheck = onTarget(func(a *App, q Question, _ ochazuke.Ctx) ochazuke.Result { return a.check(q) })
 
-// copyParts are the "part" values that copy something other than the thread.
+// copyParts are the "part" values that yank something other than the thread.
 var copyParts = []struct {
 	name string
 	text func(Question) string
 }{{"question", func(q Question) string { return q.Text }}, {"answer", latestAnswer}}
 
-var runCopy = onTarget(func(a *App, q Question, c ochazuke.Ctx) ochazuke.Result {
+var runYank = onTarget(func(a *App, q Question, c ochazuke.Ctx) ochazuke.Result {
 	text := thread(q, true)
 	for _, p := range copyParts {
 		if p.name == argStr(c, "part") {
 			text = p.text(q)
 		}
 	}
-	if yank, _ := c.Args["yank"].(bool); yank {
-		cmd := exec.Command("pbcopy")
-		cmd.Stdin = strings.NewReader(text)
-		if e := a.run(cmd); e != nil {
-			return result(nil, e)
-		}
+	cmd := exec.Command("pbcopy")
+	cmd.Stdin = strings.NewReader(text)
+	if e := a.run(cmd); e != nil {
+		return result(nil, e)
 	}
 	return result(text, nil)
 })
@@ -213,4 +206,45 @@ func changeVerb(op ChangeOp, valueParam string, extra func(*Annotation, func(str
 		a.refresh()
 		return result(v, e)
 	})
+}
+
+// runAnnotate is annotate: a step runs when its arguments are given, so
+// one, two or no step is the same path. The entry step (a text appends a
+// note or correction, carrying the tags and links) comes first; the change
+// step (a project, a task or a title, and tags or links no text carried)
+// second. With neither, annotate says what to give.
+var runAnnotate = func(a *App, c ochazuke.Ctx) ochazuke.Result {
+	has := func(names ...string) bool {
+		for _, name := range names {
+			if argStr(c, name) != "" || c.Args[name] != nil {
+				return true
+			}
+		}
+		return false
+	}
+	text := has("text")
+	steps := []struct {
+		when bool
+		run  verbRun
+	}{
+		{text, entryVerb("note", "text")},
+		{has("project", "task", "title") || (!text && has("tags", "links")), changeVerb(opAnnotate, "text", nil)},
+	}
+	var value any
+	ran := false
+	for _, step := range steps {
+		if !step.when {
+			continue
+		}
+		ran = true
+		v, e := step.run(a, c).Await(context.Background())
+		if e != nil {
+			return result(nil, e)
+		}
+		value = v
+	}
+	if !ran {
+		return result(nil, errors.New("annotate needs text, tags, links, a project, a task or a title"))
+	}
+	return result(value, nil)
 }

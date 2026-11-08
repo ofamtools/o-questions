@@ -72,12 +72,12 @@ func appSettings() []ochazuke.Setting {
 		{Name: "capture.verbatim-check", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for optional Q4 hooks"},
 		{Name: "capture.prompts", Type: ochazuke.SettingString, Default: "off", Enum: []string{"off", "all"}, Description: "Reserved for optional Q4 capture"},
 		{Name: "filter.direction", Type: ochazuke.SettingString, Default: toAgent, Enum: directions, Description: "Questions page: to-agent (the owner's questions), to-owner (questions for the owner) or all"},
-		{Name: "review.page", Type: ochazuke.SettingBoolean, Default: true, Description: "Show the Review page of questions for the owner (read at start)"},
-		{Name: "review.show", Type: ochazuke.SettingString, Default: "pending", Enum: reviewFilters, Description: "Review items shown: pending hides applied ones"},
-		{Name: "review.actions", Type: ochazuke.SettingList, Default: []string{"yes", "no", "later", "moot"}, Validate: nonemptyList, Description: "Default numbered actions of a question for the owner"},
-		{Name: "review.ask", Type: ochazuke.SettingBoolean, Default: true, Description: "Offer ask (a question back to the agent) after the actions"},
-		{Name: "review.plans-root", Type: ochazuke.SettingString, Default: "~/hub/o-plans", Description: "Plans folder question import reads"},
-		{Name: "review.mgmt", Type: ochazuke.SettingString, Default: "", Description: "mgmt.py path for review --web; empty discovers it on PATH, then in the legacy home location"},
+		{Name: "decision.page", Type: ochazuke.SettingBoolean, Default: true, Description: "Show the Decisions page of questions for the owner (read at start)"},
+		{Name: "decision.show", Type: ochazuke.SettingString, Default: "pending", Enum: decisionFilters, Description: "Decision items shown: pending hides applied ones"},
+		{Name: "decision.actions", Type: ochazuke.SettingList, Default: []string{"yes", "no", "later", "moot"}, Validate: nonemptyList, Description: "Default numbered actions of a question for the owner"},
+		{Name: "decision.ask", Type: ochazuke.SettingBoolean, Default: true, Description: "Offer ask (a question back to the agent) after the actions"},
+		{Name: "decision.plans-root", Type: ochazuke.SettingString, Default: "~/hub/o-plans", Description: "Plans folder question import reads"},
+		{Name: "decision.mgmt", Type: ochazuke.SettingString, Default: "", Description: "mgmt.py path for decision --web; empty discovers it on PATH, then in the legacy home location"},
 		{Name: "export.open", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for Q5 export"},
 	}
 }

@@ -61,7 +61,7 @@ type Question struct {
 	Key            string    `json:"key"`
 	Entries        []Entry   `json:"entries"`
 	Direction      string    `json:"direction,omitempty"`
-	Review         *Review   `json:"review,omitempty"`
+	Decision       *Decision `json:"decision,omitempty"`
 }
 
 var statuses = []string{"open", "answered", "follow-up", "moot"}

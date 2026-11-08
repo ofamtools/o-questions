@@ -169,7 +169,6 @@ date	prop	seed
 days	prop	seed	
 decide	action	seed	
 decision-note	action	seed	
-decisions	action	seed	
 decorations	prop	seed	
 decrease	action	seed	
 default	action+prop	seed	
@@ -678,8 +677,6 @@ reveal	action	seed
 reversed	prop	seed	
 revert	action	seed	
 revert-all	action	seed	
-review	action+noun	seed	
-reviews	relation	seed	
 reword	action	seed	
 rights	prop	seed	
 roles	prop	seed	
@@ -906,5 +903,6 @@ zoom	action	seed
 zoom-in	action	seed	
 zoom-out	action	seed	
 zoom-reset	action	seed	
-open-page	action	yes	Opens a page that has other options (review open-page --web)
+open-page	action	yes	Opens a page that has other options (decision open-page --web)
 question-thread	noun	yes	o-questions thread viewer card noun
+decision	noun	yes	The owner's decision on a question for the owner; the Decisions page rows

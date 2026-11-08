@@ -20,16 +20,16 @@ func agentStore(s *Store) *Store {
 
 func TestPoseDecideReplyCarryExport(t *testing.T) {
 	s := fixture(t)
-	s.ReviewAsk = true
+	s.DecisionAsk = true
 	ag := agentStore(s)
-	p := Pose{Question: "Ship the Review page on by default?", Group: "Review", Source: "plan.md:3", Details: "context v1", Recommendation: "Yes, with an opt-out", Key: "k1"}
+	p := Pose{Question: "Ship the Decisions page on by default?", Group: "Decision", Source: "plan.md:3", Details: "context v1", Recommendation: "Yes, with an opt-out", Key: "k1"}
 	posed, e := ag.Pose(p)
-	if e != nil || posed.Existed || !posed.Question.forOwner() || posed.Question.Review.RecommendedAction != "yes" || posed.Question.AskedBy.Kind != "agent" {
+	if e != nil || posed.Existed || !posed.Question.forOwner() || posed.Question.Decision.RecommendedAction != "yes" || posed.Question.AskedBy.Kind != "agent" {
 		t.Fatal(posed, e)
 	}
 	id := posed.Question.ID
 	// Decisions are ordinary attributed writes, including an agent's write.
-	if _, e = ag.Decide(id, Decision{Accept: true}); e != nil {
+	if _, e = ag.Decide(id, DecisionChange{Accept: true}); e != nil {
 		t.Fatal("agent decision refused", e)
 	}
 	history, e := s.History()
@@ -39,16 +39,16 @@ func TestPoseDecideReplyCarryExport(t *testing.T) {
 	if e = ag.Undo(); e != nil {
 		t.Fatal(e)
 	}
-	x, _ := s.Decisions("", false)
+	x, _ := s.DecisionExport("", false)
 	if len(x.Undecided) != 1 || len(x.Items) != 0 {
 		t.Fatal(x)
 	}
 	// 1 picks the first numbered action; same as the recommendation, so it is an accept.
-	q, e := s.Decide(id, Decision{Choice: 1})
-	if e != nil || q.Review.Action != "yes" || q.Status != "answered" {
+	q, e := s.Decide(id, DecisionChange{Choice: 1})
+	if e != nil || q.Decision.Action != "yes" || q.Status != "answered" {
 		t.Fatal(q, e)
 	}
-	x, _ = s.Decisions("", false)
+	x, _ = s.DecisionExport("", false)
 	if len(x.Items) != 1 || !x.Items[0].AcceptedRecommendation || x.Counts["accepted"] != 1 {
 		t.Fatal(x)
 	}
@@ -59,88 +59,88 @@ func TestPoseDecideReplyCarryExport(t *testing.T) {
 	}
 	p.Details = "context v2"
 	again, e = ag.Pose(p)
-	if e != nil || !again.Changed || again.Question.Review.Action != "yes" || !again.Question.Review.ContextChanged {
+	if e != nil || !again.Changed || again.Question.Decision.Action != "yes" || !again.Question.Decision.ContextChanged {
 		t.Fatal(again, e)
 	}
-	x, _ = s.Decisions("", false)
+	x, _ = s.DecisionExport("", false)
 	if x.Items[0].AcceptedRecommendation || !x.Items[0].ContextChanged {
 		t.Fatal("changed context must be read", x)
 	}
 	// Ask back: open for the agent, listed as a question with its thread.
-	if _, e = s.Decide(id, Decision{Choice: 6}); e == nil {
+	if _, e = s.Decide(id, DecisionChange{Choice: 6}); e == nil {
 		t.Fatal("choice out of range accepted")
 	}
 	note := "Why on by default?"
-	q, e = s.Decide(id, Decision{Action: askOut, Note: &note})
-	if e != nil || q.Status != "follow-up" || q.Review.ContextChanged {
+	q, e = s.Decide(id, DecisionChange{Action: askOut, Note: &note})
+	if e != nil || q.Status != "follow-up" || q.Decision.ContextChanged {
 		t.Fatal(q, e)
 	}
-	x, _ = s.Decisions("", false)
+	x, _ = s.DecisionExport("", false)
 	if len(x.Questions) != 1 || x.Questions[0].Question != note || len(x.Questions[0].Thread) != 1 || x.Questions[0].Thread[0].Role != "owner" {
 		t.Fatal(x)
 	}
 	// The agent's reply clears the ask and the note the thread already holds.
-	rec := "Yes; review.page turns it off"
+	rec := "Yes; decision.page turns it off"
 	q, e = ag.Reply(id, Reply{Text: "Owners asked for it in plan X.", Recommendation: &rec})
-	if e != nil || q.Review.Action != "" || q.Review.Note != "" || !q.Review.NewReply || q.Status != "open" || q.Review.Recommendation != rec {
-		t.Fatal(*q.Review, q.Status, e)
+	if e != nil || q.Decision.Action != "" || q.Decision.Note != "" || !q.Decision.NewReply || q.Status != "open" || q.Decision.Recommendation != rec {
+		t.Fatal(*q.Decision, q.Status, e)
 	}
-	if th := reviewThread(q); len(th) != 2 || th[1].Role != "agent" {
+	if th := decisionThread(q); len(th) != 2 || th[1].Role != "agent" {
 		t.Fatal(th)
 	}
 	// Owner accepts; nothing to read.
-	q, e = s.Decide(id, Decision{Accept: true})
-	if e != nil || q.Review.Action != "yes" || q.Review.NewReply || !accepted(q.Review) {
-		t.Fatal(*q.Review, e)
+	q, e = s.Decide(id, DecisionChange{Accept: true})
+	if e != nil || q.Decision.Action != "yes" || q.Decision.NewReply || !accepted(q.Decision) {
+		t.Fatal(*q.Decision, e)
 	}
 	// Applying: undecided items refuse; done locks.
 	other, _ := ag.Pose(Pose{Question: "Second?", Key: "k2", Actions: []string{"a", "b"}})
 	if _, e = ag.Applied(other.Question.ID, "done", "x"); e == nil {
 		t.Fatal("applied an undecided item")
 	}
-	if q, e = ag.Applied(id, "done", "Set review.page default true; tests pass"); e != nil || q.Review.Status != reviewApplied {
+	if q, e = ag.Applied(id, "done", "Set decision.page default true; tests pass"); e != nil || q.Decision.Status != decisionApplied {
 		t.Fatal(q, e)
 	}
-	if _, e = s.Decide(id, Decision{Clear: true}); e == nil {
+	if _, e = s.Decide(id, DecisionChange{Clear: true}); e == nil {
 		t.Fatal("decided a locked item")
 	}
 	if _, e = ag.Reply(id, Reply{Text: "late"}); e == nil {
 		t.Fatal("replied to a locked item")
 	}
-	x, _ = s.Decisions("", false)
+	x, _ = s.DecisionExport("", false)
 	if len(x.Items) != 0 || len(x.Undecided) != 1 {
 		t.Fatal("applied items leave the default export", x)
 	}
-	x, _ = s.Decisions("", true)
-	if len(x.Items) != 1 || x.Items[0].Status != reviewApplied {
+	x, _ = s.DecisionExport("", true)
+	if len(x.Items) != 1 || x.Items[0].Status != decisionApplied {
 		t.Fatal(x)
 	}
 	// Item actions: choice 2 is the item's own second action; 3 is ask.
-	if q, e = s.Decide(other.Question.ID, Decision{Choice: 2}); e != nil || q.Review.Action != "b" {
+	if q, e = s.Decide(other.Question.ID, DecisionChange{Choice: 2}); e != nil || q.Decision.Action != "b" {
 		t.Fatal(q, e)
 	}
-	if got := reviewActions(other.Question, s.reviewDefaults(), true); strings.Join(got, ",") != "a,b,ask" {
+	if got := decisionActions(other.Question, s.decisionDefaults(), true); strings.Join(got, ",") != "a,b,ask" {
 		t.Fatal(got)
 	}
 }
 
-func TestReviewUndoAndAnswerGuards(t *testing.T) {
+func TestDecisionUndoAndAnswerGuards(t *testing.T) {
 	s := fixture(t)
-	s.ReviewAsk = true
+	s.DecisionAsk = true
 	plain := ask(t, s, "Owner's own question?")
-	if _, e := s.Decide(plain.ID, Decision{Choice: 1}); e == nil {
+	if _, e := s.Decide(plain.ID, DecisionChange{Choice: 1}); e == nil {
 		t.Fatal("decided an owner's question")
 	}
 	posed, _ := agentStore(s).Pose(Pose{Question: "Q?", Key: "k"})
-	if _, e := s.Decide(posed.Question.ID, Decision{Choice: 1}); e != nil {
+	if _, e := s.Decide(posed.Question.ID, DecisionChange{Choice: 1}); e != nil {
 		t.Fatal(e)
 	}
 	if e := s.Undo(); e != nil {
 		t.Fatal(e)
 	}
 	q, _ := s.Resolve(posed.Question.ID, false)
-	if q.Review.Action != "" {
-		t.Fatal("undo kept the decision", q.Review)
+	if q.Decision.Action != "" {
+		t.Fatal("undo kept the decision", q.Decision)
 	}
 }
 
@@ -178,7 +178,7 @@ func itoa(n int) string { b, _ := json.Marshal(n); return string(b) }
 
 func TestImportPlansCarriesDecisionsAndRendersDecisions(t *testing.T) {
 	s := fixture(t)
-	s.ReviewAsk = true
+	s.DecisionAsk = true
 	root := filepath.Join(t.TempDir(), "plans")
 	if e := os.CopyFS(root, os.DirFS("testdata/plans")); e != nil {
 		t.Fatal(e)
@@ -200,10 +200,10 @@ func TestImportPlansCarriesDecisionsAndRendersDecisions(t *testing.T) {
 	group := byKey["plan:oq-b25f0c50b17e"]
 	keep := byKey["plan:oq-0c01122c4f1e"]
 	note := "but only for one release"
-	if _, e = s.Decide(group.ID, Decision{Accept: true}); e != nil {
+	if _, e = s.Decide(group.ID, DecisionChange{Accept: true}); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.Decide(keep.ID, Decision{Action: "no", Note: &note}); e != nil {
+	if _, e = s.Decide(keep.ID, DecisionChange{Action: "no", Note: &note}); e != nil {
 		t.Fatal(e)
 	}
 	// Editing the plan text flags the decided question; the decision carries by id.
@@ -217,8 +217,8 @@ func TestImportPlansCarriesDecisionsAndRendersDecisions(t *testing.T) {
 		t.Fatal(got)
 	}
 	q, _ := s.Resolve(group.ID, false)
-	if q.Review.Action != "yes" || !q.Review.ContextChanged || q.Review.Recommendation != "yes, sections with rules." {
-		t.Fatal(q.Review)
+	if q.Decision.Action != "yes" || !q.Decision.ContextChanged || q.Decision.Recommendation != "yes, sections with rules." {
+		t.Fatal(q.Decision)
 	}
 	text, e := s.PlanDecisions("2026-10-31")
 	if e != nil {
@@ -238,7 +238,7 @@ func TestImportPlansCarriesDecisionsAndRendersDecisions(t *testing.T) {
 	}
 }
 
-func TestReviewWebRoundTrip(t *testing.T) {
+func TestDecisionWebRoundTrip(t *testing.T) {
 	s := fixture(t)
 	ag := agentStore(s)
 	a, e := newApp(s, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{})
@@ -251,7 +251,7 @@ func TestReviewWebRoundTrip(t *testing.T) {
 	if e = os.WriteFile(mgmt, []byte("# fake"), 0600); e != nil {
 		t.Fatal(e)
 	}
-	if e = a.r.Settings().Set("review.mgmt", mgmt); e != nil {
+	if e = a.r.Settings().Set("decision.mgmt", mgmt); e != nil {
 		t.Fatal(e)
 	}
 	var argv []string
@@ -280,7 +280,7 @@ func TestReviewWebRoundTrip(t *testing.T) {
 		b, _ = json.Marshal(sess)
 		return os.WriteFile(path, b, 0600)
 	}
-	if e = a.reviewCommand([]string{"--web", "--no-open", "--port", "0"}); e != nil {
+	if e = a.decisionCommand([]string{"--web", "--no-open", "--port", "0"}); e != nil {
 		t.Fatal(e)
 	}
 	if len(argv) != 7 || argv[0] != "python3" || argv[1] != mgmt || argv[2] != "serve" || argv[4] != "--no-open" {
@@ -288,18 +288,18 @@ func TestReviewWebRoundTrip(t *testing.T) {
 	}
 	q1, _ := s.Resolve(first.Question.ID, false)
 	q2, _ := s.Resolve(second.Question.ID, false)
-	if q1.Review.Action != "yes" || q2.Review.Action != "ask" || lastOwnerQuestion(q2) != "What would it cost?" {
-		t.Fatal(q1.Review, q2.Review, q2.Entries)
+	if q1.Decision.Action != "yes" || q2.Decision.Action != "ask" || lastOwnerQuestion(q2) != "What would it cost?" {
+		t.Fatal(q1.Decision, q2.Decision, q2.Entries)
 	}
 }
 
-func reviewFixturePage(t *testing.T, settings map[string]any) (*Store, *page, []Question) {
+func decisionFixturePage(t *testing.T, settings map[string]any) (*Store, *page, []Question) {
 	t.Helper()
 	s := fixture(t)
 	ag := agentStore(s)
 	var qs []Question
 	for _, p := range []Pose{
-		{Question: "Turn the Review page on?", Group: "Review", Recommendation: "Yes, opt-out setting", Key: "r1"},
+		{Question: "Turn the Decisions page on?", Group: "Decision", Recommendation: "Yes, opt-out setting", Key: "r1"},
 		{Question: "Which port?", Group: "Web", Actions: []string{"8765", "random"}, Key: "w1"},
 	} {
 		posed, e := ag.Pose(p)
@@ -317,7 +317,7 @@ func reviewFixturePage(t *testing.T, settings map[string]any) (*Store, *page, []
 			t.Fatal(e)
 		}
 	}
-	p, e := mountSpec(a, reviewSpec(a))
+	p, e := mountSpec(a, decisionSpec(a))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -325,43 +325,43 @@ func reviewFixturePage(t *testing.T, settings map[string]any) (*Store, *page, []
 	return s, p, qs
 }
 
-func TestReviewPageKeys(t *testing.T) {
-	s, p, qs := reviewFixturePage(t, nil)
-	l := p.v.List(reviewListID)
+func TestDecisionPageKeys(t *testing.T) {
+	s, p, qs := decisionFixturePage(t, nil)
+	l := p.v.List(decisionListID)
 	if l.Shown() != 4 {
 		t.Fatalf("two topics and two questions, got %d", l.Shown())
 	}
-	if e := l.Select(reviewListID + "/question/" + qs[0].ID); e != nil {
+	if e := l.Select(decisionListID + "/question/" + qs[0].ID); e != nil {
 		t.Fatal(e)
 	}
 	frame := frameText(p)
-	for _, want := range []string{"Review  0/1 decided", "yes?", "recommended · not confirmed", "1 yes · 2 no · 3 later · 4 moot · 5 ask"} {
+	for _, want := range []string{"Decision  0/1 decided", "yes?", "recommended · not confirmed", "1 yes · 2 no · 3 later · 4 moot · 5 ask"} {
 		if !strings.Contains(frame, want) {
 			t.Fatalf("missing %q:\n%s", want, frame)
 		}
 	}
 	sendKey(t, p, "a")
 	q, _ := s.Resolve(qs[0].ID, false)
-	if q.Review.Action != "yes" || !accepted(q.Review) {
-		t.Fatal("a must accept", q.Review)
+	if q.Decision.Action != "yes" || !accepted(q.Decision) {
+		t.Fatal("a must accept", q.Decision)
 	}
-	if frame = frameText(p); !strings.Contains(frame, "recommended · accepted") || !strings.Contains(frame, "Review  1/1 decided") {
+	if frame = frameText(p); !strings.Contains(frame, "recommended · accepted") || !strings.Contains(frame, "Decision  1/1 decided") {
 		t.Fatal(frame)
 	}
 	sendKey(t, p, "x")
-	if q, _ = s.Resolve(qs[0].ID, false); q.Review.Action != "" {
-		t.Fatal("x must clear", q.Review)
+	if q, _ = s.Resolve(qs[0].ID, false); q.Decision.Action != "" {
+		t.Fatal("x must clear", q.Decision)
 	}
-	if e := l.Select(reviewListID + "/question/" + qs[1].ID); e != nil {
+	if e := l.Select(decisionListID + "/question/" + qs[1].ID); e != nil {
 		t.Fatal(e)
 	}
 	sendKey(t, p, "2")
-	if q, _ = s.Resolve(qs[1].ID, false); q.Review.Action != "random" {
-		t.Fatal("2 must pick the item's second action", q.Review)
+	if q, _ = s.Resolve(qs[1].ID, false); q.Decision.Action != "random" {
+		t.Fatal("2 must pick the item's second action", q.Decision)
 	}
-	// o cycles review.show: undecided hides the decided question and its topic.
+	// o cycles decision.show: undecided hides the decided question and its topic.
 	sendKey(t, p, "o")
-	if got := p.a.r.Settings().String("review.show"); got != "undecided" {
+	if got := p.a.r.Settings().String("decision.show"); got != "undecided" {
 		t.Fatal(got)
 	}
 	if l.Shown() != 2 {
@@ -369,22 +369,22 @@ func TestReviewPageKeys(t *testing.T) {
 	}
 }
 
-func TestReviewPageOptOut(t *testing.T) {
+func TestDecisionPageOptOut(t *testing.T) {
 	s := fixture(t)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	dir := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "o-questions")
 	if e := os.MkdirAll(dir, 0700); e != nil {
 		t.Fatal(e)
 	}
-	if e := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"review.page": false}`), 0600); e != nil {
+	if e := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"decision.page": false}`), 0600); e != nil {
 		t.Fatal(e)
 	}
 	a, e := newApp(s, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{})
 	if e != nil {
 		t.Fatal(e)
 	}
-	if a.r.Instances[reviewPageID] != nil {
-		t.Fatal("review.page false still declared the page")
+	if a.r.Instances[decisionPageID] != nil {
+		t.Fatal("decision.page false still declared the page")
 	}
 }
 

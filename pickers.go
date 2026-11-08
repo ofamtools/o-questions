@@ -9,7 +9,7 @@ import "ofam.dev/ochazuke"
 func declarePickers(r *ochazuke.Runtime) error {
 	for _, d := range []ochazuke.PickerDef{
 		{Name: "question", Noun: "question", About: "The recorded questions; pick one to open its thread"},
-		{Name: "review", Noun: "review", About: "The questions waiting for the owner's decision; pick one to open it"},
+		{Name: "decision", Noun: "decision", About: "The questions waiting for the owner's decision; pick one to open it"},
 	} {
 		if err := r.AddPicker(d); err != nil {
 			return err

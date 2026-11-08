@@ -32,6 +32,7 @@ type mcpTool struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	InputSchema map[string]any `json:"inputSchema"`
+	Spec        string         `json:"-"` // the verbSpec name the tool runs
 }
 
 var mcpAllowlist = map[string][]string{
@@ -42,12 +43,12 @@ var mcpAllowlist = map[string][]string{
 	"show":     {"target"},
 	// Questions for the owner: agents pose, read decisions, reply to asks and
 	// record results; deciding stays the owner's (not listed).
-	"pose":      {"question", "title", "group", "source", "details", "recommendation", "recommended_action", "actions", "project", "cwd", "task", "tags", "links", "key"},
-	"queue":     {"show", "group"},
-	"decisions": {"group", "all", "render", "date"},
-	"reply":     {"target", "text", "recommendation", "recommended_action", "question"},
-	"applied":   {"target", "outcome", "result"},
-	"import":    {"root", "include_answered"},
+	"pose":            {"question", "title", "group", "source", "details", "recommendation", "recommended_action", "actions", "project", "cwd", "task", "tags", "links", "key"},
+	"queue":           {"show", "group"},
+	"decision-export": {"group", "all", "render", "date"},
+	"reply":           {"target", "text", "recommendation", "recommended_action", "question"},
+	"applied":         {"target", "outcome", "result"},
+	"import":          {"root", "include_answered"},
 }
 
 func (a *App) tools() []mcpTool {
@@ -80,7 +81,7 @@ func (a *App) tools() []mcpTool {
 		if len(req) > 0 {
 			schema["required"] = req
 		}
-		out = append(out, mcpTool{Name: "q_" + v.name, Description: v.description, InputSchema: schema})
+		out = append(out, mcpTool{Name: toolName(v.name), Spec: v.name, Description: v.description, InputSchema: schema})
 	}
 	return out
 }
@@ -98,6 +99,15 @@ func toolContent(v any, err error) any {
 		}
 	}
 	return map[string]any{"content": []any{map[string]string{"type": "text", "text": text}}, "isError": err != nil}
+}
+
+// toolName is the MCP tool of spec name: q_NAME, or q_NOUN_VERB for a verb
+// that lives on its own noun without a question alias.
+func toolName(name string) string {
+	if home, ok := verbHomes[name]; ok && !home.alias {
+		return "q_" + home.noun + "_" + home.verb
+	}
+	return "q_" + name
 }
 
 // Validate exactly the published schema before calling the shared CLI verbs.
@@ -188,7 +198,7 @@ func (a *App) callTool(name string, raw json.RawMessage, client string) any {
 	var buf bytes.Buffer
 	sh := a.shell()
 	sh.Stdout = &buf
-	e := sh.Run(context.Background(), []string{"question", strings.TrimPrefix(name, "q_"), "--json", string(raw)})
+	e := sh.Run(context.Background(), append(cliPath(tool.Spec), "--json", string(raw)))
 	if e != nil {
 		return toolContent(nil, e)
 	}

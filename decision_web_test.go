@@ -9,19 +9,19 @@ import (
 	"testing"
 )
 
-func TestReviewMgmtDefault(t *testing.T) {
+func TestDecisionMgmtDefault(t *testing.T) {
 	for _, setting := range appSettings() {
-		if setting.Name == "review.mgmt" {
+		if setting.Name == "decision.mgmt" {
 			if setting.Default != "" {
-				t.Fatalf("review.mgmt default = %q, want empty for runtime discovery", setting.Default)
+				t.Fatalf("decision.mgmt default = %q, want empty for runtime discovery", setting.Default)
 			}
 			return
 		}
 	}
-	t.Fatal("review.mgmt setting missing")
+	t.Fatal("decision.mgmt setting missing")
 }
 
-func TestReviewMgmtResolution(t *testing.T) {
+func TestDecisionMgmtResolution(t *testing.T) {
 	for _, tt := range []struct {
 		name       string
 		setting    string
@@ -36,8 +36,8 @@ func TestReviewMgmtResolution(t *testing.T) {
 		{name: "PATH without legacy", pathMode: 0700, want: "bin/mgmt.py"},
 		{name: "legacy script need not be executable", legacy: true, want: "hub/ai/utils/mgmt/mgmt.py"},
 		{name: "nonexecutable PATH falls back", pathMode: 0600, legacy: true, want: "hub/ai/utils/mgmt/mgmt.py"},
-		{name: "missing", wantErrors: []string{"https://github.com/unixsuperhero/ai-utils", "mgmt/", "review.mgmt"}},
-		{name: "invalid setting does not fall back", setting: "missing.py", pathMode: 0700, legacy: true, wantErrors: []string{"review.mgmt", "missing.py"}},
+		{name: "missing", wantErrors: []string{"https://github.com/unixsuperhero/ai-utils", "mgmt/", "decision.mgmt"}},
+		{name: "invalid setting does not fall back", setting: "missing.py", pathMode: 0700, legacy: true, wantErrors: []string{"decision.mgmt", "missing.py"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			s := fixture(t)
@@ -74,7 +74,7 @@ func TestReviewMgmtResolution(t *testing.T) {
 				if !strings.HasPrefix(setting, "~/") {
 					setting = filepath.Join(home, setting)
 				}
-				if err = a.r.Settings().Set("review.mgmt", setting); err != nil {
+				if err = a.r.Settings().Set("decision.mgmt", setting); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -83,7 +83,7 @@ func TestReviewMgmtResolution(t *testing.T) {
 				got = cmd.Args[1]
 				return nil
 			}
-			err = a.reviewCommand([]string{"--web", "--no-open"})
+			err = a.decisionCommand([]string{"--web", "--no-open"})
 			if len(tt.wantErrors) != 0 {
 				if err == nil || got != "" {
 					t.Fatalf("err = %v, launched = %q; want error without launch", err, got)

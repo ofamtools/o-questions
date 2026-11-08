@@ -1,4 +1,4 @@
-// `o-questions review --web` reuses mgmt's browser review page unchanged:
+// `o-questions decision --web` reuses mgmt's browser decisions page unchanged:
 // it writes an mgmt session (the version 1 shape mgmt.py build_session
 // produces) from the open questions for the owner, runs `mgmt.py serve` on
 // it, and copies each saved decision back into o-questions while the page is
@@ -59,11 +59,11 @@ func (s *Store) webSession() (mgmtSession, error) {
 		return mgmtSession{}, e
 	}
 	qs = sortByGroup(qs)
-	defaults := s.reviewDefaults()
+	defaults := s.decisionDefaults()
 	stamp := s.now().Format(time.RFC3339)
-	out := mgmtSession{Version: 1, Title: "Questions for the owner", Scope: "Questions agents posed in o-questions (" + s.Dir + "). Decisions are written back to o-questions while this page is served.", DefaultAction: defaults[0], Actions: slices.Clone(defaults), Kind: "o-questions", Ask: s.ReviewAsk, Groups: groupOrder(qs), GeneratedAt: stamp, CreatedAt: stamp, UpdatedAt: stamp, Items: []mgmtItem{}}
+	out := mgmtSession{Version: 1, Title: "Questions for the owner", Scope: "Questions agents posed in o-questions (" + s.Dir + "). Decisions are written back to o-questions while this page is served.", DefaultAction: defaults[0], Actions: slices.Clone(defaults), Kind: "o-questions", Ask: s.DecisionAsk, Groups: groupOrder(qs), GeneratedAt: stamp, CreatedAt: stamp, UpdatedAt: stamp, Items: []mgmtItem{}}
 	for _, q := range qs {
-		r := q.Review
+		r := q.Decision
 		for _, act := range r.Actions {
 			if !slices.Contains(out.Actions, act) {
 				out.Actions = append(out.Actions, act)
@@ -80,13 +80,13 @@ func (s *Store) webSession() (mgmtSession, error) {
 		if it.Recommendation != "" || r.RecommendedAction != "" {
 			it.RecommendedAction = recommended(r, defaults)
 		}
-		if t := reviewThread(q); len(t) > 0 {
+		if t := decisionThread(q); len(t) > 0 {
 			it.Thread = t
 		}
 		switch r.Status {
-		case reviewApplied:
+		case decisionApplied:
 			it.Status, it.Result = "done", r.Result
-		case reviewFailed:
+		case decisionFailed:
 			it.Status, it.Result = "failed", r.Result
 		}
 		out.Items = append(out.Items, it)
@@ -117,14 +117,14 @@ func (s *Store) syncWeb(path string) (int, error) {
 	var errs []error
 	for _, it := range sess.Items {
 		q, ok := byID[it.ID]
-		if !ok || it.Status == "done" || q.Review.Status == reviewApplied {
+		if !ok || it.Status == "done" || q.Decision.Status == decisionApplied {
 			continue
 		}
-		if it.Action == q.Review.Action && it.Note == q.Review.Note {
+		if it.Action == q.Decision.Action && it.Note == q.Decision.Note {
 			continue
 		}
 		note := it.Note
-		d := Decision{Action: it.Action, Note: &note, Clear: it.Action == ""}
+		d := DecisionChange{Action: it.Action, Note: &note, Clear: it.Action == ""}
 		if _, e := s.Decide(q.ID, d); e != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", q.Title, e))
 			continue
@@ -142,7 +142,7 @@ func stateDir() string {
 	return filepath.Join(h, ".local", "state")
 }
 
-func (a *App) reviewCommand(args []string) error {
+func (a *App) decisionCommand(args []string) error {
 	web, rest := false, []string{}
 	var serve []string
 	for i := 0; i < len(args); i++ {
@@ -165,12 +165,12 @@ func (a *App) reviewCommand(args []string) error {
 		if len(serve) > 0 {
 			return errors.New("--port and --no-open need --web")
 		}
-		return runPage(a, "review", rest, reviewSpec)
+		return runPage(a, "decision", rest, decisionSpec)
 	}
 	if len(rest) > 0 {
-		return fmt.Errorf("unexpected review arguments %v", rest)
+		return fmt.Errorf("unexpected decision arguments %v", rest)
 	}
-	return a.reviewWeb(serve)
+	return a.decisionWeb(serve)
 }
 
 func resolveMgmt(setting string) (string, error) {
@@ -182,23 +182,23 @@ func resolveMgmt(setting string) (string, error) {
 		if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
 			return path, nil
 		}
-		return "", errors.New("mgmt.py not found: install mgmt/ from https://github.com/unixsuperhero/ai-utils and add mgmt.py to PATH, or set review.mgmt to the script's path")
+		return "", errors.New("mgmt.py not found: install mgmt/ from https://github.com/unixsuperhero/ai-utils and add mgmt.py to PATH, or set decision.mgmt to the script's path")
 	}
 	path := expandHome(setting)
 	info, err := os.Stat(path)
 	if err != nil {
-		return "", fmt.Errorf("review.mgmt: %w", err)
+		return "", fmt.Errorf("decision.mgmt: %w", err)
 	}
 	if !info.Mode().IsRegular() {
-		return "", fmt.Errorf("review.mgmt: %q is not a regular file", path)
+		return "", fmt.Errorf("decision.mgmt: %q is not a regular file", path)
 	}
 	return path, nil
 }
 
-func (a *App) reviewWeb(serve []string) error {
+func (a *App) decisionWeb(serve []string) error {
 	a.r.EnsureConfigSettings()
 	a.configure()
-	mgmt, e := resolveMgmt(a.r.Settings().String("review.mgmt"))
+	mgmt, e := resolveMgmt(a.r.Settings().String("decision.mgmt"))
 	if e != nil {
 		return e
 	}
@@ -210,7 +210,7 @@ func (a *App) reviewWeb(serve []string) error {
 		_, e = fmt.Fprintln(a.out, "No questions for the owner.")
 		return e
 	}
-	dir := filepath.Join(stateDir(), "o-questions", "review-web")
+	dir := filepath.Join(stateDir(), "o-questions", "decision-web")
 	path := filepath.Join(dir, "session.json")
 	if e = os.MkdirAll(dir, 0700); e != nil {
 		return e

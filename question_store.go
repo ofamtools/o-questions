@@ -7,7 +7,7 @@ import (
 	"ofam.dev/ochazuke"
 )
 
-// The question and review nouns are thing nouns (DESIGN-001).
+// The question and decision nouns are thing nouns (DESIGN-001).
 //
 // question is a store over the question records: list and get read them
 // (list includes archived ones, which the archive-role prop marks), set
@@ -18,9 +18,9 @@ import (
 // (the question's text), delete, archive, restore (a backup file too) and
 // rename (bound to r on the page).
 //
-// review is the owner's view of the same records (the questions for the
+// decision is the owner's view of the same records (the questions for the
 // owner), read only: a facts store; its verbs are question verbs under
-// review names (reviewAliases).
+// decision names (decisionAliases).
 
 func (a *App) questionStoreProps() []ochazuke.PropSpec {
 	text := func(name, desc string) ochazuke.PropSpec {
@@ -55,9 +55,9 @@ func (a *App) thingRead(name, desc string, from func(Question) any) ochazuke.Pro
 		}}
 }
 
-// reviewStoreProps are the question props the review noun shares: the
+// decisionStoreProps are the question props the decision noun shares: the
 // things' values, not the label, the archive role or a collection's.
-func (a *App) reviewStoreProps() []ochazuke.PropSpec {
+func (a *App) decisionStoreProps() []ochazuke.PropSpec {
 	var out []ochazuke.PropSpec
 	for _, p := range a.questionStoreProps() {
 		if p.Role == "" && p.Subject == "" {
@@ -139,7 +139,7 @@ func (a *App) questionStore() ochazuke.Store {
 	}
 }
 
-func (a *App) reviewStore() ochazuke.Store {
+func (a *App) decisionStore() ochazuke.Store {
 	return ochazuke.Store{Kind: ochazuke.KindCollection, Facts: true,
 		Get: func(_ ochazuke.Ctx, id string) (ochazuke.Thing, error) {
 			q, e := a.store.Resolve(id, false)

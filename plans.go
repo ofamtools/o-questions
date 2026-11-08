@@ -357,7 +357,7 @@ func (s *Store) ImportPlans(root string, includeAnswered bool) (Imported, error)
 		return out, e
 	}
 	for _, q := range owned {
-		if q.Review.Origin == "plan" && !seen[q.Key] && strings.HasPrefix(q.Review.Source, root+string(filepath.Separator)) && q.Review.Status != reviewApplied {
+		if q.Decision.Origin == "plan" && !seen[q.Key] && strings.HasPrefix(q.Decision.Source, root+string(filepath.Separator)) && q.Decision.Status != decisionApplied {
 			out.Stale = append(out.Stale, q.ID)
 		}
 	}
@@ -386,8 +386,8 @@ func (s *Store) PlanDecisions(date string) (string, error) {
 	}
 	byPlan := map[string][]Question{}
 	for _, q := range qs {
-		r := q.Review
-		if r.Origin != "plan" || r.Action == "" || (r.Action == askOut && s.ReviewAsk) || r.Status == reviewApplied {
+		r := q.Decision
+		if r.Origin != "plan" || r.Action == "" || (r.Action == askOut && s.DecisionAsk) || r.Status == decisionApplied {
 			continue
 		}
 		byPlan[r.Plan] = append(byPlan[r.Plan], q)
@@ -400,10 +400,10 @@ func (s *Store) PlanDecisions(date string) (string, error) {
 	var b strings.Builder
 	for _, plan := range plans {
 		rows := byPlan[plan]
-		slices.SortStableFunc(rows, func(a, b Question) int { return a.Review.Number - b.Review.Number })
-		fmt.Fprintf(&b, "<!-- %s: insert above %q -->\n## Owner decisions (%s)\n\n", plan, rows[0].Review.Section, date)
+		slices.SortStableFunc(rows, func(a, b Question) int { return a.Decision.Number - b.Decision.Number })
+		fmt.Fprintf(&b, "<!-- %s: insert above %q -->\n## Owner decisions (%s)\n\n", plan, rows[0].Decision.Section, date)
 		for _, q := range rows {
-			r := q.Review
+			r := q.Decision
 			note := strings.TrimSpace(r.Note)
 			with := func(s string) string {
 				if note != "" {

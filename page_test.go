@@ -168,8 +168,8 @@ func TestQuestionStories(t *testing.T) {
 				}
 			}
 			spec := questionsSpec
-			if story.Page == reviewPageID {
-				spec = reviewSpec
+			if story.Page == decisionPageID {
+				spec = decisionSpec
 			}
 			p, e := mountSpec(a, spec(a))
 			if e != nil {
@@ -195,12 +195,12 @@ func TestQuestionStories(t *testing.T) {
 						t.Fatal(e)
 					}
 				}
-				if len(doc.Pages) != 2 || doc.Pages[0].ID != pageID || doc.Pages[1].ID != reviewPageID {
-					t.Fatalf("expected the Questions and Review pages, got %+v", doc.Pages)
+				if len(doc.Pages) != 2 || doc.Pages[0].ID != pageID || doc.Pages[1].ID != decisionPageID {
+					t.Fatalf("expected the Questions and Decisions pages, got %+v", doc.Pages)
 				}
 				hs := spec(a)
 				hosted := doc.Pages[0]
-				if hs.page.ID == reviewPageID {
+				if hs.page.ID == decisionPageID {
 					hosted = doc.Pages[1]
 				}
 				v, e := ocli.MountPage(m, doc, hosted, ocli.PageConfig{})
@@ -495,7 +495,7 @@ func TestPageEmptyCreateAndOptOut(t *testing.T) {
 }
 
 func TestThreadViewCLI(t *testing.T) {
-	for _, noun := range []string{"question", "review"} {
+	for _, noun := range []string{"question", "decision"} {
 		t.Run(noun, func(t *testing.T) {
 			s := fixture(t)
 			q := ask(t, s, "Which path keeps the complete answer?")

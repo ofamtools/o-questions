@@ -68,7 +68,7 @@ func TestSetupInstructionNote(t *testing.T) {
 				t.Fatalf("%s misses %s:\n%s", path, want, text)
 			}
 		}
-		for _, bad := range []string{"o-questions question ", "o-questions review", "o-questions ask", "`questions.question", "mtm questions", "question question"} {
+		for _, bad := range []string{"o-questions question ", "o-questions decision", "o-questions ask", "`questions.question", "mtm questions", "question question"} {
 			if strings.Contains(text, bad) {
 				t.Fatalf("%s holds a direct o-questions command %q:\n%s", path, bad, text)
 			}

@@ -2,7 +2,7 @@
 
 | File | Owns |
 | --- | --- |
-| main.go | Global data override, oden command dispatch, readable question/review CLI views, ochazuke shell mount |
+| main.go | Global data override, oden command dispatch, readable question/decision CLI views, ochazuke shell mount |
 | model.go | Question, entry, source, links and thread projection |
 | actor.go | Entry-point identities, shared catalog/store right declarations, open writes except delete, and framework-override policy |
 | atomic.go | Reused slug/token and atomic-file helpers |
@@ -12,15 +12,15 @@
 | check.go | Explicit wording check against transcript user records |
 | settings.go | Settings, defaults and validation |
 | app.go | Shared verb specs/handlers, transport-bound rights, readable thread result, archive/restore, rows with collection.hide-archived opt-out, search projection |
-| pickers.go | The question and review noun pickers (PickerDef), listed by the catalog |
+| pickers.go | The question and decision noun pickers (PickerDef), listed by the catalog |
 | mcp.go | Tool allowlist, schemas and JSON-RPC stdio lifecycle |
 | page.go | Shared catalog detail Sections, legacy preview kind, binding rows |
 | tui.go | Standalone mount, refresh and smoke frame |
 | editor.go | Commit-on-change question/title/entry and association editors; pickers |
 | thread_view.go | Read-only thread modal and scroll rows |
-| review.go | Questions for the owner: pose, decide, reply, applied, export (mgmt semantics) |
-| review_app.go | Review verbs, rows, the review noun's aliases, page and keys |
-| review_web.go | review --web: mgmt session out, decisions back |
+| decision.go | Questions for the owner: pose, decide, reply, applied, export (mgmt semantics) |
+| decision_app.go | Decision verbs, rows, the decision noun's aliases, page and keys |
+| decision_web.go | decision --web: mgmt session out, decisions back |
 | plans.go | Plan "Owner questions" importer (owner_questions.py port) and decisions render |
 | setup.go, setup.json | Instruction-note setup items and co-located block skip defaults |
 | testdata/plans | Fixture plans for the importer |

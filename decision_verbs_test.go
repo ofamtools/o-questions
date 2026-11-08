@@ -20,7 +20,7 @@ func testApp(t *testing.T, s *Store) (*App, *bytes.Buffer) {
 
 // Every verb the catalog declares must be reachable from the CLI: a
 // hand-written command that owns a noun's name hides the noun's group
-// (review list was advertised and answered "subcommand not found").
+// (decision list was advertised and answered "subcommand not found").
 func TestEveryCatalogVerbRuns(t *testing.T) {
 	s := fixture(t)
 	a, _ := testApp(t, s)
@@ -46,14 +46,14 @@ func TestEveryCatalogVerbRuns(t *testing.T) {
 	}
 }
 
-func TestReviewListJSON(t *testing.T) {
+func TestDecisionListJSON(t *testing.T) {
 	s := fixture(t)
-	s.ReviewAsk = true
-	if _, e := agentStore(s).Pose(Pose{Question: "Ship the Review page?", Group: "Review", Recommendation: "Yes", Key: "k1"}); e != nil {
+	s.DecisionAsk = true
+	if _, e := agentStore(s).Pose(Pose{Question: "Ship the Decisions page?", Group: "Decision", Recommendation: "Yes", Key: "k1"}); e != nil {
 		t.Fatal(e)
 	}
 	a, out := testApp(t, s)
-	if e := dispatch(a, []string{"review", "list", "--json", "{}"}); e != nil {
+	if e := dispatch(a, []string{"decision", "list", "--json", "{}"}); e != nil {
 		t.Fatalf("%v: %s", e, out)
 	}
 	var rows []map[string]any
@@ -62,7 +62,7 @@ func TestReviewListJSON(t *testing.T) {
 	}
 	questions := 0 // the tree has a topic row above each question
 	for _, r := range rows {
-		if id, _ := r["id"].(string); strings.HasPrefix(id, "question/") && r["label"] == "Ship the Review page?" {
+		if id, _ := r["id"].(string); strings.HasPrefix(id, "question/") && r["label"] == "Ship the Decisions page?" {
 			questions++
 		}
 	}
@@ -71,11 +71,11 @@ func TestReviewListJSON(t *testing.T) {
 	}
 }
 
-// Bare `review` and its flags still reach the review page: the words are
-// read as the noun's default verb ((the review noun's default action)), and verbs and help are not.
-func TestReviewBareReachesPage(t *testing.T) {
+// Bare `decision` and its flags still reach the decisions page: the words are
+// read as the noun's default verb ((the decision noun's default action)), and verbs and help are not.
+func TestDecisionBareReachesPage(t *testing.T) {
 	a, out := testApp(t, fixture(t))
-	if e := dispatch(a, []string{"review", "--smoke", "--width", "100", "--height", "20"}); e != nil {
+	if e := dispatch(a, []string{"decision", "--smoke", "--width", "100", "--height", "20"}); e != nil {
 		t.Fatalf("%v: %s", e, out)
 	}
 	if !strings.Contains(out.String(), "For you") {
@@ -83,10 +83,10 @@ func TestReviewBareReachesPage(t *testing.T) {
 	}
 }
 
-// A host that mounts the Review page refuses a title another of its pages
-// has (mtm has its own Review tab), and review.open-page says it opens that page
+// A host that mounts the Decisions page refuses a title another of its pages
+// has (mtm has its own Decision tab), and decision.open-page says it opens that page
 // so the host opens it instead of running the verb as a background job.
-func TestReviewPageIsNamedAndDeclaredToHosts(t *testing.T) {
+func TestDecisionPageIsNamedAndDeclaredToHosts(t *testing.T) {
 	a, out := testApp(t, fixture(t))
 	if e := dispatch(a, []string{"catalog"}); e != nil {
 		t.Fatalf("%v: %s", e, out)
@@ -109,19 +109,19 @@ func TestReviewPageIsNamedAndDeclaredToHosts(t *testing.T) {
 	for _, p := range doc.Pages {
 		titles[p.ID] = p.Title
 	}
-	if titles["review"] == "" || titles["review"] == "Review" {
-		t.Fatalf("review page title %q must name what it holds, not collide with a host's Review tab: %v", titles["review"], titles)
+	if titles["decision"] == "" || titles["decision"] == "Review" {
+		t.Fatalf("decisions page title %q must name what it holds, not collide with a host's Review tab: %v", titles["decision"], titles)
 	}
 	opens := ""
 	for _, n := range doc.Nouns {
 		for _, v := range n.Verbs {
-			if n.Name == "review" && v.Name == "open-page" {
+			if n.Name == "decision" && v.Name == "open-page" {
 				opens = v.OpensPage
 			}
 		}
 	}
-	if opens != "review" {
-		t.Fatalf("review.open-page opensPage = %q", opens)
+	if opens != "decision" {
+		t.Fatalf("decision.open-page opensPage = %q", opens)
 	}
 }
 

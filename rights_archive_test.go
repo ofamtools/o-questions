@@ -98,7 +98,7 @@ func TestQuestionRightsCatalog(t *testing.T) {
 	found := map[string]bool{}
 	wants := map[string]string{"delete": ochazuke.AgentNever, "archive": ochazuke.AgentAllow, "restore": ochazuke.AgentAllow, "edit": ochazuke.AgentAllow, "decide": ochazuke.AgentAllow}
 	for _, noun := range catalog.Nouns {
-		if noun.Name != "question" && noun.Name != "review" {
+		if noun.Name != "question" && noun.Name != "decision" {
 			continue
 		}
 		for _, verb := range noun.Verbs {
@@ -115,7 +115,7 @@ func TestQuestionRightsCatalog(t *testing.T) {
 			}
 		}
 	}
-	for _, key := range []string{"question.delete", "question.archive", "question.restore", "question.edit", "question.decide", "review.delete", "review.archive", "review.restore"} {
+	for _, key := range []string{"question.delete", "question.archive", "question.restore", "question.edit", "question.decide", "decision.delete", "decision.archive", "decision.restore"} {
 		if !found[key] {
 			t.Fatalf("missing catalog row %s", key)
 		}

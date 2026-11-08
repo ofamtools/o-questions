@@ -1,0 +1,47 @@
+kind	old	new	note
+noun	question.review	question.decision	the owner's decisions page rows; the page is titled Decisions; the page id is decision, the CLI command is `o-questions decision`
+verb	question.review.decide	question.decision.decide	the question verb of the same name, also on the decision noun
+verb	question.review.accept	question.decision.accept	the question verb of the same name, also on the decision noun
+verb	question.review.undecide	question.decision.undecide	the question verb of the same name, also on the decision noun
+verb	question.review.ask-back	question.decision.ask-back	the question verb of the same name, also on the decision noun
+verb	question.review.decision-note	question.decision.decision-note	the question verb of the same name, also on the decision noun
+verb	question.review.reply	question.decision.reply	the question verb of the same name, also on the decision noun
+verb	question.review.applied	question.decision.applied	the question verb of the same name, also on the decision noun
+verb	question.review.show	question.decision.show	the question verb of the same name, also on the decision noun
+verb	question.review.yank	question.decision.yank	the question verb of the same name, also on the decision noun
+verb	question.review.tag	question.decision.tag	the question verb of the same name, also on the decision noun
+verb	question.review.untag	question.decision.untag	the question verb of the same name, also on the decision noun
+verb	question.review.link	question.decision.link	the question verb of the same name, also on the decision noun
+verb	question.review.open	question.decision.open	the question verb of the same name, also on the decision noun
+verb	question.review.star	question.decision.star	the question verb of the same name, also on the decision noun
+verb	question.review.unstar	question.decision.unstar	the question verb of the same name, also on the decision noun
+verb	question.review.delete	question.decision.delete	the question verb of the same name, also on the decision noun
+verb	question.review.archive	question.decision.archive	the question verb of the same name, also on the decision noun
+verb	question.review.restore	question.decision.restore	the question verb of the same name, also on the decision noun
+verb	question.review.associate	question.decision.associate	the question verb of the same name, also on the decision noun
+verb	question.review.rename	question.decision.rename	the question verb of the same name, also on the decision noun
+verb	question.review.undo	question.decision.undo	the question verb of the same name, also on the decision noun
+verb	question.review.list	question.decision.list	the decisions page rows; also question.queue
+verb	question.review.open-page	question.decision.open-page	opens the Decisions page (--web: mgmt's browser page)
+verb	question.review.create / edit / get / set / watch	question.decision.create / edit / get / set / watch	the derived verbs of the noun
+verb	question.question.decisions	question.decision.export {group, all, render, date}	folded into the decision noun: the export of decisions, asks and undecided items; MCP tool q_decisions is q_decision_export; the format name o-questions-decisions/1 is unchanged; there is no question.decisions alias
+mcp	q_decisions	q_decision_export	the curated MCP tool
+setting	review.page	decision.page	default true
+setting	review.show	decision.show	default pending
+setting	review.actions	decision.actions	default yes, no, later, moot
+setting	review.ask	decision.ask	default true
+setting	review.plans-root	decision.plans-root	
+setting	review.mgmt	decision.mgmt	
+page	review	decision	the page id (tab title Decisions, unchanged)
+picker	review	decision	the noun picker of the decisions page
+cli	o-questions review [--web]	o-questions decision [--web]	bare `decision` opens the page
+json	review (a question's stored block)	decision	stored question files and undo snapshots: read old key, written back as decision on the next write of the file; a record that already has decision keeps it
+json	Question.review.* row fields (review.note, review.status, ...)	decision.*	the page's detail fields
+json	row data decision (the status cell)	decision_view	the decisions page row's cell text moved to decision_view because decision is now the record
+go	Review, Question.Review, Store.ReviewActions, Store.ReviewAsk	Decision, Question.Decision, Store.DecisionActions, Store.DecisionAsk	
+go	Decision (the owner's change input), Store.Decisions	DecisionChange, Store.DecisionExport	the old Decision type is DecisionChange so Decision can be the record
+state	$XDG_STATE_HOME/o-questions/review-web	$XDG_STATE_HOME/o-questions/decision-web	a disposable mgmt session directory
+binding	review/normal 1-9 -> review.decide {choice: N}	decision/normal 1-9 -> decision.decide {choice: N}	
+binding	review/normal a, ?, n, x -> review.accept, ask-back, decision-note, undecide	decision/normal a, ?, n, x -> decision.accept, ask-back, decision-note, undecide	
+binding	review/normal o -> ochazuke.setting.cycle {name: review.show}	decision/normal o -> ochazuke.setting.cycle {name: decision.show}	
+binding	review/normal v, enter -> review.show; y -> review.yank; t -> review.tag; g x -> review.open; d d -> review.delete; u -> review.undo	decision/normal v, enter -> decision.show; y -> decision.yank; t -> decision.tag; g x -> decision.open; d d -> decision.delete; u -> decision.undo	

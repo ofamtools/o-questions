@@ -10,7 +10,7 @@ import (
 // parameter names project_id through an alias so the project record remains
 // available to details.
 func (a *App) declareFilterProps() {
-	for _, noun := range []string{"question", reviewNoun} {
+	for _, noun := range []string{"question", decisionNoun} {
 		a.r.Define(noun).Props(
 			ochazuke.PropSpec{Name: "id", Key: true, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Record ID"}},
 			ochazuke.PropSpec{Name: "project_id", Aliases: []string{"project"}, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Project ID; empty when unassociated"}},
@@ -21,9 +21,9 @@ func (a *App) declareFilterProps() {
 		)
 	}
 	a.r.Define("question").Props(a.questionStoreProps()...)
-	a.r.Define(reviewNoun).Props(a.reviewStoreProps()...)
+	a.r.Define(decisionNoun).Props(a.decisionStoreProps()...)
 	a.r.Define("question").Store(a.questionStore())
-	a.r.Define(reviewNoun).Store(a.reviewStore())
+	a.r.Define(decisionNoun).Store(a.decisionStore())
 }
 
 // questionRowData preserves the record and exposes the list parameters as

@@ -38,9 +38,9 @@ func questionsSpec(a *App) pageSpec {
 	return pageSpec{page: standalonePage(a.r.Settings().Bool("view.detail")), list: listID, rows: func() ([]ocli.Row, error) { return a.rows(nil) }, newest: true,
 		watched: []string{"list.order", "filter.status", "filter.project", "filter.agent", "filter.since", "filter.direction", "detail.answer-lines", "detail.provenance"}}
 }
-func reviewSpec(a *App) pageSpec {
-	return pageSpec{page: reviewPage(), list: reviewListID, rows: func() ([]ocli.Row, error) { return a.reviewRows(nil) }, first: firstQuestion,
-		watched: []string{"review.show", "review.actions", "review.ask"}}
+func decisionSpec(a *App) pageSpec {
+	return pageSpec{page: decisionPage(), list: decisionListID, rows: func() ([]ocli.Row, error) { return a.decisionRows(nil) }, first: firstQuestion,
+		watched: []string{"decision.show", "decision.actions", "decision.ask"}}
 }
 
 type reloadMsg struct{}

@@ -1,10 +1,10 @@
-// Agent-to-owner questions and their review. The semantics (recommendation
+// Agent-to-owner questions and their decision. The semantics (recommendation
 // shown unconfirmed until accepted, numbered actions, an "ask" outcome that
 // becomes a thread the agent answers, decisions carried across regenerations
 // by a stable key, an export the agent reads, items locked once applied) are
 // adapted from github.com/unixsuperhero/ai-utils/mgmt/mgmt.py (build_session, reply, export,
 // apply/result). One store: a question for the owner is an ordinary Question
-// whose Direction is "to-owner" and whose Review holds the decision.
+// whose Direction is "to-owner" and whose Decision holds the decision.
 package main
 
 import (
@@ -27,17 +27,17 @@ const (
 
 var directions = []string{"all", toAgent, toOwner}
 
-// defaultActions are a review's outcomes when neither the question nor the
-// review.actions setting names them (mgmt's owner-questions actions).
+// defaultActions are a decision's outcomes when neither the question nor the
+// decision.actions setting names them (mgmt's owner-questions actions).
 var defaultActions = []string{"yes", "no", "later", "moot"}
 
-// Review states (Review.Status): empty is pending; applied is locked.
+// Decision states (Decision.Status): empty is pending; applied is locked.
 const (
-	reviewApplied = "applied"
-	reviewFailed  = "failed"
+	decisionApplied = "applied"
+	decisionFailed  = "failed"
 )
 
-type Review struct {
+type Decision struct {
 	Group             string     `json:"group,omitempty"`
 	Source            string     `json:"source,omitempty"`
 	Details           string     `json:"details,omitempty"`
@@ -90,14 +90,14 @@ type Posed struct {
 	Changed  bool     `json:"changed"`
 }
 
-func (q Question) forOwner() bool { return q.Direction == toOwner && q.Review != nil }
+func (q Question) forOwner() bool { return q.Direction == toOwner && q.Decision != nil }
 
 // actions are the numbered outcomes of q: its own, else the defaults, then
 // "ask" when asking is offered.
-func reviewActions(q Question, defaults []string, ask bool) []string {
+func decisionActions(q Question, defaults []string, ask bool) []string {
 	out := slices.Clone(defaults)
-	if q.Review != nil && len(q.Review.Actions) > 0 {
-		out = slices.Clone(q.Review.Actions)
+	if q.Decision != nil && len(q.Decision.Actions) > 0 {
+		out = slices.Clone(q.Decision.Actions)
 	}
 	if len(out) == 0 {
 		out = slices.Clone(defaultActions)
@@ -108,9 +108,9 @@ func reviewActions(q Question, defaults []string, ask bool) []string {
 	return out
 }
 
-func (s *Store) reviewDefaults() []string {
-	if len(s.ReviewActions) > 0 {
-		return s.ReviewActions
+func (s *Store) decisionDefaults() []string {
+	if len(s.DecisionActions) > 0 {
+		return s.DecisionActions
 	}
 	return defaultActions
 }
@@ -128,7 +128,7 @@ func (s *Store) Pose(p Pose) (out Posed, err error) {
 		}
 	}
 	if p.Recommendation != "" && p.RecommendedAction == "" {
-		p.RecommendedAction = s.reviewDefaults()[0]
+		p.RecommendedAction = s.decisionDefaults()[0]
 		if len(p.Actions) > 0 {
 			p.RecommendedAction = p.Actions[0]
 		}
@@ -150,19 +150,19 @@ func (s *Store) Pose(p Pose) (out Posed, err error) {
 				return fmt.Errorf("key %q belongs to a question for an agent", p.Key)
 			}
 			out.Existed = true
-			r := q.Review
+			r := q.Decision
 			changed := q.Text != p.Question || r.Details != p.Details || r.Recommendation != p.Recommendation || r.RecommendedAction != p.RecommendedAction
 			moved := changed || q.Title != poseTitle(p) || r.Group != p.Group || r.Source != p.Source || !slices.Equal(r.Actions, p.Actions)
 			if !moved {
 				out.Question = q
 				return nil
 			}
-			if changed && r.Status != reviewApplied && (r.Action != "" || r.Note != "") {
+			if changed && r.Status != decisionApplied && (r.Action != "" || r.Note != "") {
 				r.ContextChanged = true
 			}
 			out.Changed = changed
 			q.Text, q.Title = p.Question, poseTitle(p)
-			fillReview(r, p)
+			fillDecision(r, p)
 			q.Updated = s.now()
 			rows[i] = q
 			out.Question = q
@@ -181,9 +181,9 @@ func (s *Store) Pose(p Pose) (out Posed, err error) {
 		if len(rows) > 0 && !now.After(rows[len(rows)-1].Created) {
 			now = rows[len(rows)-1].Created.Add(time.Nanosecond)
 		}
-		r := &Review{}
-		fillReview(r, p)
-		q := Question{ID: "q-" + id, Title: poseTitle(p), Text: p.Question, Verbatim: "agent", AskedBy: s.Actor, RecordedBy: s.Actor, AskedAt: now, Created: now, Updated: now, Status: "open", Direction: toOwner, Review: r, Project: Project{ID: p.Project}, Cwd: p.Cwd, Task: p.Task, Source: p.Provenance, Tags: p.Tags, Links: p.Links, Key: p.Key, Entries: []Entry{}}
+		r := &Decision{}
+		fillDecision(r, p)
+		q := Question{ID: "q-" + id, Title: poseTitle(p), Text: p.Question, Verbatim: "agent", AskedBy: s.Actor, RecordedBy: s.Actor, AskedAt: now, Created: now, Updated: now, Status: "open", Direction: toOwner, Decision: r, Project: Project{ID: p.Project}, Cwd: p.Cwd, Task: p.Task, Source: p.Provenance, Tags: p.Tags, Links: p.Links, Key: p.Key, Entries: []Entry{}}
 		q.FileName = q.Created.Format("20060102T150405.000000000Z") + "-" + slug(q.Title) + "-" + q.ID + ".json"
 		out.Question = q
 		return s.commit(before, append(rows, q), "pose")
@@ -199,17 +199,17 @@ func poseTitle(p Pose) string {
 	return string(r[:min(len(r), 80)])
 }
 
-func fillReview(r *Review, p Pose) {
+func fillDecision(r *Decision, p Pose) {
 	r.Group, r.Source, r.Details, r.Recommendation = p.Group, p.Source, p.Details, p.Recommendation
 	r.RecommendedAction = p.RecommendedAction
 	r.Actions = slices.Clone(p.Actions)
 	r.Origin, r.Plan, r.Section, r.Number = p.Origin, p.Plan, p.Section, p.Number
 }
 
-// Decision is the owner's change to one review item. Choice (1-based) picks
+// DecisionChange is the owner's change to one decision item. Choice (1-based) picks
 // from the item's numbered actions; Accept takes the recommendation; Clear
 // empties the action. A nil Note leaves the note alone.
-type Decision struct {
+type DecisionChange struct {
 	Action string
 	Choice int
 	Accept bool
@@ -217,13 +217,13 @@ type Decision struct {
 	Note   *string
 }
 
-func (s *Store) Decide(target string, d Decision) (Question, error) {
+func (s *Store) Decide(target string, d DecisionChange) (Question, error) {
 	return s.mutate("decide", target, func(q *Question, _ *[]Question) error {
 		if !q.forOwner() {
 			return errors.New("not a question for the owner; use answer")
 		}
-		r := q.Review
-		if r.Status == reviewApplied {
+		r := q.Decision
+		if r.Status == decisionApplied {
 			return errors.New("decision already applied; it is locked")
 		}
 		action, set := r.Action, false
@@ -236,10 +236,10 @@ func (s *Store) Decide(target string, d Decision) (Question, error) {
 			}
 			action, set = r.RecommendedAction, true
 			if action == "" {
-				action = s.reviewDefaults()[0]
+				action = s.decisionDefaults()[0]
 			}
 		case d.Choice > 0:
-			choices := reviewActions(*q, s.reviewDefaults(), s.ReviewAsk)
+			choices := decisionActions(*q, s.decisionDefaults(), s.DecisionAsk)
 			if d.Choice > len(choices) {
 				return fmt.Errorf("choice %d out of range (1-%d: %s)", d.Choice, len(choices), strings.Join(choices, ", "))
 			}
@@ -253,7 +253,7 @@ func (s *Store) Decide(target string, d Decision) (Question, error) {
 		if d.Note != nil {
 			r.Note = *d.Note
 		}
-		if action == askOut && s.ReviewAsk {
+		if action == askOut && s.DecisionAsk {
 			text := strings.TrimSpace(r.Note)
 			if text == "" {
 				return errors.New("ask needs the question in the note")
@@ -266,7 +266,7 @@ func (s *Store) Decide(target string, d Decision) (Question, error) {
 		}
 		r.Action = action
 		r.ContextChanged, r.NewReply = false, false
-		if r.Status == reviewFailed && set {
+		if r.Status == decisionFailed && set {
 			r.Status, r.Result = "", ""
 		}
 		if set {
@@ -277,16 +277,16 @@ func (s *Store) Decide(target string, d Decision) (Question, error) {
 			}
 		}
 		if !q.StatusExplicit {
-			q.Status = reviewStatus(*q, s.ReviewAsk)
+			q.Status = decisionStatus(*q, s.DecisionAsk)
 		}
 		return nil
 	})
 }
 
-// reviewStatus maps a review to the shared statuses: open waits for the
+// decisionStatus maps a decision to the shared statuses: open waits for the
 // owner, follow-up for the agent's reply, answered once decided.
-func reviewStatus(q Question, ask bool) string {
-	r := q.Review
+func decisionStatus(q Question, ask bool) string {
+	r := q.Decision
 	switch {
 	case r.Action == "":
 		return "open"
@@ -322,8 +322,8 @@ func (s *Store) Reply(target string, rp Reply) (Question, error) {
 		if !q.forOwner() {
 			return errors.New("not a question for the owner; use answer")
 		}
-		r := q.Review
-		if r.Status == reviewApplied {
+		r := q.Decision
+		if r.Status == decisionApplied {
 			return errors.New("decision already applied; it is locked")
 		}
 		if strings.TrimSpace(rp.Text) == "" {
@@ -355,7 +355,7 @@ func (s *Store) Reply(target string, rp Reply) (Question, error) {
 		}
 		r.NewReply, r.ContextChanged = true, true
 		if !q.StatusExplicit {
-			q.Status = reviewStatus(*q, s.ReviewAsk)
+			q.Status = decisionStatus(*q, s.DecisionAsk)
 		}
 		return nil
 	})
@@ -368,11 +368,11 @@ func (s *Store) Applied(target, outcome, result string) (Question, error) {
 		if !q.forOwner() {
 			return errors.New("not a question for the owner")
 		}
-		r := q.Review
-		if r.Status == reviewApplied {
+		r := q.Decision
+		if r.Status == decisionApplied {
 			return errors.New("decision already applied; it is locked")
 		}
-		if r.Action == "" || (r.Action == askOut && s.ReviewAsk) {
+		if r.Action == "" || (r.Action == askOut && s.DecisionAsk) {
 			return errors.New("only a decided item can be applied")
 		}
 		if strings.TrimSpace(result) == "" {
@@ -380,9 +380,9 @@ func (s *Store) Applied(target, outcome, result string) (Question, error) {
 		}
 		switch outcome {
 		case "done":
-			r.Status = reviewApplied
+			r.Status = decisionApplied
 		case "failed":
-			r.Status = reviewFailed
+			r.Status = decisionFailed
 		default:
 			return errors.New("outcome must be done or failed")
 		}
@@ -393,16 +393,16 @@ func (s *Store) Applied(target, outcome, result string) (Question, error) {
 }
 
 // accepted is mgmt's "just takes the recommendation, nothing to read".
-func accepted(r *Review) bool {
+func accepted(r *Decision) bool {
 	return r.RecommendedAction != "" && r.Action == r.RecommendedAction && strings.TrimSpace(r.Note) == "" && !r.ContextChanged
 }
 
-// reviewClass is the item's review state, one of reviewFilters: what the
-// review.show setting and decisions filter by.
-func reviewClass(q Question, ask bool) string {
-	r := q.Review
+// decisionClass is the item's decision state, one of decisionFilters: what the
+// decision.show setting and decisions filter by.
+func decisionClass(q Question, ask bool) string {
+	r := q.Decision
 	switch {
-	case r.Status == reviewApplied:
+	case r.Status == decisionApplied:
 		return "applied"
 	case r.Action == askOut && ask:
 		return "asked"
@@ -412,17 +412,17 @@ func reviewClass(q Question, ask bool) string {
 	return "decided"
 }
 
-var reviewFilters = []string{"pending", "undecided", "asked", "changed", "decided", "applied", "all"}
+var decisionFilters = []string{"pending", "undecided", "asked", "changed", "decided", "applied", "all"}
 
-func reviewShown(q Question, ask bool, filter string) bool {
-	class := reviewClass(q, ask)
+func decisionShown(q Question, ask bool, filter string) bool {
+	class := decisionClass(q, ask)
 	switch filter {
 	case "", "all":
 		return true
 	case "pending":
 		return class != "applied"
 	case "changed":
-		return q.Review.ContextChanged || q.Review.NewReply
+		return q.Decision.ContextChanged || q.Decision.NewReply
 	}
 	return class == filter
 }
@@ -437,7 +437,7 @@ func (s *Store) ownerQuestions() ([]Question, error) {
 
 // groupOf is mgmt's group_of: the item's topic, else its source file.
 func groupOf(q Question) string {
-	r := q.Review
+	r := q.Decision
 	if r.Group != "" {
 		return r.Group
 	}
@@ -480,7 +480,7 @@ func sortByGroup(qs []Question) []Question {
 	return out
 }
 
-// Export is the decisions contract an agent reads (`question decisions`):
+// Export is the decisions contract an agent reads (`decision export`):
 // the shape of mgmt-export/1, with o-questions ids.
 type Export struct {
 	Format     string           `json:"format"`
@@ -524,7 +524,7 @@ type ThreadMessage struct {
 	At   string `json:"at,omitempty"`
 }
 
-func reviewThread(q Question) []ThreadMessage {
+func decisionThread(q Question) []ThreadMessage {
 	out := []ThreadMessage{}
 	for _, e := range q.Entries {
 		role := ""
@@ -541,7 +541,7 @@ func reviewThread(q Question) []ThreadMessage {
 	return out
 }
 
-func (s *Store) Decisions(group string, includeApplied bool) (Export, error) {
+func (s *Store) DecisionExport(group string, includeApplied bool) (Export, error) {
 	qs, e := s.ownerQuestions()
 	if e != nil {
 		return Export{}, e
@@ -554,18 +554,18 @@ func (s *Store) Decisions(group string, includeApplied bool) (Export, error) {
 		if group != "" && g != group {
 			continue
 		}
-		class := reviewClass(q, s.ReviewAsk)
+		class := decisionClass(q, s.DecisionAsk)
 		if class == "applied" && !includeApplied {
 			continue
 		}
 		if !slices.Contains(x.Groups, g) {
 			x.Groups = append(x.Groups, g)
 		}
-		r := q.Review
+		r := q.Decision
 		item := ExportItem{ID: q.ID, Key: q.Key, Group: g, Source: r.Source, Title: q.Title, Action: r.Action, RecommendedAction: r.RecommendedAction, Recommendation: r.Recommendation, AcceptedRecommendation: accepted(r), Note: r.Note, Status: r.Status, Result: r.Result, ContextChanged: r.ContextChanged, NewReply: r.NewReply}
 		switch class {
 		case "asked":
-			x.Questions = append(x.Questions, ExportQuestion{ID: q.ID, Key: q.Key, Group: g, Source: r.Source, Title: q.Title, Question: lastOwnerQuestion(q), Thread: reviewThread(q)})
+			x.Questions = append(x.Questions, ExportQuestion{ID: q.ID, Key: q.Key, Group: g, Source: r.Source, Title: q.Title, Question: lastOwnerQuestion(q), Thread: decisionThread(q)})
 		case "undecided":
 			x.Undecided = append(x.Undecided, item)
 		default:

@@ -48,7 +48,7 @@ CLI identity uses `O_QUESTIONS_ACTOR` (or an inherited `MTM_ACTOR`), otherwise
 harness environment variables identify an agent, otherwise owner. An explicit
 actor is a trusted CLI declaration, not an authentication boundary. Agents may
 read and write, including editing wording, changing status, replacing titles or
-associations, removing metadata, undo, merge, split, restore and review decisions.
+associations, removing metadata, undo, merge, split, restore and decisions.
 `question.delete` declares agent-never; use `question.archive` instead.
 The catalog and direct-store policy share the same declaration data. The CLI
 binds the store's identity into the shared rights gate, and owner
@@ -63,7 +63,7 @@ idempotency keys, so retrying a hidden question does not recreate it.
 
 `question archive TARGET` hides the question without losing its text or history.
 `question restore --target ID` restores it; `restore FILE` keeps its existing
-backup meaning. Both operations are repeatable and undoable. The Review aliases
+backup meaning. Both operations are repeatable and undoable. The Decision aliases
 share these handlers. Archived questions remain addressable by ID or title.
 `collection.hide-archived` defaults to true; false includes archived Questions rows.
 Archived rows show `-` instead of a positional number, so live numbers remain
@@ -91,7 +91,7 @@ content width at which metadata moves from below the discussion to its right.
 `list.refresh=0` opt out of their UI behaviors. The old `detail.answer-lines`
 setting remains registered for compatibility but is deprecated: Sections always
 show the complete discussion, regardless of its value.
-`question.show` and its `review.show` alias return the complete thread as
+`question.show` and its `decision.show` alias return the complete thread as
 declared Markdown to a catalog host. Enter and `v` use this readable result;
 standalone they keep the existing thread modal. The structured record is
 `question get`, and the thread, the latest answer and the record file are its
@@ -102,7 +102,7 @@ after changing it.
 
 Hook and HTML settings are reserved for the separate Q4/Q5 lanes.
 
-`z /` opens ochazuke's prop filter form on Questions and Review, in the
+`z /` opens ochazuke's prop filter form on Questions and Decision, in the
 standalone TUI and catalog hosts. Filter by `status`, `project_id` (`project`
 is an input alias), `agent`, `direction`, `pane` or `agent_session`. These
 conditions narrow the rows supplied by the existing `filter.*` settings and
@@ -119,7 +119,7 @@ import, installation and owner config registration are separate work.
 
 `o questions --data DIR mcp` serves newline-delimited JSON-RPC over stdin/stdout.
 The owner-question tools are `q_ask`, `q_answer`, `q_annotate`, `q_list`, `q_show`;
-the review tools (questions for the owner) are `q_pose`, `q_queue`, `q_decisions`,
+the decision tools (questions for the owner) are `q_pose`, `q_queue`, `q_decision_export`,
 `q_reply`, `q_applied`, `q_import`. The curated MCP tools still omit decisions;
 the CLI and mounted catalog permit them as attributed writes.
 `q_ask` requires `question` (verbatim); passing the same `key` returns the existing
@@ -164,11 +164,11 @@ See [host notes and Vim comparison](docs/INTEGRATION.md).
 The host mount was checked with an isolated mtm database and wrapper directing
 all extension calls to a temp store. No owner config is registered by this lane.
 
-## Questions for the owner (review)
+## Questions for the owner (decisions)
 
 The record above is the owner asking an agent. The other direction uses the same
 store: an agent poses a question for the owner, with a recommendation, and the
-owner decides it on the Review page. This is the [mgmt review flow](https://github.com/unixsuperhero/ai-utils/tree/main/mgmt)
+owner decides it on the Decisions page. This is the [mgmt review flow](https://github.com/unixsuperhero/ai-utils/tree/main/mgmt)
 built in: recommendations show as unconfirmed until
 accepted, numbered actions, a note per item, an ask that becomes a thread the
 agent answers, decisions that survive re-posing, an export the agent reads, and
@@ -176,24 +176,24 @@ items locked once applied.
 
 ```sh
 # agent
-o questions question pose "Turn the Review page on by default?" \
-  --group Review --source plans/x.md:42 --details "context" \
-  --recommendation "Yes, with review.page to opt out" --key x-42
-o questions question import            # pose the open "Owner questions" of review.plans-root
-o questions question decisions         # JSON: asked questions, decisions, undecided
-o questions question decisions --render plan | jq -r .   # "## Owner decisions (date)" per plan
+o questions question pose "Turn the Decisions page on by default?" \
+  --group Decisions --source plans/x.md:42 --details "context" \
+  --recommendation "Yes, with decision.page to opt out" --key x-42
+o questions question import            # pose the open "Owner questions" of decision.plans-root
+o questions decision export            # JSON: asked questions, decisions, undecided
+o questions decision export --render plan | jq -r .   # "## Owner decisions (date)" per plan
 o questions question reply Q "answer" [--recommendation T] [--recommended_action A]
 o questions question applied Q done "what changed, how checked"   # locks it
 # owner
-o questions review                     # the Review page (also a tab in mtm)
-o questions review --web [--no-open] [--port N]   # mgmt's browser page
+o questions decision                     # the Decisions page (also a tab in mtm)
+o questions decision --web [--no-open] [--port N]   # mgmt's browser page
 o questions question decide Q yes [--note T] | --choice 2
 o questions question accept|undecide Q
 o questions question ask-back Q "why?"
 ```
 
 A question for the owner is a `Question` with `direction: to-owner` and a
-`review` record (topic, source, details, recommendation, recommended action,
+`decision` record (topic, source, details, recommendation, recommended action,
 allowed actions, action, note, flags, applied status). Posing the same `key`
 again updates the text and keeps the decision; a decided item whose question,
 details or recommendation changed is flagged `context_changed` until the owner
@@ -206,30 +206,30 @@ decide through the CLI/catalog, with actor-attributed history.
 `question import` ports `owner_questions.py`'s rules to Go (same sections,
 recommendation markers, answered detection, groups, titles and `oq-` ids), so
 agents import through the CLI or MCP without Python. It never edits a plan:
-`decisions --render plan` prints the sections for the agent to insert. Plan
+`decision export --render plan` prints the sections for the agent to insert. Plan
 questions that disappear are reported `stale` and left alone.
 
-The Review page lists review rows (noun `review`, a tree with one row per topic
-and its counts). The review noun reaches the question verbs that fit one as
-aliases (`review.decide` is `question.decide`). Keys: `1`-`9` pick the item's
+The Decisions page lists decision rows (noun `decision`, a tree with one row per topic
+and its counts). The decision noun reaches the question verbs that fit one as
+aliases (`decision.decide` is `question.decide`). Keys: `1`-`9` pick the item's
 numbered action (its actions, then `ask`), `a` accepts the recommendation, `?`
-asks back, `n` edits the note, `x` clears the decision, `o` cycles `review.show`
+asks back, `n` edits the note, `x` clears the decision, `o` cycles `decision.show`
 (pending, undecided, asked, changed, decided, applied, all), `v` shows the
 thread, `y` copies, `u` undoes.
 
-`review --web` writes an mgmt session (`$XDG_STATE_HOME/o-questions/review-web`)
-from the store, runs `python3 mgmt.py serve` on it (`review.mgmt`), and copies
+`decision --web` writes an mgmt session (`$XDG_STATE_HOME/o-questions/decision-web`)
+from the store, runs `python3 mgmt.py serve` on it (`decision.mgmt`), and copies
 each saved decision back into o-questions while the page runs and once more
 after Ctrl-C. The session is a view; o-questions stays the record.
 
 For the browser page, install `mgmt/` from [ai-utils](https://github.com/unixsuperhero/ai-utils).
-Set `review.mgmt` to the path of `mgmt.py`, or leave it empty to discover an
+Set `decision.mgmt` to the path of `mgmt.py`, or leave it empty to discover an
 executable `mgmt.py` on `PATH`. Existing installations in the legacy hub home
 location are used as a final fallback. Python 3 is required for this page.
 
-Settings: `review.page` (default true; false removes the page), `review.show`
-(pending), `review.actions` (yes, no, later, moot), `review.ask` (true),
-`review.plans-root` (the folder to import planning documents from), `review.mgmt`
+Settings: `decision.page` (default true; false removes the page), `decision.show`
+(pending), `decision.actions` (yes, no, later, moot), `decision.ask` (true),
+`decision.plans-root` (the folder to import planning documents from), `decision.mgmt`
 (empty; discovers `mgmt.py` at run time), and `filter.direction` (to-agent) for the
 Questions page, which keeps showing only the owner's own questions by default.
 

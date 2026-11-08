@@ -1,7 +1,7 @@
 {
-  "name": "host-review-reads-thread",
+  "name": "host-decision-reads-thread",
   "host": true,
-  "page": "review",
+  "page": "decision",
   "script": [
     "enter",
     "q",

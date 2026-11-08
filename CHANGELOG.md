@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Changed, breaking (lexicon, one shot: no old-name aliases; every rename is in `docs/lexicon-renames-v0.3.tsv`): the Decisions page's noun is `decision`, not `review`. The page was already titled Decisions.
+  - Noun `review` is `decision` (`question.decision`: create, edit, get, list, open-page, set, watch and the question verbs it shares: decide, accept, undecide, ask-back, decision-note, reply, applied, show, yank, tag, ...). `o-questions review [--web]` is `o-questions decision [--web]`; the page id, picker, key rows (`decision/normal`, `decision.decide`, ...) and the mgmt session directory (`decision-web`) follow.
+  - `question decisions` (the export of decisions, asks and undecided items) is folded into the noun as `decision export` (`--group`, `--all`, `--render plan`, `--date`); there is no `question.decisions` alias. The MCP tool `q_decisions` is `q_decision_export`. The export format name `o-questions-decisions/1` is unchanged.
+  - Settings `review.page|show|actions|ask|plans-root|mgmt` are `decision.*`, same defaults.
+  - Stored data: a question's `review` block is stored as `decision`. Old question files and undo snapshots are read with the old key (and the older `state` key) and written back with the new ones on the next write of the file. The page's row data `decision` (the status cell) is now `decision_view`.
+  - Go: `Review` is `Decision`; the owner's change input that was `Decision` is `DecisionChange`; `Store.Decisions` is `Store.DecisionExport`.
+  - The setup notes (`claude-md`, `codex-agents`) say the owner answers on the Decisions page and read decisions with `question.decision export`.
+
 ## v0.2.0 (2026-11-08)
 
 - Changed, breaking (LX8c, lexicon, one shot: no old-name aliases; every rename is in `docs/lexicon-renames-v0.105.tsv`): requires ochazuke v0.105.0. One word has one part of speech.

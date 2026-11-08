@@ -68,14 +68,14 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	if e := a.r.DeclareSetting(appSettings()...); e != nil {
 		return nil, e
 	}
-	a.r.Define("question").Main()                        // the tool's main noun: `o-questions ask` is `question ask`
-	a.r.Define(reviewNoun).DefaultAction(reviewPageVerb) // review.VERB aliases name question verbs (reviewAliases); bare `review` opens the page
+	a.r.Define("question").Main()                            // the tool's main noun: `o-questions ask` is `question ask`
+	a.r.Define(decisionNoun).DefaultAction(decisionPageVerb) // decision.VERB aliases name question verbs (decisionAliases); bare `decision` opens the page
 	for _, v := range a.specs() {
 		v := v
 		// A verb homed on another noun (verbHomes) keeps question.NAME as an alias.
 		noun, verb := "question", v.name
 		if home, ok := verbHomes[v.name]; ok {
-			noun, verb = home[0], home[1]
+			noun, verb = home.noun, home.verb
 		}
 		b := a.r.Define(noun).Verb(verb, func(c ochazuke.Ctx) ochazuke.Result { return a.invoke(v, c) }, v.description).Alias(v.aliases...)
 		right := agentPolicy[v.name]
@@ -89,11 +89,11 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 		if v.rows {
 			b.Rows(noun).Fetch().Quiet()
 		}
-		if noun != "question" {
+		if noun != "question" && verbHomes[v.name].alias {
 			b.AliasOn("question", v.name)
 		}
-		if alias, ok := reviewAliases[v.name]; ok {
-			b.AliasOn(reviewNoun, alias)
+		if alias, ok := decisionAliases[v.name]; ok {
+			b.AliasOn(decisionNoun, alias)
 		}
 		op := a.r.Operations.At(ochazuke.Key(noun + "." + verb))
 		op.Parameters = v.params
@@ -104,7 +104,7 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	show.Result = ochazuke.ResultMarkdown
 	show.EnabledSetting = "view.thread"
 	a.r.Operations.Set(show)
-	declareReviewPage(a)
+	declareDecisionPage(a)
 	a.r.EnsureConfigSettings()
 	a.declareFilterProps()
 	a.r.Define("question").Columns(columns...)
@@ -115,8 +115,8 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	if e := ocli.DeclarePage(a.r, questionPage(a.r.Settings().Bool("view.detail"))); e != nil {
 		return nil, e
 	}
-	if a.r.Settings().Bool("review.page") {
-		if e := ocli.DeclarePage(a.r, reviewPage()); e != nil {
+	if a.r.Settings().Bool("decision.page") {
+		if e := ocli.DeclarePage(a.r, decisionPage()); e != nil {
 			return nil, e
 		}
 	}
@@ -170,8 +170,8 @@ func (a *App) configure() {
 	a.store.MaxBytes = s.Int("entry.max-bytes")
 	a.store.BackupDaily = s.Bool("backup.daily")
 	a.store.BackupKeep = s.Int("backup.keep")
-	a.store.ReviewActions = s.Strings("review.actions")
-	a.store.ReviewAsk = s.Bool("review.ask")
+	a.store.DecisionActions = s.Strings("decision.actions")
+	a.store.DecisionAsk = s.Bool("decision.ask")
 	a.store.Permit = func(action string) error {
 		op, ok := a.r.Operation("question." + action)
 		if !ok {
@@ -230,7 +230,7 @@ func (a *App) specs() []verbSpec {
 	}{{"reopen", "Explicitly reopen", changeVerb(opReopen, "text", nil)}, {"moot", "Mark moot", changeVerb(opMoot, "text", nil)}, {"delete", "Hide, preserving history; agents use question.archive", changeVerb(opDelete, "text", nil)}, {"archive", "Archive a question, retaining its text and history; restore --target brings it back", changeVerb(opArchive, "text", nil)}, {"star", "Toggle star", changeVerb(opStar, "text", nil)}, {"unstar", "Remove star", changeVerb(opUnstar, "text", nil)}, {"check", "Check wording against source transcript", runCheck}} {
 		out = append(out, verbSpec{name: v.name, description: v.desc, params: map[string]ochazuke.Parameter{"target": target}, positional: []string{"target"}, run: v.run})
 	}
-	out = append(out, a.reviewSpecs()...)
+	out = append(out, a.decisionSpecs()...)
 	out = append(out, verbSpec{name: "undo", description: "Undo the last store change", run: runUndo}, verbSpec{name: "history", description: "Show store change history", run: runHistory})
 	return out
 }

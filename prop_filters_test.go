@@ -81,7 +81,7 @@ func TestQuestionPropFilters(t *testing.T) {
 	}
 }
 
-func TestReviewPropFilters(t *testing.T) {
+func TestDecisionPropFilters(t *testing.T) {
 	for _, host := range []bool{false, true} {
 		t.Run(map[bool]string{false: "standalone", true: "catalog-host"}[host], func(t *testing.T) {
 			p, s, _ := parameterPage(t, host)
@@ -102,18 +102,18 @@ func TestReviewPropFilters(t *testing.T) {
 			if host {
 				cfg.Noun = func(noun string) string { return "ext-" + noun }
 			}
-			p.v, err = ocli.MountPage(p.m, doc, reviewPage(), cfg)
+			p.v, err = ocli.MountPage(p.m, doc, decisionPage(), cfg)
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.spec = reviewSpec(p.a)
+			p.spec = decisionSpec(p.a)
 			if err = p.reload(false); err != nil {
 				t.Fatal(err)
 			}
-			if err = p.m.Runtime.OpenPage(reviewPageID); err != nil {
+			if err = p.m.Runtime.OpenPage(decisionPageID); err != nil {
 				t.Fatal(err)
 			}
-			l := p.v.List(reviewListID)
+			l := p.v.List(decisionListID)
 			if err = l.Focus(); err != nil {
 				t.Fatal(err)
 			}
@@ -132,7 +132,7 @@ func TestReviewPropFilters(t *testing.T) {
 			}
 			for _, row := range l.Snapshot()["items"].([]ochazuke.ListItem) {
 				if row.Label == "Ship alpha?" {
-					t.Fatal("nonmatching Review question is visible")
+					t.Fatal("nonmatching Decision question is visible")
 				}
 			}
 			if err = l.SetPropFilters(nil); err != nil {
@@ -147,7 +147,7 @@ func TestReviewPropFilters(t *testing.T) {
 				sendKey(t, p, key)
 			}
 			if l.Shown() != 2 {
-				t.Fatalf("project form did not narrow Review: %d %v", l.Shown(), l.PropFilters())
+				t.Fatalf("project form did not narrow Decision: %d %v", l.Shown(), l.PropFilters())
 			}
 		})
 	}

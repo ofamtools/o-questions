@@ -67,7 +67,6 @@ decision.go	decisionStatus	compare	"moot"	1
 decision.go	decisionThread	case	"follow-up"	1
 decision.go	decisionThread	case	"reply"	1
 decision_app.go	App.decisionRows	case	"applied"	1
-decision_app.go	App.decisionRows	compare	"reply"	1
 decision_app.go	decisionCell	case	"applied"	1
 decision_app.go	recommendationView	compare	"ask"	1
 decision_app.go	var decisionAliases	table	"accept"	1

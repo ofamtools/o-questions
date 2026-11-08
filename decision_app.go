@@ -329,12 +329,7 @@ func (a *App) decisionRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		data["thread"] = thread(q, false)
 		search := strings.Join([]string{q.Title, q.Text, r.Details, r.Recommendation, r.Note, g}, " ")
 		data["search"] = search
-		replies := 0
-		for _, en := range q.Entries {
-			if en.Kind == "reply" {
-				replies++
-			}
-		}
+		replies := len(q.Entries)
 		out = append(out, ocli.Row{Parent: "topic/" + g, Noun: decisionNoun, ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{decisionCell(q, ask), q.Title, q.RecordedBy.Name, age(q.AskedAt, a.store.now()), strconv.Itoa(replies), search}})
 	}
 	return out, nil
@@ -349,7 +344,7 @@ func decisionPage() ocli.CatalogPage {
 				{Kind: "markdown", Field: "question", Heading: true},
 				{Kind: "markdown", Title: "Recommendation", Field: "recommendation_view"},
 				{Kind: "markdown", Title: "Actions", Field: "choices"},
-				{Kind: "thread", Title: "Asks and replies", Field: "entries", Author: "by.kind", At: "at", Body: "text"},
+				{Kind: "thread", Title: "Notes, asks and replies", Field: "entries", Author: "by.kind", At: "at", Body: "text"},
 				{Kind: "markdown", Title: "Context", Field: "details_view"},
 				{Kind: "fields", Title: "Decision", Region: "side", Fields: []ocli.CatalogDetailField{
 					{Label: "Topic", Field: "topic", Format: "text"},
@@ -404,7 +399,7 @@ func cliPath(name string) []string {
 // decisionAliases are the question verbs also named decision.VERB.
 var decisionAliases = map[string]string{"decide": "decide", "accept": "accept", "undecide": "undecide", "ask-back": "ask-back", "decision-note": "decision-note", "reply": "reply", "applied": "applied", "show": "show", "yank": "yank", "tag": "tag", "untag": "untag", "link": "link", "open": "open", "star": "star", "unstar": "unstar", "delete": "delete", "archive": "archive", "restore": "restore", "associate": "associate", "rename": "rename", "undo": "undo"}
 
-var decisionColumns = []ochazuke.Column{{Title: "Decision", Width: 12}, {Title: "Question", Min: 18}, {Title: "Agent", Max: 15, Priority: 1}, {Title: "Age", Width: 7, Priority: 2}, {Title: "Replies", Width: 7, Priority: 2}}
+var decisionColumns = []ochazuke.Column{{Title: "Decision", Width: 12}, {Title: "Question", Min: 18}, {Title: "Agent", Max: 15, Priority: 1}, {Title: "Age", Width: 7, Priority: 2}, {Title: "Thread", Width: 7, Priority: 2}}
 
 type keyRow struct {
 	key, verb string

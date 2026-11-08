@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.0 (2026-11-08)
 
 - Changed, breaking (LX8c, lexicon, one shot: no old-name aliases; every rename is in `docs/lexicon-renames-v0.105.tsv`): requires ochazuke v0.105.0. One word has one part of speech.
   - The question status is the writable `status` prop (it replaces the prop `state` and the verb `status`): `question set ID status answered`, MCP `question.question.set {prop: status, value}`; its Enum is open, answered, follow-up and moot. The Questions page `s` row is `question.choose-status` (the status as a required choice).

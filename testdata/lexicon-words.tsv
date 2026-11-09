@@ -907,3 +907,11 @@ open-page	action	yes	Opens a page that has other options (decision open-page --w
 question-thread	noun	yes	o-questions thread viewer card noun
 decision	noun	yes	The owner's decision on a question for the owner; the Decisions page rows
 write-in	action	yes	Owner outcome that takes text (decision write-in): write your own answer, ask the agent
+first	action	seed	ochazuke v0.110
+hide	action	seed	ochazuke v0.110
+last	action	seed	ochazuke v0.110
+move-down	action	seed	ochazuke v0.110
+move-up	action	seed	ochazuke v0.110
+referrer	noun	seed	ochazuke v0.110
+related	noun	seed	ochazuke v0.110
+related-section	noun	seed	ochazuke v0.110

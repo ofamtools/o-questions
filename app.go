@@ -59,6 +59,15 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	a := &App{store: s, in: in, out: out, errOut: errOut, run: func(cmd *exec.Cmd) error { return cmd.Run() }}
 	a.r = ochazuke.NewRuntime()
 	a.r.Config().App = "o-questions"
+	// The retired decision settings are rewritten before the settings load,
+	// so the load sees no unknown names.
+	if notes, e := migrateSettingsFile(a.r.Config().Path(ochazuke.SettingsFile), time.Now()); e != nil {
+		fmt.Fprintln(errOut, "o-questions: settings migration:", e)
+	} else {
+		for _, n := range notes {
+			fmt.Fprintln(errOut, "o-questions:", n)
+		}
+	}
 	a.showThread = func(q Question) error {
 		if !a.r.Settings().Bool("view.thread") {
 			return nil

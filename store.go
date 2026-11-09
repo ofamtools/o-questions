@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -27,6 +28,10 @@ type Store struct {
 	BackupKeep      int
 	Outcomes        []Outcome
 }
+
+// migratedDirs are the store directories whose records this process already
+// checked for old shapes (keyed by directory so copies of a Store agree).
+var migratedDirs sync.Map
 
 func (s *Store) now() time.Time {
 	if s.Now != nil {
@@ -60,6 +65,12 @@ func (s *Store) locked(fn func() error) error {
 		}
 	} else if !errors.Is(e, os.ErrNotExist) {
 		return e
+	}
+	if _, done := migratedDirs.Load(s.Dir); !done {
+		if e := s.migrateRecords(); e != nil {
+			return e
+		}
+		migratedDirs.Store(s.Dir, true)
 	}
 	return fn()
 }

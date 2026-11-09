@@ -228,6 +228,8 @@ func (s *Store) outcomeIDs() []string {
 }
 
 type Decision struct {
+	// Format is decisionFormat once the decision carries explicit options.
+	Format int    `json:"format,omitempty"`
 	Group  string `json:"group,omitempty"`
 	Source string `json:"source,omitempty"`
 	// Details is the context; Recommendation is the reason for the recommended
@@ -579,6 +581,7 @@ func poseTitle(p Pose) string {
 // stored actions and recommended action.
 func fillDecision(r *Decision, p Pose) {
 	r.Group, r.Source, r.Details, r.Recommendation = p.Group, p.Source, p.Details, p.Recommendation
+	r.Format = decisionFormat
 	if len(p.Options) > 0 {
 		r.Options, r.Recommended = slices.Clone(p.Options), p.Recommended
 		r.Actions, r.RecommendedAction = nil, ""

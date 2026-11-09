@@ -40,7 +40,7 @@ func questionsSpec(a *App) pageSpec {
 }
 func decisionSpec(a *App) pageSpec {
 	return pageSpec{page: decisionPage(), list: decisionListID, rows: func() ([]ocli.Row, error) { return a.decisionRows(nil) }, first: firstQuestion,
-		watched: []string{"decision.show", "decision.actions", "decision.ask"}}
+		watched: []string{"decision.show"}}
 }
 
 type reloadMsg struct{}

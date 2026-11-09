@@ -2,13 +2,17 @@
 
 ## Unreleased
 
-- Changed, breaking (decisions with options, one shot; the stored-data and settings migration is a later change, so old `actions` still read as options): a question for the owner carries its own options.
+- Changed, breaking (decisions with options, one shot; old `actions` still read as options until the migration below rewrites them): a question for the owner carries its own options.
   - `pose` takes `options` (strings or `{id, label, description}`), `recommended` (an option id; never implied) and `items` (a checklist: strings or `{id, label, description, recommended}`). `actions` and `recommended_action` are refused with an error naming the new parameter. A question posed with no options and no items is still stored; the result carries `warnings` telling the poser to supply options. Option ids must be unique and may not equal an outcome id.
   - No default options: `yes, no, later, moot` is gone as an implicit set. Plan import states its own yes/no options.
   - New setting `decision.outcomes` (rows `id|label|status|class|flags`; default later, moot, ask, other) is the table of answers that are not options. It drives the question status and the `decision.show` class (a new `later` class); flags `note` (needs text) and `reply` (the note goes to the agent, a reply reopens). `decision.actions` and `decision.ask` are no longer read.
   - Checklists are two-state: `decide item=ID [checked=BOOL]` marks an item, `decide confirm` decides the list as it stands, `accept` checks the recommended items, `undecide item=ID` clears one mark, `applied item=ID` applies one checked item (the decision locks when all checked items are applied). `decide option=ID` is new beside `action` and `choice`.
   - Repose by `key` keeps the owner's pick while its option or item id exists; otherwise the pick is cleared, the question flagged context changed, and the lost choice noted in the thread. `reply` takes `recommended` (an option id).
   - `decision export` adds `answer` (kind, id, label, text), `options`, `picks`, `progress` and `recommended`; `action` and `recommended_action` stay.
+
+- Changed (migration for decisions with options, one shot):
+  - Stored questions: the first load after the upgrade rewrites each question that still has the old shape, after one backup of the store in `backups/pre-migration/`. A question with no stored `actions` (the old global default) gets the explicit options `yes` and `no`; custom `actions` become options (the words `later`, `moot`, `ask`, `other` are outcomes and drop out); `recommended_action` becomes `recommended` when it names an option. The pick (`action`) is untouched, so a stored `yes` is still option `yes`. The old `actions` and `recommended_action` stay in the record. Migrated decisions carry `format: 2`; a second load changes nothing.
+  - Settings: `decision.actions` and `decision.ask` are retired and removed from the settings file at start (comments kept; the file is copied to `settings.json.bak-DATE` first). A custom `decision.actions` list is dropped with a notice (there are no default options); `decision.ask=false` becomes a `decision.outcomes` list without the `ask` row.
 
 ## v0.3.0 (2026-11-08)
 

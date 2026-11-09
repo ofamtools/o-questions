@@ -39,18 +39,6 @@ func statusTable(v any) error {
 	}
 	return nil
 }
-func nonemptyList(v any) error {
-	xs, ok := v.([]string)
-	if !ok || len(xs) == 0 {
-		return fmt.Errorf("needs at least one action")
-	}
-	for _, x := range xs {
-		if strings.TrimSpace(x) == "" {
-			return fmt.Errorf("actions must be nonempty")
-		}
-	}
-	return nil
-}
 
 // defaultOutcomeRows is the default of decision.outcomes: id|label|status|
 // class|flags. Status is the question status a pick gives, class the decision
@@ -90,8 +78,6 @@ func appSettings() []ochazuke.Setting {
 		{Name: "decision.page", Type: ochazuke.SettingBoolean, Default: true, Description: "Show the Decisions page of questions for the owner (read at start)"},
 		{Name: "decision.show", Type: ochazuke.SettingString, Default: "pending", Enum: decisionFilters, Description: "Decision items shown: pending hides applied ones"},
 		{Name: "decision.outcomes", Type: ochazuke.SettingList, Default: defaultOutcomeRows, Validate: outcomeTable, Description: "Answers that are not options, one id|label|status|class|flags row each (flags: note, reply); status and class drive the question status and the decision.show filter"},
-		{Name: "decision.actions", Type: ochazuke.SettingList, Default: []string{"yes", "no", "later", "moot"}, Validate: nonemptyList, Description: "Deprecated, no longer read: questions carry their own options (the settings migration removes it)"},
-		{Name: "decision.ask", Type: ochazuke.SettingBoolean, Default: true, Description: "Deprecated, no longer read: remove the reply row from decision.outcomes instead (the settings migration folds it)"},
 		{Name: "decision.plans-root", Type: ochazuke.SettingString, Default: "~/hub/o-plans", Description: "Plans folder question import reads"},
 		{Name: "decision.mgmt", Type: ochazuke.SettingString, Default: "", Description: "mgmt.py path for decision --web; empty discovers it on PATH, then in the legacy home location"},
 		{Name: "export.open", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for Q5 export"},

@@ -170,7 +170,7 @@ The record above is the owner asking an agent. The other direction uses the same
 store: an agent poses a question for the owner, with a recommendation, and the
 owner decides it on the Decisions page. This is the [mgmt review flow](https://github.com/unixsuperhero/ai-utils/tree/main/mgmt)
 built in: recommendations show as unconfirmed until
-accepted, numbered actions, a note per item, an ask that becomes a thread the
+accepted, numbered options (or a checklist of items), a note per item, an ask that becomes a thread the
 agent answers, decisions that survive re-posing, an export the agent reads, and
 items locked once applied.
 
@@ -183,6 +183,8 @@ o questions question pose "Turn the Decisions page on by default?" \
 o questions question import            # pose the open "Owner questions" of decision.plans-root
 o questions decision export            # JSON: asked questions, decisions, undecided
 o questions decision export --render plan | jq -r .   # "## Owner decisions (date)" per plan
+o questions question pose "Which branches to delete?" --key br-1 \
+  --items '["feat/a",{"id":"b","label":"feat/b","recommended":true}]'   # a checklist: checked = do it
 o questions question reply Q "answer" [--recommendation T] [--recommended OPTION_ID]
 o questions question applied Q done "what changed, how checked"   # locks it
 # owner
@@ -194,8 +196,8 @@ o questions question ask-back Q "why?"
 ```
 
 A question for the owner is a `Question` with `direction: to-owner` and a
-`decision` record (topic, source, details, recommendation, recommended action,
-allowed actions, action, note, flags, applied status). Posing the same `key`
+`decision` record (topic, source, details, recommendation, recommended option,
+options, items, pick, note, flags, applied status). Posing the same `key`
 again updates the text and keeps the decision; a decided item whose question,
 details or recommendation changed is flagged `context_changed` until the owner
 touches it. Asking appends the owner's question to the thread (`follow-up`

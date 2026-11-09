@@ -648,8 +648,10 @@ func (a *App) decisionKeys() []keyRow {
 			continue
 		}
 		row := plainKey(o.Key, "decision.decide", ochazuke.Arguments{"action": o.ID})
-		// A topic header is no question: its row keeps the library's key (l expands it).
-		row.guard, row.hide = "decision-question-row", true
+		// A topic header is no question: its row keeps the library's key (l
+		// expands it). A row guard is data, so a host mounting the page
+		// (mtm) judges it on its rows too.
+		row.guard, row.hide = questionRowGuard, true
 		if o.NeedsNote {
 			row.verb, row.ownTarget = "decision.write-in", true
 		}
@@ -673,7 +675,7 @@ func (a *App) decisionKeys() []keyRow {
 		plainKey("y", "decision.yank", nil),
 		plainKey("t", "decision.tag", nil),
 		plainKey("g x", "decision.open", nil),
-		plainKey("d d", "decision.delete", nil),
+		deleteKey(),
 		plainKey("u", "decision.undo", nil),
 	)
 }
@@ -687,8 +689,22 @@ func (a *App) outcomeTable() []Outcome {
 	return defaultOutcomes
 }
 
+// questionRowGuard holds on a question or checklist item row, not on a
+// topic header: the rows whose record names a question (asked_at; a topic
+// row's record is its topic and summary only). It is a row guard, not one
+// registered with DefineGuard, so mounted pages keep it.
+const questionRowGuard = ochazuke.RowGuardPrefix + "asked_at"
+
+// deleteKey is d d: delete the question, on its own row only. On a
+// checklist item row it would delete the whole question, so it is off there
+// (row:!item: an item row's record carries item).
+func deleteKey() keyRow {
+	row := plainKey("d d", "decision.delete", nil)
+	row.guard = ochazuke.RowGuardPrefix + "!item"
+	return row
+}
+
 func registerDecisionUI(a *App) {
-	a.r.DefineGuard("decision-question-row", a.focusedRowHas("id"))
 	b := a.r.Define(decisionNoun).Columns(decisionColumns...).Mode("normal")
 	for _, k := range a.decisionKeys() {
 		row := ochazuke.Do(k.verb, k.args)
@@ -706,24 +722,6 @@ func registerDecisionUI(a *App) {
 			row = row.Guard(k.guard)
 		}
 		b.Bind(k.key, row)
-	}
-}
-
-// focusedRowHas is a guard: the focused row of the Decisions page carries
-// the prop (id: a question or item row, not a topic header).
-func (a *App) focusedRowHas(prop string) func(*ochazuke.Runtime, ochazuke.KeyEvent) bool {
-	return func(r *ochazuke.Runtime, ev ochazuke.KeyEvent) bool {
-		t := r.Tree(decisionListID)
-		if t == nil {
-			return false
-		}
-		for _, n := range t.Nodes() {
-			if n.ID == ev.Focus {
-				_, has := n.Props[prop]
-				return has
-			}
-		}
-		return false
 	}
 }
 

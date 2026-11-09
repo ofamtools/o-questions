@@ -102,7 +102,7 @@ func TestQuestionParameterStatus(t *testing.T) {
 			if r.RecordEditor(ochazuke.ArgsFormID) == nil || (host && *calls != 0) {
 				t.Fatalf("status must prompt before dispatch:\n%s", ansi.Strip(p.View().Content))
 			}
-			sendKey(t, p, "esc")
+			sendKey(t, p, "q")
 			q, err := s.Resolve("1", false)
 			if err != nil || q.Status != "open" || r.TopModal() != "" {
 				t.Fatalf("cancel changed status: %+v, %v, modal %q", q, err, r.TopModal())
@@ -133,7 +133,7 @@ func TestQuestionParameterFollowUp(t *testing.T) {
 				t.Fatalf("follow-up must prompt before dispatch:\n%s", ansi.Strip(p.View().Content))
 			}
 			sendKey(t, p, "esc")
-			sendKey(t, p, "esc")
+			sendKey(t, p, "q")
 			q, err := s.Resolve("1", false)
 			if err != nil || len(q.Entries) != 0 || r.TopModal() != "" {
 				t.Fatalf("blank cancel wrote an entry: %+v, %v", q, err)
@@ -164,7 +164,7 @@ func TestQuestionParameterBoundInputs(t *testing.T) {
 					t.Fatalf("%s must prompt for %s:\n%s", key, name, ansi.Strip(p.View().Content))
 				}
 				sendKey(t, p, "esc")
-				sendKey(t, p, "esc")
+				sendKey(t, p, "q")
 				q, err := s.Resolve("1", false)
 				if err != nil || len(q.Entries) != 0 || len(q.Tags) != 0 || q.Text != "Question needing input?" {
 					t.Fatalf("cancel mutated record: %+v, %v", q, err)

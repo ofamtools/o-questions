@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Changed: bump ofam.dev/ochazuke to v0.109.0 (modals close with q; esc only leaves insert; row guards; label-first palette). Question stories and parameter tests close modals with q.
 - Added (Decisions page for options and checklists):
   - The detail's Options section lists the numbered options with their descriptions and the recommendation's state, a checklist with its progress, then the outcomes with their keys. New setting `decision.labels` (default true); false draws the compact one-line list (`1 id · 2 id · Later ...`).
   - The outcome table has a sixth field, `key` (`id|label|status|class|flags|key`): the page key that picks the outcome, made into a binding row from the table (decision.decide, or decision.write-in for a row that takes text). Defaults: `l` later, `m` moot, `?` ask the agent, `w` write your own answer. A key may not be a number, a function key or shared by two rows; rows without a key bind nothing. A topic header keeps the library's `l` (expand).

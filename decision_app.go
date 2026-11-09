@@ -19,10 +19,18 @@ const decisionPageID = "decision"
 const decisionPageTitle = "Decisions"
 const decisionListID = "decision/questions"
 
+// decisionTarget is the target parameter of a verb on a question for the
+// owner: the picker lists the decisions (not topic headers), each by its
+// title; it opens on the selected row, which an omitted target uses. Free,
+// because a host passes the focused row's id, which may be a checklist item's.
+func decisionTarget() ochazuke.Parameter {
+	return ochazuke.Parameter{Type: "string", Description: "Question title, number or ID prefix; omitted uses the selected row", Noun: decisionNoun, Focus: true, Free: true, Source: "decision.list", SourceFixed: map[string]any{"flat": true}}
+}
+
 func (a *App) decisionSpecs() []verbSpec {
 	// The target picker lists the decisions (not topic headers), each by its
 	// title; it opens on the selected row, which an omitted target uses.
-	target := ochazuke.Parameter{Type: "string", Description: "Question title, number or ID prefix; omitted uses the selected row", Noun: decisionNoun, Focus: true, Source: "decision.list", SourceFixed: map[string]any{"flat": true}}
+	target := decisionTarget()
 	arr := func(d string) ochazuke.Parameter { return ochazuke.Parameter{Type: "array", Description: d} }
 	pose := map[string]ochazuke.Parameter{
 		"question": {Type: "string", Required: true, Rest: true, Description: "The question for the owner"},
@@ -38,7 +46,7 @@ func (a *App) decisionSpecs() []verbSpec {
 	return []verbSpec{
 		{"pose", "Record a question for the owner, with your recommendation", pose, []string{"question"}, false, runPose, nil},
 		{"queue", "List questions for the owner, grouped by topic", map[string]ochazuke.Parameter{"show": {Type: "string", Enum: decisionFilters, Description: "Decision state shown; default decision.show"}, "group": param("Topic"), "flat": {Type: "boolean", Description: "Only the questions, no topic header rows (what a picker lists)"}}, nil, true, runQueue, nil},
-		{"decide", "Decide a question for the owner (owner)", map[string]ochazuke.Parameter{"target": target, "action": param("An option id or an outcome id"), "option": param("An option id"), "choice": {Type: "integer", Description: "Numbered option, 1 first"}, "item": param("A checklist item id: set its mark instead of the decision"), "checked": {Type: "boolean", Description: "With item: checked or not (default: flip it)"}, "confirm": {Type: "boolean", Description: "Decide the checklist as it stands: unchecked means do not"}, "pick_note": param("With item: a note on that item"), "note": param("Note for the agent")}, []string{"target", "action"}, false, decisionVerb(decide), nil},
+		{"decide", "Decide a question for the owner (owner)", map[string]ochazuke.Parameter{"target": target, "action": param("An option id or an outcome id (not needed with item, confirm or a note)"), "option": param("An option id"), "choice": {Type: "integer", Description: "Numbered option, 1 first"}, "item": param("A checklist item id: set its mark instead of the decision"), "checked": {Type: "boolean", Description: "With item: checked or not (default: flip it)"}, "confirm": {Type: "boolean", Description: "Decide the checklist as it stands: unchecked means do not"}, "pick_note": param("With item: a note on that item"), "note": param("Note for the agent")}, []string{"target"}, false, decisionVerb(decide), nil},
 		{"accept", "Accept the recommendation: the recommended option, and check the recommended items (owner)", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false, decisionVerb(accept), nil},
 		{"undecide", "Clear the decision, keeping its note; with item, clear that item's mark (owner)", map[string]ochazuke.Parameter{"target": target, "item": param("A checklist item id")}, []string{"target"}, false, decisionVerb(undecide), nil},
 		{"ask-back", "Ask the agent before deciding (owner)", map[string]ochazuke.Parameter{"target": target, "text": prose("Your question")}, []string{"target", "text"}, false, decisionVerb(askBack), nil},
@@ -69,6 +77,24 @@ func declareDecisionPage(a *App) {
 		"web": {Type: "boolean", Description: "Serve mgmt's browser page instead of the terminal page"}, "no-open": {Type: "boolean", Description: "With --web: do not open the browser"}, "port": {Type: "integer", Description: "With --web: port to serve on"},
 		"smoke": {Type: "boolean", Description: "Render one frame and exit"}, "width": {Type: "integer", Description: "Frame width for --smoke"}, "height": {Type: "integer", Description: "Frame height for --smoke"}}
 	a.r.Operations.Set(op)
+}
+
+// declareDecisionItemVerbs defines the verbs that belong to the decision
+// noun alone (no question verb of the same name): the outcome that takes text
+// and the checklist item's mark. They are real operations of the noun, so a
+// visual selection fans them out (collection.apply finds no alias).
+func declareDecisionItemVerbs(a *App) {
+	rows := []verbSpec{
+		{"write-in", "Decide with an outcome that takes your text: write your own answer, or ask the agent (owner)", map[string]ochazuke.Parameter{"target": decisionTarget(), "action": required("An outcome id that takes text (see decision.outcomes)"), "text": prose("Your text")}, nil, false, decisionVerb(writeIn), nil},
+		{"toggle", "Check or uncheck a checklist item: checked means do it; omit checked to flip it (owner)", map[string]ochazuke.Parameter{"target": decisionTarget(), "item": param("Checklist item id; omitted uses the selected item row (a target of item/QUESTION/ITEM names both)"), "checked": {Type: "boolean", Description: "Checked or not (default: flip it)"}}, nil, false, decisionVerb(checkItem), nil},
+	}
+	for _, v := range rows {
+		v := v
+		a.r.Define(decisionNoun).Verb(v.name, func(c ochazuke.Ctx) ochazuke.Result { return a.invoke(v, c) }, v.description).Agent(ochazuke.AgentAllow)
+		op := a.r.Operations.At(ochazuke.Key(decisionNoun + "." + v.name))
+		op.Parameters = v.params
+		a.r.Operations.Set(op)
+	}
 }
 
 func (a *App) decisionPageVerb(c ochazuke.Ctx) ochazuke.Result { return runDecisionPage(a, c) }
@@ -161,12 +187,28 @@ func decide(a *App, id string, c ochazuke.Ctx) (Question, error) {
 	return a.store.Decide(id, d)
 }
 
+// writeIn decides with an outcome whose row asks for text, carrying the text
+// as the note (the outcome's own flags say whether the agent is asked).
+func writeIn(a *App, id string, c ochazuke.Ctx) (Question, error) {
+	text := argStr(c, "text")
+	return a.store.Decide(id, DecisionChange{Action: argStr(c, "action"), Note: &text})
+}
+
+func checkItem(a *App, id string, c ochazuke.Ctx) (Question, error) {
+	d := DecisionChange{Item: itemArg(c)}
+	if v, ok := c.Args["checked"]; ok {
+		b := truthy(v)
+		d.Checked = &b
+	}
+	return a.store.Decide(id, d)
+}
+
 func accept(a *App, id string, _ ochazuke.Ctx) (Question, error) {
 	return a.store.Decide(id, DecisionChange{Accept: true})
 }
 
 func undecide(a *App, id string, c ochazuke.Ctx) (Question, error) {
-	return a.store.Decide(id, DecisionChange{Clear: true, Item: argStr(c, "item")})
+	return a.store.Decide(id, DecisionChange{Clear: true, Item: itemArg(c)})
 }
 
 func askBack(a *App, id string, c ochazuke.Ctx) (Question, error) {
@@ -281,10 +323,62 @@ func (s *Store) recommendationView(q Question) string {
 	return fmt.Sprintf("**%s** (%s)\n\n%s", rec, state, r.Recommendation)
 }
 
-// choicesView lists the numbered options, then the outcomes.
-func (s *Store) choicesView(q Question) string {
+// choicesView is the Options section: the numbered options with their
+// descriptions, the checklist, then the outcomes with their keys. With
+// decision.labels off it is the compact line (1 id · 2 id · Later ...).
+func (s *Store) choicesView(q Question, labels bool) string {
+	r := q.Decision
+	if !labels {
+		return s.compactChoices(r)
+	}
 	var out []string
-	for i, o := range s.optionsOf(q.Decision) {
+	rec := r.recommendedID()
+	for i, o := range s.optionsOf(r) {
+		if i >= 9 {
+			break
+		}
+		line := fmt.Sprintf("%d. %s", i+1, o.label())
+		if r.Action != "" && r.Action == o.ID {
+			line += "  ✓ chosen"
+		}
+		if o.ID == rec && rec != "" {
+			line += "  (" + s.recommendedState(r) + ")"
+		}
+		out = append(out, line)
+		if o.Description != "" {
+			out = append(out, "", "    "+strings.ReplaceAll(strings.TrimSpace(o.Description), "\n", "\n    "), "")
+		}
+	}
+	if len(r.Items) > 0 {
+		out = append(out, "", "Checklist "+r.progress()+" (checked means do it)", "")
+		for _, it := range r.Items {
+			line := "- " + itemGlyph(r, it.ID) + " " + it.label()
+			if it.Recommended {
+				line += "  (recommended)"
+			}
+			out = append(out, line)
+			if it.Description != "" {
+				out = append(out, "", "    "+strings.TrimSpace(it.Description), "")
+			}
+		}
+	}
+	var outcomes []string
+	for _, o := range s.outcomes() {
+		if o.Key != "" {
+			outcomes = append(outcomes, o.Key+" "+o.Label)
+		} else {
+			outcomes = append(outcomes, o.Label)
+		}
+	}
+	if len(outcomes) > 0 {
+		out = append(out, "", strings.Join(outcomes, " · "))
+	}
+	return strings.Join(out, "\n")
+}
+
+func (s *Store) compactChoices(r *Decision) string {
+	var out []string
+	for i, o := range s.optionsOf(r) {
 		if i >= 9 {
 			break
 		}
@@ -294,6 +388,77 @@ func (s *Store) choicesView(q Question) string {
 		out = append(out, o.Label)
 	}
 	return strings.Join(out, " · ")
+}
+
+// itemGlyph is a checklist item's checkbox, drawn as the outline draws a task.
+func itemGlyph(r *Decision, item string) string {
+	if r.checked(item) {
+		return "[x]"
+	}
+	return "[ ]"
+}
+
+// recommendedState says whether the recommendation is confirmed.
+func (s *Store) recommendedState(r *Decision) string {
+	switch {
+	case accepted(r):
+		return "recommended · accepted"
+	case r.Action != "":
+		return "recommended · not chosen"
+	}
+	return "recommended · not confirmed"
+}
+
+// itemRow is a checklist item as a child row of its question: the same
+// detail as the question, with the item's checkbox for a cell.
+func (a *App) itemRow(q Question, it Item, data map[string]any, search string) ocli.Row {
+	r := q.Decision
+	d := map[string]any{}
+	for k, v := range data {
+		d[k] = v
+	}
+	d["item"] = it.ID
+	d["checked"] = r.checked(it.ID)
+	d["item_label"] = it.label()
+	cell := ""
+	if i := r.pickAt(it.ID); i >= 0 && isApplied(r.Picks[i].Status) {
+		cell = "✓ applied"
+	}
+	return ocli.Row{Parent: "question/" + q.ID, Noun: decisionNoun, ID: itemRowPrefix + q.ID + "/" + it.ID, Label: it.label(), Data: d, Cells: []string{cell, itemGlyph(r, it.ID) + " " + it.label(), "", "", "", search}}
+}
+
+// itemRowPrefix starts a checklist item row's id: item/<question id>/<item id>.
+const itemRowPrefix = "item/"
+
+// itemArg is the checklist item a verb acts on: the item argument, else the
+// item row named by the target (a host passes the focused row's id) or the
+// item row the verb runs on (each row of a selection in turn).
+func itemArg(c ochazuke.Ctx) string {
+	if id := argStr(c, "item"); id != "" {
+		return id
+	}
+	rows := []string{argStr(c, "target")}
+	if c.Instance != nil {
+		if row, ok := c.Instance.Data.(string); ok {
+			rows = append(rows, row)
+		}
+	}
+	for _, row := range rows {
+		if rest, ok := strings.CutPrefix(row, itemRowPrefix); ok {
+			_, item, _ := strings.Cut(rest, "/")
+			return item
+		}
+	}
+	return ""
+}
+
+// itemRowQuestion is the question id of an item row id, else id unchanged.
+func itemRowQuestion(id string) string {
+	if rest, ok := strings.CutPrefix(id, itemRowPrefix); ok {
+		q, _, _ := strings.Cut(rest, "/")
+		return q
+	}
+	return id
 }
 
 // decisionRows answer the Decisions page and `question queue`: a tree with one
@@ -355,13 +520,22 @@ func (a *App) decisionRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		data["topic"] = g
 		data["decision_view"] = st.decisionCell(q)
 		data["recommendation_view"] = st.recommendationView(q)
-		data["choices"] = st.choicesView(q)
+		data["choices"] = st.choicesView(q, a.r.Settings().Bool("decision.labels"))
 		data["details_view"] = r.Details
 		data["thread"] = thread(q, false)
-		search := strings.Join([]string{q.Title, q.Text, r.Details, r.Recommendation, r.Note, g}, " ")
+		fields := []string{q.Title, q.Text, r.Details, r.Recommendation, r.Note, g}
+		for _, it := range r.Items {
+			fields = append(fields, it.label())
+		}
+		search := strings.Join(fields, " ")
 		data["search"] = search
 		replies := len(q.Entries)
 		out = append(out, ocli.Row{Parent: parentOf(g, flat), Noun: decisionNoun, ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{st.decisionCell(q), q.Title, q.RecordedBy.Name, age(q.AskedAt, a.store.now()), strconv.Itoa(replies), search}})
+		if !flat {
+			for _, it := range r.Items {
+				out = append(out, a.itemRow(q, it, data, search))
+			}
+		}
 	}
 	return out, nil
 }
@@ -443,44 +617,113 @@ var decisionColumns = []ochazuke.Column{{Title: "Decision", Width: 12}, {Title: 
 type keyRow struct {
 	key, verb string
 	args      ochazuke.Arguments
+	hint      string // footer hint text
+	hide      bool   // left out of the footer hints
+	guard     string // guard the row waits on
+	ownTarget bool   // the row names its question (the verb's form then asks only for its text)
 }
 
-func decisionKeys() []keyRow {
+func plainKey(key, verb string, args ochazuke.Arguments) keyRow {
+	return keyRow{key: key, verb: verb, args: args}
+}
+
+// decisionKeys are the page's key rows. The numbers pick the Nth option; the
+// outcome keys come from the rows of decision.outcomes (a row with a key is a
+// binding to decision.decide, or to decision.write-in when the outcome takes
+// text); the rest are fixed rows. The ask-back verb stays for the palette and
+// for a bindings.json that binds it.
+func (a *App) decisionKeys() []keyRow {
 	var rows []keyRow
 	for i := 1; i <= 9; i++ {
-		rows = append(rows, keyRow{strconv.Itoa(i), "decision.decide", ochazuke.Arguments{"choice": i}})
+		row := plainKey(strconv.Itoa(i), "decision.decide", ochazuke.Arguments{"choice": i})
+		if i == 1 {
+			row.hint = "decide"
+		} else {
+			row.hide = true
+		}
+		rows = append(rows, row)
+	}
+	for _, o := range a.outcomeTable() {
+		if o.Key == "" {
+			continue
+		}
+		row := plainKey(o.Key, "decision.decide", ochazuke.Arguments{"action": o.ID})
+		// A topic header is no question: its row keeps the library's key (l expands it).
+		row.guard, row.hide = "decision-question-row", true
+		if o.NeedsNote {
+			row.verb, row.ownTarget = "decision.write-in", true
+		}
+		rows = append(rows, row)
+	}
+	check := plainKey("c", "decision.toggle", nil)
+	check.hint = "check"
+	thread := func(key string) keyRow {
+		row := plainKey(key, "decision.show", nil)
+		row.guard = "question-thread-enabled"
+		return row
 	}
 	return append(rows,
-		keyRow{"a", "decision.accept", nil},
-		keyRow{"?", "decision.ask-back", nil},
-		keyRow{"n", "decision.decision-note", nil},
-		keyRow{"x", "decision.undecide", nil},
-		keyRow{"o", "ochazuke.setting.cycle", ochazuke.Arguments{"name": "decision.show"}},
-		keyRow{"v", "decision.show", nil},
-		keyRow{"enter", "decision.show", nil},
-		keyRow{"y", "decision.yank", nil},
-		keyRow{"t", "decision.tag", nil},
-		keyRow{"g x", "decision.open", nil},
-		keyRow{"d d", "decision.delete", nil},
-		keyRow{"u", "decision.undo", nil},
+		plainKey("a", "decision.accept", nil),
+		plainKey("D", "decision.decide", ochazuke.Arguments{"confirm": true}),
+		plainKey("n", "decision.decision-note", nil),
+		plainKey("x", "decision.undecide", nil),
+		check,
+		plainKey("o", "ochazuke.setting.cycle", ochazuke.Arguments{"name": "decision.show"}),
+		thread("v"), thread("enter"),
+		plainKey("y", "decision.yank", nil),
+		plainKey("t", "decision.tag", nil),
+		plainKey("g x", "decision.open", nil),
+		plainKey("d d", "decision.delete", nil),
+		plainKey("u", "decision.undo", nil),
 	)
 }
 
+// outcomeTable is the outcome table the page binds keys from: the setting
+// (a table that does not parse falls back to the default, as the store does).
+func (a *App) outcomeTable() []Outcome {
+	if out, e := parseOutcomes(a.r.Settings().Strings("decision.outcomes")); e == nil {
+		return out
+	}
+	return defaultOutcomes
+}
+
 func registerDecisionUI(a *App) {
+	a.r.DefineGuard("decision-question-row", a.focusedRowHas("id"))
 	b := a.r.Define(decisionNoun).Columns(decisionColumns...).Mode("normal")
-	for _, k := range decisionKeys() {
+	for _, k := range a.decisionKeys() {
 		row := ochazuke.Do(k.verb, k.args)
-		if k.verb == "decision.decide" {
-			if k.key == "1" {
-				row = row.Hinted("decide")
-			} else {
-				row = row.Hide()
-			}
+		if k.hint != "" {
+			row = row.Hinted(k.hint)
 		}
-		if k.verb == "decision.show" {
-			row = row.Guard("question-thread-enabled")
+		if k.hide {
+			row = row.Hide()
+		}
+		if k.ownTarget {
+			// The form asks for the text only: the row names its question.
+			row = row.FromRow("target", "id")
+		}
+		if k.guard != "" {
+			row = row.Guard(k.guard)
 		}
 		b.Bind(k.key, row)
+	}
+}
+
+// focusedRowHas is a guard: the focused row of the Decisions page carries
+// the prop (id: a question or item row, not a topic header).
+func (a *App) focusedRowHas(prop string) func(*ochazuke.Runtime, ochazuke.KeyEvent) bool {
+	return func(r *ochazuke.Runtime, ev ochazuke.KeyEvent) bool {
+		t := r.Tree(decisionListID)
+		if t == nil {
+			return false
+		}
+		for _, n := range t.Nodes() {
+			if n.ID == ev.Focus {
+				_, has := n.Props[prop]
+				return has
+			}
+		}
+		return false
 	}
 }
 

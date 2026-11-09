@@ -335,7 +335,7 @@ func TestDecisionPageKeys(t *testing.T) {
 		t.Fatal(e)
 	}
 	frame := frameText(p)
-	for _, want := range []string{"Decision  0/1 decided", "yes?", "recommended · not confirmed", "1 yes · 2 no · Later · Moot · Ask the agent · Write your own answer"} {
+	for _, want := range []string{"Decision  0/1 decided", "yes?", "recommended · not confirmed", "1. yes", "l Later · m Moot"} {
 		if !strings.Contains(frame, want) {
 			t.Fatalf("missing %q:\n%s", want, frame)
 		}
@@ -359,6 +359,16 @@ func TestDecisionPageKeys(t *testing.T) {
 	if q, _ = s.Resolve(qs[1].ID, false); q.Decision.Action != "random" {
 		t.Fatal("2 must pick the item's second action", q.Decision)
 	}
+	// l and m are the later and moot outcome rows (the table names the keys).
+	sendKey(t, p, "l")
+	if q, _ = s.Resolve(qs[1].ID, false); q.Decision.Action != "later" {
+		t.Fatal("l must pick the later outcome", q.Decision)
+	}
+	sendKey(t, p, "m")
+	if q, _ = s.Resolve(qs[1].ID, false); q.Decision.Action != "moot" || q.Status != "moot" {
+		t.Fatal("m must pick the moot outcome", q.Decision)
+	}
+	sendKey(t, p, "2")
 	// o cycles decision.show: undecided hides the decided question and its topic.
 	sendKey(t, p, "o")
 	if got := p.a.r.Settings().String("decision.show"); got != "undecided" {

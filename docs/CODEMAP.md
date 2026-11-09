@@ -19,7 +19,7 @@
 | editor.go | Commit-on-change question/title/entry and association editors; pickers |
 | thread_view.go | Read-only thread modal and scroll rows |
 | decision.go | Questions for the owner: pose, decide, reply, applied, export (mgmt semantics) |
-| decision_app.go | Decision verbs, rows, the decision noun's aliases, page and keys |
+| decision_app.go | Decision verbs, rows (topic, question, checklist item), the Options section, the decision noun's aliases, page and key rows (outcome keys come from decision.outcomes) |
 | decision_web.go | decision --web: mgmt session out, decisions back |
 | plans.go | Plan "Owner questions" importer (owner_questions.py port) and decisions render |
 | setup.go, setup.json | Instruction-note setup items and co-located block skip defaults |

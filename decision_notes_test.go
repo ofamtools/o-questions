@@ -38,6 +38,7 @@ func TestDecisionNotesAccumulateAndShow(t *testing.T) {
 	if e := l.Select(decisionListID + "/question/" + qs[0].ID); e != nil {
 		t.Fatal(e)
 	}
+	p.m.Height = 44 // the Options section takes room above the thread
 	frame := frameText(p)
 	for _, want := range []string{"first note", "second note", "Notes, asks and replies"} {
 		if !strings.Contains(frame, want) {

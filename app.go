@@ -114,6 +114,7 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	show.EnabledSetting = "view.thread"
 	a.r.Operations.Set(show)
 	declareDecisionPage(a)
+	declareDecisionItemVerbs(a)
 	a.r.EnsureConfigSettings()
 	a.declareFilterProps()
 	a.r.Define("question").Columns(columns...)
@@ -268,7 +269,7 @@ func (a *App) target(c ochazuke.Ctx) (Question, error) {
 	if t == "" {
 		return Question{}, fmt.Errorf("name a question or displayed number")
 	}
-	return a.store.Resolve(t, a.newestFirst())
+	return a.store.Resolve(itemRowQuestion(t), a.newestFirst())
 }
 func mapAction(kind string) string {
 	if kind == "correction" {

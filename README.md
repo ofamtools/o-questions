@@ -211,12 +211,25 @@ agents import through the CLI or MCP without Python. It never edits a plan:
 questions that disappear are reported `stale` and left alone.
 
 The Decisions page lists decision rows (noun `decision`, a tree with one row per topic
-and its counts). The decision noun reaches the question verbs that fit one as
-aliases (`decision.decide` is `question.decide`). Keys: `1`-`9` pick the item's
-numbered action (its actions, then `ask`), `a` accepts the recommendation, `?`
-asks back, `n` edits the note, `x` clears the decision, `o` cycles `decision.show`
-(pending, undecided, asked, changed, decided, applied, all), `v` shows the
-thread, `y` copies, `u` undoes.
+and its counts; a checklist question has one child row per item, drawn `[ ]` or `[x]`
+like the outline's tasks, and its Decision cell shows `2/5`). The decision noun reaches
+the question verbs that fit one as aliases (`decision.decide` is `question.decide`).
+The detail's Options section lists the numbered options (with descriptions and the
+recommendation's state), the checklist, then the outcomes with their keys; the setting
+`decision.labels` (default on) turns that off for the compact one-line list.
+
+Keys (all binding rows; `bindings.json` overrides them): `1`-`9` pick the Nth option;
+the outcome keys come from the rows of `decision.outcomes` (`id|label|status|class|flags|key`,
+defaults `l` later, `m` moot, `?` ask the agent, `w` write your own answer; the last two
+ask for text in a form); `a` accepts the recommendation, `D` decides a whole checklist as
+it stands (unchecked means do not), `n` edits the note, `x` clears the decision (on an item
+row, its mark), `c` checks or unchecks a checklist item, `o`
+cycles `decision.show` (pending, undecided, asked, later, changed, decided, applied, all),
+`v` shows the thread, `y` copies, `u` undoes. The other keys on an item row act on its
+question. Over a visual selection (`V`) `c` checks every selected item. A topic header is no
+question: `l` on it stays the library's expand when the page runs standalone (a host such as mtm drops key guards). `l` and `w` shadow ochazuke's table/tree
+motions on question rows (move right, next word); rebind or empty the key column of
+`decision.outcomes` to get them back.
 
 `decision --web` writes an mgmt session (`$XDG_STATE_HOME/o-questions/decision-web`)
 from the store, runs `python3 mgmt.py serve` on it (`decision.mgmt`), and copies

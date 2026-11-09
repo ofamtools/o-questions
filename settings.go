@@ -43,8 +43,9 @@ func statusTable(v any) error {
 // defaultOutcomeRows is the default of decision.outcomes: id|label|status|
 // class|flags. Status is the question status a pick gives, class the decision
 // class (what decision.show filters), flags note (needs text in the note) and
-// reply (the note goes to the agent as a follow-up and a reply reopens it).
-var defaultOutcomeRows = []string{"later|Later|answered|later|", "moot|Moot|moot|decided|", "ask|Ask the agent|follow-up|asked|reply", "other|Write your own answer|answered|decided|note"}
+// reply (the note goes to the agent as a follow-up and a reply reopens it);
+// key is the page key that picks it (a binding row; empty: none).
+var defaultOutcomeRows = []string{"later|Later|answered|later||l", "moot|Moot|moot|decided||m", "ask|Ask the agent|follow-up|asked|reply|?", "other|Write your own answer|answered|decided|note|w"}
 
 func outcomeTable(v any) error {
 	xs, ok := v.([]string)
@@ -77,7 +78,8 @@ func appSettings() []ochazuke.Setting {
 		{Name: "filter.direction", Type: ochazuke.SettingString, Default: toAgent, Enum: directions, Description: "Questions page: to-agent (the owner's questions), to-owner (questions for the owner) or all"},
 		{Name: "decision.page", Type: ochazuke.SettingBoolean, Default: true, Description: "Show the Decisions page of questions for the owner (read at start)"},
 		{Name: "decision.show", Type: ochazuke.SettingString, Default: "pending", Enum: decisionFilters, Description: "Decision items shown: pending hides applied ones"},
-		{Name: "decision.outcomes", Type: ochazuke.SettingList, Default: defaultOutcomeRows, Validate: outcomeTable, Description: "Answers that are not options, one id|label|status|class|flags row each (flags: note, reply); status and class drive the question status and the decision.show filter"},
+		{Name: "decision.outcomes", Type: ochazuke.SettingList, Default: defaultOutcomeRows, Validate: outcomeTable, Description: "Answers that are not options, one id|label|status|class|flags|key row each (flags: note, reply; key: the page key, empty for none); status and class drive the question status and the decision.show filter"},
+		{Name: "decision.labels", Type: ochazuke.SettingBoolean, Default: true, Description: "Decision detail lists the options and outcomes with their labels, descriptions and keys; off draws the compact one-line list"},
 		{Name: "decision.plans-root", Type: ochazuke.SettingString, Default: "~/hub/o-plans", Description: "Plans folder question import reads"},
 		{Name: "decision.mgmt", Type: ochazuke.SettingString, Default: "", Description: "mgmt.py path for decision --web; empty discovers it on PATH, then in the legacy home location"},
 		{Name: "export.open", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for Q5 export"},

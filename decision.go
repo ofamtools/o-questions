@@ -14,7 +14,9 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -132,6 +134,9 @@ type Outcome struct {
 	Class       string
 	NeedsNote   bool
 	AwaitsReply bool
+	// Key is the page key that picks the outcome (empty: none); a binding row
+	// is made from it, so bindings.json can still rebind or drop it.
+	Key string
 }
 
 // Outcome row flags: note asks for text in the note; reply also sends it to
@@ -143,17 +148,21 @@ const (
 
 var outcomeFlags = []string{noteFlag, replyFlag}
 
-// parseOutcomes reads rows "id|label|status|class|flags" (flags: note, reply).
+// parseOutcomes reads rows "id|label|status|class|flags|key" (flags: note,
+// reply; key optional: the page key that picks the outcome).
 func parseOutcomes(rows []string) ([]Outcome, error) {
 	var out []Outcome
 	for _, row := range rows {
 		f := strings.Split(row, "|")
-		for len(f) < 5 {
+		for len(f) < 6 {
 			f = append(f, "")
 		}
-		o := Outcome{ID: strings.TrimSpace(f[0]), Label: strings.TrimSpace(f[1]), Status: strings.TrimSpace(f[2]), Class: strings.TrimSpace(f[3])}
-		if o.ID == "" || len(f) > 5 || slices.ContainsFunc(out, func(x Outcome) bool { return x.ID == o.ID }) {
-			return nil, fmt.Errorf("invalid outcome row %q: want id|label|status|class|flags with a unique id", row)
+		o := Outcome{ID: strings.TrimSpace(f[0]), Label: strings.TrimSpace(f[1]), Status: strings.TrimSpace(f[2]), Class: strings.TrimSpace(f[3]), Key: strings.TrimSpace(f[5])}
+		if o.ID == "" || len(f) > 6 || slices.ContainsFunc(out, func(x Outcome) bool { return x.ID == o.ID }) {
+			return nil, fmt.Errorf("invalid outcome row %q: want id|label|status|class|flags|key with a unique id", row)
+		}
+		if e := checkOutcomeKey(o, out); e != nil {
+			return nil, e
 		}
 		if o.Status != "" && !slices.Contains(statuses, o.Status) {
 			return nil, fmt.Errorf("outcome %q: status must be one of %q", o.ID, statuses)
@@ -176,6 +185,30 @@ func parseOutcomes(rows []string) ([]Outcome, error) {
 	}
 	return out, nil
 }
+
+// checkOutcomeKey refuses a key the page cannot give an outcome: a number
+// (those pick options), a function key (the family never binds them), or one
+// another outcome already has.
+func checkOutcomeKey(o Outcome, before []Outcome) error {
+	if o.Key == "" {
+		return nil
+	}
+	if len([]rune(o.Key)) != 1 && !strings.ContainsAny(o.Key, "+ ") {
+		return fmt.Errorf("outcome %q: key %q must be one key", o.ID, o.Key)
+	}
+	if n, e := strconv.Atoi(o.Key); e == nil && n >= 0 && n <= 9 {
+		return fmt.Errorf("outcome %q: key %q picks an option", o.ID, o.Key)
+	}
+	if fkey.MatchString(o.Key) {
+		return fmt.Errorf("outcome %q: function keys are never bound", o.ID)
+	}
+	if slices.ContainsFunc(before, func(x Outcome) bool { return x.Key == o.Key }) {
+		return fmt.Errorf("outcome %q: key %q is used by another outcome", o.ID, o.Key)
+	}
+	return nil
+}
+
+var fkey = regexp.MustCompile(`(?i)^(?:[a-z]+\+)*f(?:[1-9]|1[0-2])$`)
 
 // outcomeClasses are the classes an outcome row may name: every filter class
 // but the ones the data decides.

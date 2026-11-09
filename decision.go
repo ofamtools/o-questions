@@ -425,6 +425,8 @@ func (s *Store) checkPose(p *Pose) error {
 	if p.RecommendedAction != "" {
 		return errors.New("recommended_action was renamed recommended: give an option id")
 	}
+	// p is a copy but its slices alias the caller's: normalize clones.
+	p.Options, p.Items = slices.Clone(p.Options), slices.Clone(p.Items)
 	seen := map[string]bool{}
 	for i, o := range p.Options {
 		o.ID = strings.TrimSpace(o.ID)

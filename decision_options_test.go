@@ -388,3 +388,15 @@ func TestDecisionExportGolden(t *testing.T) {
 		t.Fatal(x.Counts)
 	}
 }
+
+func TestPoseLeavesCallerSlicesUntouched(t *testing.T) {
+	t.Parallel()
+	_, ag := optionStore(t)
+	opts := []Option{{ID: " a ", Label: "A"}, {ID: "b", Label: "B"}}
+	items := []Item{{ID: " x ", Label: "X"}}
+	wantO, wantI := slices.Clone(opts), slices.Clone(items)
+	pose(t, ag, Pose{Question: "q?", Options: opts, Items: items})
+	if !slices.Equal(opts, wantO) || !slices.Equal(items, wantI) {
+		t.Fatalf("Pose mutated caller slices: %+v %+v", opts, items)
+	}
+}

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.5.0
 
 - Changed: bump ofam.dev/ochazuke to v0.109.0 (modals close with q; esc only leaves insert; row guards; label-first palette). Question stories and parameter tests close modals with q.
 - Added (Decisions page for options and checklists):

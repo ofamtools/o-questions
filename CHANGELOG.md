@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Changed: the pane variables are read as `MTM_X` first, then `TUIOS_X` (mtm sets both for one release): `ENV`, `SESSION`, `PANE_ID`, `HARNESS`, `AGENT_NAME`, through one `paneEnv` helper.
+
 ## v0.5.0
 
 - Changed: bump ofam.dev/ochazuke to v0.109.0 (modals close with q; esc only leaves insert; row guards; label-first palette). Question stories and parameter tests close modals with q.

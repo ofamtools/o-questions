@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.7.0
 
 - Added: the `blocker` noun, what waits on the owner, declared in the catalog so a host (mtm) can merge the rows of several tools. `blocker list` (the framework's list: filter, where, sort) holds every undecided decision for the owner (`kind=decision`, resolved by `question.decision.decide`) and every added item not done (`kind=item`, resolved by `question.blocker.done`); a row has `id`, `title`, `kind`, `source` (the tool), `age`, `created`, `group`, `details`, `resolve` and `resolve_args`. `blocker add TEXT [--details --key --group]` adds a plain "waiting on you" item, stored as a one-item checklist decision tagged `owner-waits` (no second store; the key makes adding it again a no-op). `blocker done TARGET` checks, confirms and applies an added item through the decision verbs; `blocker show TARGET` reads one. Decided, applied, later and asked decisions are not listed.
 

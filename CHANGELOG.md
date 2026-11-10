@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.8.0
 
 - Added: the Decisions page's right pane is a focusable Markdown editor (the Docs page's component, detail kind `markdown`) over a working file per decision, rendered from the record: `x` flips a `- [ ]` line, options and outcomes are one single choice, a Note section takes free text; edits are read back through the decision verbs (on every save standalone, on the next refresh when mounted), then the file is rendered again. Files live in `$XDG_STATE_HOME/o-questions/decision-md/` and are removed with their row. Setting `decision.detail` (`document` default, `sections` = the read-only detail).
 - Fixed: `n` (decision note) and `w` (write your own answer) failed with `question "decision/questions/question/Q" not found` in both hosts: the form passed the list-qualified row id as target. Question, item and topic ids are read at their last `question/`, `item/` or `topic/` segment (`parseRow`).

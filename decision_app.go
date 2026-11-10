@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -54,8 +56,40 @@ func (a *App) decisionSpecs() []verbSpec {
 		{"reply", "Answer the owner's ask on a question for the owner", map[string]ochazuke.Parameter{"target": target, "text": prose("Your answer"), "recommendation": param("Replace the recommendation"), "recommended": param("Replace the recommended option (an option id)"), "question": param("The owner's question, when the thread lacks it")}, []string{"target", "text"}, false, decisionVerb(reply), nil},
 		{"applied", "Record the result of applying a decision; done locks it", map[string]ochazuke.Parameter{"target": target, "item": param("A checked checklist item id: apply that item alone"), "outcome": {Type: "string", Required: true, Enum: []string{"done", "failed"}, Description: "done or failed"}, "result": prose("What changed and how it was checked, or the failure")}, []string{"target", "outcome", "result"}, false, decisionVerb(applied), nil},
 		{"decision-export", "The owner's decisions, asks and undecided items, for the agent", map[string]ochazuke.Parameter{"group": param("Topic"), "all": {Type: "boolean", Description: "Include applied decisions"}, "render": {Type: "string", Enum: []string{"json", "plan"}, Description: "json (default) or plan: Owner decisions sections for plan-imported items"}, "date": param("Date for plan sections (YYYY-MM-DD)")}, nil, false, runDecisionExport, nil},
+		{"archive-matching", "Archive the questions in a decision state, a group and/or older than N days: lists them unless apply is set; one undo brings them all back", map[string]ochazuke.Parameter{"show": {Type: "string", Enum: decisionFilters, Description: "Decision state (default applied)"}, "group": param("Topic; default any"), "days": {Type: "integer", Description: "Only those last changed more than this many days ago (default 0: any)"}, "apply": {Type: "boolean", Description: "Archive them; without it nothing changes and the list is returned"}}, nil, false, runArchiveMatching, nil},
+		{"archive-group", "Archive every question of a topic (the focused topic row's, else --group); one undo brings them back", map[string]ochazuke.Parameter{"target": target, "group": param("Topic; default the focused topic row's"), "apply": {Type: "boolean", Description: "Archive; without it only lists (default from the keys: true)"}}, nil, false, runArchiveGroup, nil},
 		{"import", "Pose the open owner questions of a plans folder", map[string]ochazuke.Parameter{"root": param("Plans folder; default decision.plans-root"), "include_answered": {Type: "boolean", Description: "Also pose questions the plan already answers"}}, []string{"root"}, false, runImport, nil},
 	}
+}
+
+func runArchiveMatching(a *App, c ochazuke.Ctx) ochazuke.Result {
+	show := argStr(c, "show")
+	if show == "" {
+		show = classApplied
+	}
+	apply, _ := c.Args["apply"].(bool)
+	v, e := a.store.ArchiveMatching(show, argStr(c, "group"), intArg(c.Args["days"]), apply)
+	a.refresh()
+	return result(v, e)
+}
+
+// runArchiveGroup archives a topic: --group, else the topic row the verb runs
+// on (its target is topic/NAME).
+func runArchiveGroup(a *App, c ochazuke.Ctx) ochazuke.Result {
+	group := argStr(c, "group")
+	if group == "" {
+		group = parseRow(argStr(c, "target")).Topic
+	}
+	if group == "" {
+		return result(nil, errors.New("name a topic with --group, or run it on a topic row"))
+	}
+	apply := true
+	if v, ok := c.Args["apply"]; ok {
+		apply = truthy(v)
+	}
+	v, e := a.store.ArchiveMatching("all", group, 0, apply)
+	a.refresh()
+	return result(v, e)
 }
 
 func runPose(a *App, c ochazuke.Ctx) ochazuke.Result {
@@ -340,6 +374,9 @@ func (s *Store) choicesView(q Question, labels bool) string {
 		line := fmt.Sprintf("%d. %s", i+1, o.label())
 		if r.Action != "" && r.Action == o.ID {
 			line += "  ✓ chosen"
+			if rec != "" && o.ID != rec {
+				line += "  " + differsMark + " differs"
+			}
 		}
 		if o.ID == rec && rec != "" {
 			line += "  (" + s.recommendedState(r) + ")"
@@ -352,14 +389,17 @@ func (s *Store) choicesView(q Question, labels bool) string {
 	if len(r.Items) > 0 {
 		out = append(out, "", "Checklist "+r.progress()+" (checked means do it)", "")
 		for _, it := range r.Items {
-			line := "- " + itemGlyph(r, it.ID) + " " + it.label()
+			line := fmt.Sprintf("%s %s", itemGlyph(r, it.ID), it.label())
 			if it.Recommended {
 				line += "  (recommended)"
 			}
-			out = append(out, line)
-			if it.Description != "" {
-				out = append(out, "", "    "+strings.TrimSpace(it.Description), "")
+			if r.itemDiffers(it) {
+				line += "  " + differsMark + " differs"
 			}
+			if it.Description != "" {
+				line += "  \n" + strings.ReplaceAll(strings.TrimSpace(it.Description), "\n", "  \n")
+			}
+			out = append(out, line, "")
 		}
 	}
 	var outcomes []string
@@ -411,7 +451,7 @@ func (s *Store) recommendedState(r *Decision) string {
 
 // itemRow is a checklist item as a child row of its question: the same
 // detail as the question, with the item's checkbox for a cell.
-func (a *App) itemRow(q Question, it Item, data map[string]any, search string) ocli.Row {
+func (a *App) itemRow(q Question, it Item, data map[string]any, search string, colored bool) ocli.Row {
 	r := q.Decision
 	d := map[string]any{}
 	for k, v := range data {
@@ -424,7 +464,19 @@ func (a *App) itemRow(q Question, it Item, data map[string]any, search string) o
 	if i := r.pickAt(it.ID); i >= 0 && isApplied(r.Picks[i].Status) {
 		cell = "✓ applied"
 	}
-	return ocli.Row{Parent: "question/" + q.ID, Noun: decisionNoun, ID: itemRowPrefix + q.ID + "/" + it.ID, Label: it.label(), Data: d, Cells: []string{cell, itemGlyph(r, it.ID) + " " + it.label(), "", "", "", search}}
+	row := ocli.Row{Parent: "question/" + q.ID, Noun: decisionNoun, ID: itemRowPrefix + q.ID + "/" + it.ID, Label: it.label(), Data: d, Cells: []string{cell, itemGlyph(r, it.ID) + " " + it.label(), "", "", "", search}}
+	if colored && r.recommendsItems() {
+		// A mark is toned by whether it matches the agent's recommendation:
+		// differing blue, agreeing green (once the checklist is decided).
+		switch {
+		case r.itemDiffers(it):
+			row.Cells[0] = strings.TrimSpace(differsMark + " " + cell)
+			row.Tones = stateTones(stateDiffers, 0, 1)
+		case r.decided():
+			row.Tones = stateTones(stateAnswered, 1)
+		}
+	}
+	return row
 }
 
 // itemRowPrefix starts a checklist item row's id: item/<question id>/<item id>.
@@ -433,24 +485,42 @@ const itemRowPrefix = "item/"
 // questionRowPrefix starts a question row's id: question/<question id>.
 const questionRowPrefix = "question/"
 
-// rowSegment splits a row id at its last "item/" or "question/" segment, at
-// the start or after a "/": a host that mounts the page hands over the list's
-// own id in front (decision/questions/question/Q, ext/NAME/.../item/Q/I).
-// kind is the segment ("item" or "question") and rest what follows it; kind is
-// empty when id has neither.
-func rowSegment(id string) (kind, rest string) {
-	best := -1
-	for _, k := range []string{itemRowPrefix, questionRowPrefix} {
-		for i := strings.LastIndex(id, k); i >= 0; i = strings.LastIndex(id[:i], k) {
+// topicRowPrefix starts a topic header row's id: topic/<group>.
+const topicRowPrefix = "topic/"
+
+// rowRef is what a row id names: the topic, question and checklist item. A
+// host that mounts the page hands over the list's own id in front
+// (decision/questions/question/Q, ext/NAME/.../item/Q/I), so the id is read
+// at its last known segment, at the start or after a "/".
+type rowRef struct{ Topic, Question, Item string }
+
+// rowKinds are the row id segments and how each fills a rowRef.
+var rowKinds = []struct {
+	prefix string
+	fill   func(r *rowRef, rest string)
+}{
+	{itemRowPrefix, func(r *rowRef, rest string) { r.Question, r.Item, _ = strings.Cut(rest, "/") }},
+	{questionRowPrefix, func(r *rowRef, rest string) { r.Question = rest }},
+	{topicRowPrefix, func(r *rowRef, rest string) { r.Topic = rest }},
+}
+
+func parseRow(id string) rowRef {
+	best, at := -1, 0
+	for n, k := range rowKinds {
+		for i := strings.LastIndex(id, k.prefix); i >= 0; i = strings.LastIndex(id[:i], k.prefix) {
 			if i == 0 || id[i-1] == '/' {
 				if i > best {
-					best, kind, rest = i, strings.TrimSuffix(k, "/"), id[i+len(k):]
+					best, at = i, n
 				}
 				break
 			}
 		}
 	}
-	return
+	var ref rowRef
+	if best >= 0 {
+		rowKinds[at].fill(&ref, id[best+len(rowKinds[at].prefix):])
+	}
+	return ref
 }
 
 // itemArg is the checklist item a verb acts on: the item argument, else the
@@ -467,8 +537,7 @@ func itemArg(c ochazuke.Ctx) string {
 		}
 	}
 	for _, row := range rows {
-		if kind, rest := rowSegment(row); kind == "item" {
-			_, item, _ := strings.Cut(rest, "/")
+		if item := parseRow(row).Item; item != "" {
 			return item
 		}
 	}
@@ -478,37 +547,87 @@ func itemArg(c ochazuke.Ctx) string {
 // itemRowQuestion is the question id of a question or item row id (as the
 // page or a host names it), else id unchanged.
 func itemRowQuestion(id string) string {
-	switch kind, rest := rowSegment(id); kind {
-	case "item":
-		q, _, _ := strings.Cut(rest, "/")
+	if q := parseRow(id).Question; q != "" {
 		return q
-	case "question":
-		return rest
 	}
 	return id
 }
 
 // decisionRows answer the Decisions page and `question queue`: a tree with one
 // parent row per topic (its counts in the label) and the topic's questions.
-func (a *App) decisionRows(args ochazuke.Arguments) ([]ocli.Row, error) {
-	qs, e := a.store.ownerQuestions()
-	if e != nil {
-		return nil, e
+type topicCounts struct{ n, decided, asked int }
+
+// topicRow is a topic header: its counts in the label, the questions and the
+// legend in its detail, and (document detail) its summary file.
+func (a *App) topicRow(g string, t *topicCounts, lines []string, colored, docs bool, keep map[string]bool) ocli.Row {
+	label := fmt.Sprintf("%s  %d/%d decided", g, t.decided, t.n)
+	if t.asked > 0 {
+		label += fmt.Sprintf(" · %d asked", t.asked)
 	}
+	body := "## " + label + "\n\n" + strings.Join(lines, "\n")
+	row := ocli.Row{Noun: decisionNoun, ID: "topic/" + g, Label: label, Cells: []string{"", label, "", "", "", g}}
+	if colored {
+		body += "\n\n" + legend()
+		if t.n > t.decided+t.asked {
+			row.Tones = stateTones(stateUndecided, 1)
+		}
+	}
+	data := map[string]any{"topic": g, "question": body}
+	row.Data = data
+	if docs {
+		docTopicPath(data, g, body, keep)
+	}
+	return row
+}
+
+// questionData is a decision row's record: the question row data and the
+// views the detail sections read.
+func (a *App) questionData(q Question, g string) map[string]any {
+	st, r := a.store, q.Decision
+	data := questionRowData(q)
+	data["question"] = q.Text
+	data["topic"] = g
+	data["decision_view"] = st.decisionCell(q)
+	data["recommendation_view"] = st.recommendationView(q)
+	data["choices"] = st.choicesView(q, a.r.Settings().Bool("decision.labels"))
+	data["details_view"] = r.Details
+	data["thread"] = thread(q, false)
+	fields := []string{q.Title, q.Text, r.Details, r.Recommendation, r.Note, g}
+	for _, it := range r.Items {
+		fields = append(fields, it.label())
+	}
+	data["search"] = strings.Join(fields, " ")
+	return data
+}
+
+func (a *App) decisionRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 	st := a.store
 	show := ochazuke.StringArg(args, "show", "")
 	if show == "" {
 		show = a.r.Settings().String("decision.show")
 	}
+	docs := a.docsOn()
+	if docs {
+		if e := st.docSyncAll(); e != nil {
+			a.r.UI().Status("not applied from the document: " + e.Error())
+		}
+	}
+	// Archived questions stay hidden unless the filter asks for them or
+	// collection.hide-archived is off (the setting every list shares).
+	qs, e := st.ownerQuestionsWith(filterOf(show).archived || !a.r.Settings().Bool("collection.hide-archived"))
+	if e != nil {
+		return nil, e
+	}
+	colored := a.colored()
+	keep := map[string]bool{}
 	group := ochazuke.StringArg(args, "group", "")
 	flat, _ := args["flat"].(bool)
-	qs = sortByGroup(qs)
-	type counts struct{ n, decided, asked int }
-	tally := map[string]*counts{}
+	qs = st.orderQuestions(qs, a.r.Settings().String("decision.sort"))
+	tally := map[string]*topicCounts{}
 	for _, q := range qs {
 		g := groupOf(q)
 		if tally[g] == nil {
-			tally[g] = &counts{}
+			tally[g] = &topicCounts{}
 		}
 		tally[g].n++
 		switch st.decisionClass(q) {
@@ -534,37 +653,59 @@ func (a *App) decisionRows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		}
 		if g != last && !flat {
 			last = g
-			t := tally[g]
-			label := fmt.Sprintf("%s  %d/%d decided", g, t.decided, t.n)
-			if t.asked > 0 {
-				label += fmt.Sprintf(" · %d asked", t.asked)
-			}
-			out = append(out, ocli.Row{Noun: decisionNoun, ID: "topic/" + g, Label: label, Data: map[string]any{"topic": g, "question": "## " + label + "\n\n" + strings.Join(lines[g], "\n")}, Cells: []string{"", label, "", "", "", g}})
+			out = append(out, a.topicRow(g, tally[g], lines[g], colored, docs, keep))
 		}
-		data := questionRowData(q)
+		data := a.questionData(q, g)
 		r := q.Decision
-		data["question"] = q.Text
-		data["topic"] = g
-		data["decision_view"] = st.decisionCell(q)
-		data["recommendation_view"] = st.recommendationView(q)
-		data["choices"] = st.choicesView(q, a.r.Settings().Bool("decision.labels"))
-		data["details_view"] = r.Details
-		data["thread"] = thread(q, false)
-		fields := []string{q.Title, q.Text, r.Details, r.Recommendation, r.Note, g}
-		for _, it := range r.Items {
-			fields = append(fields, it.label())
-		}
-		search := strings.Join(fields, " ")
-		data["search"] = search
+		search, _ := data["search"].(string)
 		replies := len(q.Entries)
-		out = append(out, ocli.Row{Parent: parentOf(g, flat), Noun: decisionNoun, ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{st.decisionCell(q), q.Title, q.RecordedBy.Name, age(q.AskedAt, a.store.now()), strconv.Itoa(replies), search}})
+		if docs {
+			docRowPath(st, q, data, keep)
+		}
+		data["decision_state"] = st.decisionState(q)
+		data["decision_vs"] = st.versus(q)
+		cell := st.decisionCell(q)
+		row := ocli.Row{Parent: parentOf(g, flat), Noun: decisionNoun, ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{cell, q.Title, q.RecordedBy.Name, age(q.AskedAt, a.store.now()), strconv.Itoa(replies), search}}
+		if colored {
+			var state string
+			row.Cells[0], state = st.markedCell(q)
+			row.Tones = stateTones(state, 0, 1)
+		}
+		out = append(out, row)
 		if !flat {
 			for _, it := range r.Items {
-				out = append(out, a.itemRow(q, it, data, search))
+				out = append(out, a.itemRow(q, it, data, search, colored))
 			}
 		}
 	}
+	if docs {
+		docPrune(keep)
+	}
 	return out, nil
+}
+
+// docTopicPath writes a topic row's summary document and names it in data.
+func docTopicPath(data map[string]any, group, body string, keep map[string]bool) {
+	p := docTopicFile(group)
+	if e := os.MkdirAll(docDir(), 0o700); e == nil && writeFileAtomic(p, []byte(docTopicText(body))) == nil {
+		data["path"] = p
+	}
+	keep[strings.TrimSuffix(filepath.Base(p), ".md")] = true
+}
+
+// docRowPath renders a question's working file and names it in data.
+func docRowPath(st *Store, q Question, data map[string]any, keep map[string]bool) {
+	if e := st.docWrite(q); e == nil {
+		data["path"] = docFile(q.ID)
+		keep[q.ID] = true
+	}
+}
+
+// docsOn: the owner's page draws the document detail (setting decision.detail)
+// and files are written for the owner only: an agent listing the queue
+// leaves no working files behind.
+func (a *App) docsOn() bool {
+	return a.store.Actor.Kind == "owner" && a.r.Settings().String("decision.detail") == "document"
 }
 
 // parentOf is a decision row's parent topic row; a flat answer has none.
@@ -575,8 +716,8 @@ func parentOf(group string, flat bool) string {
 	return "topic/" + group
 }
 
-func decisionPage() ocli.CatalogPage {
-	return ocli.CatalogPage{ID: decisionPageID, Title: decisionPageTitle, Layout: ocli.LayoutSplit,
+func decisionPage(document bool) ocli.CatalogPage {
+	p := ocli.CatalogPage{ID: decisionPageID, Title: decisionPageTitle, Layout: ocli.LayoutSplit,
 		Lists: []ocli.CatalogList{{ID: decisionListID, Noun: decisionNoun, Source: "decision.list", Title: "For you", Tree: true}},
 		Detail: &ocli.CatalogDetail{
 			Fields: []string{"question", "recommendation_view", "choices", "details_view", "topic", "decision_view"},
@@ -589,6 +730,7 @@ func decisionPage() ocli.CatalogPage {
 				{Kind: "fields", Title: "Decision", Region: "side", Fields: []ocli.CatalogDetailField{
 					{Label: "Topic", Field: "topic", Format: "text"},
 					{Label: "Decision", Field: "decision_view", Format: "badge"},
+					{Label: "Versus", Field: "decision_vs", Format: "text"},
 					{Label: "Note", Field: "decision.note", Format: "text"},
 					{Label: "Recommended", Field: "decision.recommended", Format: "text"},
 					{Label: "Changed", Field: "decision.context_changed", Format: "text"},
@@ -602,6 +744,10 @@ func decisionPage() ocli.CatalogPage {
 				}},
 			},
 		}}
+	if document {
+		p.Detail = &ocli.CatalogDetail{Kind: "markdown", PathField: "path"}
+	}
+	return p
 }
 
 // The Decisions page lists decision rows: questions for the owner seen as
@@ -637,7 +783,7 @@ func cliPath(name string) []string {
 }
 
 // decisionAliases are the question verbs also named decision.VERB.
-var decisionAliases = map[string]string{"decide": "decide", "accept": "accept", "undecide": "undecide", "ask-back": "ask-back", "decision-note": "decision-note", "reply": "reply", "applied": "applied", "show": "show", "yank": "yank", "tag": "tag", "untag": "untag", "link": "link", "open": "open", "star": "star", "unstar": "unstar", "delete": "delete", "archive": "archive", "restore": "restore", "associate": "associate", "rename": "rename", "undo": "undo"}
+var decisionAliases = map[string]string{"decide": "decide", "accept": "accept", "undecide": "undecide", "ask-back": "ask-back", "decision-note": "decision-note", "reply": "reply", "applied": "applied", "show": "show", "yank": "yank", "tag": "tag", "untag": "untag", "link": "link", "open": "open", "star": "star", "unstar": "unstar", "delete": "delete", "archive": "archive", "archive-matching": "archive-matching", "archive-group": "archive-group", "restore": "restore", "associate": "associate", "rename": "rename", "undo": "undo"}
 
 var decisionColumns = []ochazuke.Column{{Title: "Decision", Width: 12}, {Title: "Question", Min: 18}, {Title: "Agent", Max: 15, Priority: 1}, {Title: "Age", Width: 7, Priority: 2}, {Title: "Thread", Width: 7, Priority: 2}}
 
@@ -704,6 +850,12 @@ func (a *App) decisionKeys() []keyRow {
 		plainKey("g x", "decision.open", nil),
 		deleteKey(),
 		plainKey("u", "decision.undo", nil),
+		archiveKey("A", "decision.archive", questionRowGuard),
+		archiveKey("A", "decision.archive-group", topicRowGuard),
+		plainKey("R", "decision.restore", nil),
+		plainKey("g A", "decision.archive-matching", ochazuke.Arguments{"show": classApplied, "days": 30}),
+		plainKey("g Z", "decision.archive-matching", ochazuke.Arguments{"show": classApplied, "days": 30, "apply": true}),
+		plainKey("O", "ochazuke.setting.cycle", ochazuke.Arguments{"name": "decision.show", "step": -1}),
 	)
 }
 
@@ -721,6 +873,15 @@ func (a *App) outcomeTable() []Outcome {
 // row's record is its topic and summary only). It is a row guard, not one
 // registered with DefineGuard, so mounted pages keep it.
 const questionRowGuard = ochazuke.RowGuardPrefix + "asked_at"
+
+// topicRowGuard holds on a topic header row only (its record has no asked_at).
+const topicRowGuard = ochazuke.RowGuardPrefix + "!asked_at"
+
+func archiveKey(key, verb, guard string) keyRow {
+	row := plainKey(key, verb, nil)
+	row.guard = guard
+	return row
+}
 
 // deleteKey is d d: delete the question, on its own row only. On a
 // checklist item row it would delete the whole question, so it is off there

@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"ofam.dev/ochazuke"
 	ocli "ofam.dev/ochazuke/cli"
+	"ofam.dev/ochazuke/markdown/cliview"
 )
 
 type page struct {
@@ -39,7 +40,7 @@ func questionsSpec(a *App) pageSpec {
 		watched: []string{"list.order", "filter.status", "filter.project", "filter.agent", "filter.since", "filter.direction", "detail.answer-lines", "detail.provenance"}}
 }
 func decisionSpec(a *App) pageSpec {
-	return pageSpec{page: decisionPage(), list: decisionListID, rows: func() ([]ocli.Row, error) { return a.decisionRows(nil) }, first: firstQuestion,
+	return pageSpec{page: decisionPage(a.r.Settings().String("decision.detail") == "document"), list: decisionListID, rows: func() ([]ocli.Row, error) { return a.decisionRows(nil) }, first: firstQuestion,
 		watched: []string{"decision.show"}}
 }
 
@@ -66,7 +67,7 @@ func mountSpec(a *App, spec pageSpec) (*page, error) {
 	}
 	m := ochazuke.NewModel(a.r)
 	m.Title = "o-questions"
-	v, e := ocli.MountPage(m, doc, spec.page, ocli.PageConfig{DetailKinds: map[string]ocli.DetailFactory{questionDetailKind: newQuestionDetail}})
+	v, e := ocli.MountPage(m, doc, spec.page, ocli.PageConfig{DetailKinds: map[string]ocli.DetailFactory{questionDetailKind: newQuestionDetail, cliview.Kind: cliview.Factory(cliview.Source(a.docSource))}})
 	if e != nil {
 		return nil, e
 	}

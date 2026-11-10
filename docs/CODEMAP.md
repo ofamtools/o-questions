@@ -20,6 +20,8 @@
 | thread_view.go | Read-only thread modal and scroll rows |
 | decision.go | Questions for the owner: pose, decide, reply, applied, export (mgmt semantics) |
 | decision_app.go | Decision verbs, rows (topic, question, checklist item), the Options section, the decision noun's aliases, page and key rows (outcome keys come from decision.outcomes) |
+| decision_state.go | Decision row states (glyph, tone, rank), differs-from-recommendation, state sort, archived listing, batch archive (ArchiveMany/ArchiveMatching) |
+| decision_doc.go | The document pane: working Markdown file per decision (render, parse, read-back through the decision verbs, prune), the editor source that syncs on save |
 | decision_web.go | decision --web: mgmt session out, decisions back |
 | plans.go | Plan "Owner questions" importer (owner_questions.py port) and decisions render |
 | setup.go, setup.json | Instruction-note setup items and co-located block skip defaults |

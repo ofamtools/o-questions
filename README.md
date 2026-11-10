@@ -226,12 +226,75 @@ defaults `l` later, `m` moot, `?` ask the agent, `w` write your own answer; the 
 ask for text in a form); `a` accepts the recommendation, `D` decides a whole checklist as
 it stands (unchecked means do not), `n` edits the note, `x` clears the decision (on an item
 row, its mark), `c` checks or unchecks a checklist item, `o`
-cycles `decision.show` (pending, undecided, asked, later, changed, decided, applied, all),
+cycles `decision.show` (pending, undecided, asked, later, changed, decided, answered, differs, applied, archived, all),
 `v` shows the thread, `y` copies, `u` undoes. The other keys on an item row act on its
 question. Over a visual selection (`V`) `c` checks every selected item. A topic header is no
 question: `l` on it stays the library's expand when the page runs standalone (a host such as mtm drops key guards). `l` and `w` shadow ochazuke's table/tree
 motions on question rows (move right, next word); rebind or empty the key column of
 `decision.outcomes` to get them back.
+
+#### The document pane
+
+With `decision.detail=document` (default; `sections` restores the read-only detail; read at
+start) the right pane is ochazuke's Markdown editor, as on the Docs page, over a working
+file per decision: it takes focus (`tab`, `}`, or `j` past the last row; `tab`/`esc` back),
+moves by element, and `x` flips a `- [ ]` line. The record stays the source of truth: the
+file is rendered from it, and what you change in it (a box, the Note text) is read back
+through the decision verbs. Standalone that happens on every save of the editor; mounted in
+mtm, on the page's next refresh (`list.refresh`, 2 s by default), when the file is shown
+again from the record. Anything else you type is discarded on the next render.
+
+```
+# Import nightly?
+Question text, details.
+## Recommendation
+## Your choice
+- [ ] yes <!-- option:yes -->
+- [x] no (recommended) <!-- option:no -->
+## Checklist 1/3 (checked means do it)
+- [x] feat/alpha (recommended) <!-- item:a -->
+## Other answers
+- [ ] Later <!-- outcome:later -->
+- [ ] Write your own answer (type it under Note) <!-- outcome:other -->
+## Note
+free text, any number of lines
+```
+
+The `<!-- kind:id -->` markers carry the ids (the editor draws them hidden), so rewording or
+reordering lines cannot mis-assign them. Options and outcomes are one single choice: when
+two boxes end up checked the last one in the file wins, and unchecking the chosen box
+undecides. Checking an outcome that needs text (write your own answer, ask the agent) uses
+the Note text. A deleted line changes nothing. An applied decision renders without boxes
+and ignores edits. Working files live in `$XDG_STATE_HOME/o-questions/decision-md/`
+(one `QUESTION-ID.md`, a `.base/` copy of the last render for diffing, `topic-*.md`
+summaries); a file is removed once its decision is no longer listed (applied and hidden,
+archived, gone). Only the owner's page writes them; an agent listing the queue does not.
+
+#### Colour, markers and keeping the list manageable
+
+Each decision row carries a glyph and a theme tone by its state (setting
+`decision.color`, default on; off draws the plain rows): `○` new, not decided (tone
+`state.needs-input`), `✓` answered as recommended or with nothing recommended
+(`state.done`), `≠` answered differently from the recommendation, a write-in, later or
+moot included, and a checklist whose marks differ (`state.working`), `?` asked back
+(`marker.queued`), `…` later (`state.idle`), `●` applied and `▫` archived (`state.exited`),
+`✗` applying failed (`state.errored`). The glyph keeps mono themes and `NO_COLOR`
+readable; recolour a state in `themes.json` through its tone. The detail marks the
+recommended option and the chosen one (`✓ chosen`, `≠ differs`), a `Versus` field says
+whether the answer agrees, and a topic row's detail carries the legend.
+
+Archive, never delete: `A` archives the question under the cursor (on a topic row, every
+question of the topic), `R` restores one, `u` undoes (a batch is one change, so one `u`
+brings it all back), `g A` lists what `decision.archive-matching` would archive (applied ones
+changed more than 30 days ago) and `g Z` archives them. The verb is
+`decision.archive-matching --show STATE --group TOPIC --days N [--apply]`
+(`question archive-matching` on the CLI; the MCP tool of the same name): without `--apply`
+it only lists. Archived questions are hidden; `o` / `O` step `decision.show` forward and
+back through pending, undecided, asked, later, changed, decided, answered, differs, applied,
+archived and all (`archived` shows only them; `collection.hide-archived` off shows them
+among the rest). `decision.sort` (default `group`, as recorded; `undecided-first` puts what
+needs you first inside each topic, and a row you decide then moves down). Topics fold and
+unfold with the tree's own keys.
 
 `decision --web` writes an mgmt session (`$XDG_STATE_HOME/o-questions/decision-web`)
 from the store, runs `python3 mgmt.py serve` on it (`decision.mgmt`), and copies
@@ -244,7 +307,7 @@ executable `mgmt.py` on `PATH`. Existing installations in the legacy hub home
 location are used as a final fallback. Python 3 is required for this page.
 
 Settings: `decision.page` (default true; false removes the page), `decision.show`
-(pending), `decision.outcomes` (the answers that are not options: later, moot, ask, other),
+(pending), `decision.detail` (document), `decision.color` (true), `decision.sort` (group), `decision.outcomes` (the answers that are not options: later, moot, ask, other),
 `decision.plans-root` (the folder to import planning documents from), `decision.mgmt`
 (empty; discovers `mgmt.py` at run time), and `filter.direction` (to-agent) for the
 Questions page, which keeps showing only the owner's own questions by default.

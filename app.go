@@ -127,7 +127,7 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 		return nil, e
 	}
 	if a.r.Settings().Bool("decision.page") {
-		if e := ocli.DeclarePage(a.r, decisionPage()); e != nil {
+		if e := ocli.DeclarePage(a.r, decisionPage(a.r.Settings().String("decision.detail") == "document")); e != nil {
 			return nil, e
 		}
 	}

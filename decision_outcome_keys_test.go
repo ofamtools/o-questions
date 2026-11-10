@@ -105,7 +105,7 @@ func TestDecisionOutcomeKeysFollowTheTable(t *testing.T) {
 	if e := os.MkdirAll(dir, 0700); e != nil {
 		t.Fatal(e)
 	}
-	table := `{"decision.outcomes": ["later|Later|answered|later||L", "other|Write it|answered|decided|note|e"]}`
+	table := `{"decision.detail": "sections", "decision.outcomes": ["later|Later|answered|later||L", "other|Write it|answered|decided|note|e"]}`
 	if e := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(table), 0600); e != nil {
 		t.Fatal(e)
 	}

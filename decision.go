@@ -214,7 +214,7 @@ var fkey = regexp.MustCompile(`(?i)^(?:[a-z]+\+)*f(?:[1-9]|1[0-2])$`)
 // but the ones the data decides.
 func outcomeClasses() []string {
 	return slices.DeleteFunc(slices.Clone(decisionFilters), func(c string) bool {
-		return slices.Contains([]string{"pending", classUndecided, classApplied, "changed", "all"}, c)
+		return slices.Contains([]string{"pending", classUndecided, classApplied, "changed", stateAnswered, stateDiffers, stateArchived, "all"}, c)
 	})
 }
 
@@ -636,7 +636,8 @@ func fillDecision(r *Decision, p Pose) {
 }
 
 // DecisionChange is the owner's change to one decision item. Option names an
-// option id; Action an option or outcome id; Choice (1-based) the Nth option;
+// option id; Action an option or outcome id; Choice (1-based) the Nth option
+// ;
 // Accept takes the recommendation (the recommended option and the
 // recommended items); Clear empties the decision, or one item's mark when
 // Item is set; Confirm decides a checklist as it stands (unchecked means do
@@ -1041,19 +1042,39 @@ func (s *Store) decisionClass(q Question) string {
 	return classDecided
 }
 
-var decisionFilters = []string{"pending", classUndecided, classAsked, classLater, "changed", classDecided, classApplied, "all"}
+var decisionFilters = []string{"pending", classUndecided, classAsked, classLater, "changed", classDecided, stateAnswered, stateDiffers, classApplied, stateArchived, "all"}
+
+// decisionFilterRow is one value of decision.show: whether a question is in
+// it, and whether it needs archived questions loaded. A value with no row is
+// a decision class (undecided, asked, later, decided, applied).
+type decisionFilterRow struct {
+	name     string
+	archived bool
+	match    func(s *Store, q Question) bool
+}
+
+var decisionFilterRows = []decisionFilterRow{
+	{"all", false, func(*Store, Question) bool { return true }},
+	{"pending", false, func(_ *Store, q Question) bool { return !q.Decision.locked() }},
+	{"changed", false, func(_ *Store, q Question) bool { return q.Decision.ContextChanged || q.Decision.NewReply }},
+	{stateArchived, true, func(_ *Store, q Question) bool { return q.Deleted }},
+	{stateAnswered, false, func(s *Store, q Question) bool { return s.decisionState(q) == stateAnswered }},
+	{stateDiffers, false, func(s *Store, q Question) bool { return s.decisionState(q) == stateDiffers }},
+}
+
+// filterOf is the row of a decision.show value; a class has a synthetic one.
+func filterOf(name string) decisionFilterRow {
+	if i := slices.IndexFunc(decisionFilterRows, func(f decisionFilterRow) bool { return f.name == name }); i >= 0 {
+		return decisionFilterRows[i]
+	}
+	return decisionFilterRow{name: name, match: func(s *Store, q Question) bool { return s.decisionClass(q) == name }}
+}
 
 func (s *Store) decisionShown(q Question, filter string) bool {
-	class := s.decisionClass(q)
-	switch filter {
-	case "", "all":
-		return true
-	case "pending":
-		return !q.Decision.locked()
-	case "changed":
-		return q.Decision.ContextChanged || q.Decision.NewReply
+	if filter == "" {
+		filter = "all"
 	}
-	return class == filter
+	return filterOf(filter).match(s, q)
 }
 
 func (s *Store) ownerQuestions() ([]Question, error) {

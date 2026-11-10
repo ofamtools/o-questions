@@ -411,7 +411,10 @@ func TestRowSegmentSeesThroughAHostPrefix(t *testing.T) {
 			t.Errorf("itemRowQuestion(%q) = %q, want %q", id, got, want)
 		}
 	}
-	if kind, rest := rowSegment("x/item/q1/a"); kind != "item" || rest != "q1/a" {
-		t.Fatal(kind, rest)
+	if ref := parseRow("x/item/q1/a"); ref.Question != "q1" || ref.Item != "a" {
+		t.Fatal(ref)
+	}
+	if ref := parseRow("topic/G"); ref.Topic != "G" || ref.Question != "" {
+		t.Fatal(ref)
 	}
 }

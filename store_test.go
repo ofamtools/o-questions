@@ -22,6 +22,7 @@ func fixture(t *testing.T) *Store {
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
 	t.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
+	useDetail(t, "sections")
 	return &Store{Dir: filepath.Join(dir, "questions"), Actor: Owner(), Now: func() time.Time { return time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC) }}
 }
 func ask(t *testing.T, s *Store, text string) Question {
@@ -347,5 +348,19 @@ func TestCLISourcePreserved(t *testing.T) {
 	rows, e := s.List()
 	if e != nil || len(rows) != 1 || rows[0].Source.AgentSession != "fixture-session" || rows[0].Source.Transcript != "/tmp/oq-core/fixture-transcript" {
 		t.Fatal(rows, e)
+	}
+}
+
+// useDetail writes the temp config's decision.detail before an app is made:
+// the page's detail style is read at start. Tests built on the read-only
+// sections keep them; the document tests ask for "document".
+func useDetail(t *testing.T, style string) {
+	t.Helper()
+	dir := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "o-questions")
+	if e := os.MkdirAll(dir, 0o700); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"decision.detail":"`+style+`"}`), 0o600); e != nil {
+		t.Fatal(e)
 	}
 }

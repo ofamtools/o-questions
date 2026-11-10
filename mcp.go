@@ -49,6 +49,8 @@ var mcpAllowlist = map[string][]string{
 	"reply":           {"target", "text", "recommendation", "recommended", "question"},
 	"applied":         {"target", "item", "outcome", "result"},
 	"import":          {"root", "include_answered"},
+	// Agents archive (never delete): a dry-run list first, apply to archive.
+	"archive-matching": {"show", "group", "days", "apply"},
 }
 
 func (a *App) tools() []mcpTool {

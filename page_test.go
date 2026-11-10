@@ -9,6 +9,7 @@ import (
 	"ofam.dev/ochazuke"
 	ocli "ofam.dev/ochazuke/cli"
 	"ofam.dev/ochazuke/keytest"
+	"ofam.dev/ochazuke/markdown/cliview"
 	"os"
 	"path/filepath"
 	"strings"
@@ -157,6 +158,9 @@ func TestQuestionStories(t *testing.T) {
 					t.Fatal(e)
 				}
 			}
+			if style, ok := story.Settings["decision.detail"].(string); ok {
+				useDetail(t, style)
+			}
 			var out bytes.Buffer
 			a, e := newApp(s, strings.NewReader(""), &out, &out)
 			if e != nil {
@@ -177,6 +181,7 @@ func TestQuestionStories(t *testing.T) {
 			}
 			p.m.Width, p.m.Height = 120, 30
 			if story.Host {
+				_ = cliview.Register()
 				b, e := ocli.Catalog(a.r, "o-questions", version)
 				if e != nil {
 					t.Fatal(e)

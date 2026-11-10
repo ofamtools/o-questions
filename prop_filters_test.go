@@ -102,7 +102,7 @@ func TestDecisionPropFilters(t *testing.T) {
 			if host {
 				cfg.Noun = func(noun string) string { return "ext-" + noun }
 			}
-			p.v, err = ocli.MountPage(p.m, doc, decisionPage(), cfg)
+			p.v, err = ocli.MountPage(p.m, doc, decisionPage(false), cfg)
 			if err != nil {
 				t.Fatal(err)
 			}

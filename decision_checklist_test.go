@@ -106,7 +106,7 @@ func TestDecisionChecklistSearchFindsItems(t *testing.T) {
 			if !strings.Contains(r.Cells[len(r.Cells)-1], "feat/gamma") {
 				t.Fatal("the question row's search cell must carry the item labels", r.Cells)
 			}
-			if r.Cells[0] != "0/3" {
+			if !strings.HasSuffix(r.Cells[0], "0/3") {
 				t.Fatal("the question row shows progress", r.Cells[0])
 			}
 		}

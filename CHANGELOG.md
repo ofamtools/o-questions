@@ -6,7 +6,7 @@
 - Fixed: `n` (decision note) and `w` (write your own answer) failed with `question "decision/questions/question/Q" not found` in both hosts: the form passed the list-qualified row id as target. Question, item and topic ids are read at their last `question/`, `item/` or `topic/` segment (`parseRow`).
 - Added: decision rows are marked by state with a glyph and a theme tone (`○` new, `✓` answered, `≠` answered differently from the recommendation, `?` asked, `…` later, `●` applied, `✗` failed, `▫` archived); the detail shows the recommended and chosen options, a `Versus` field and, on a topic row, the legend. Setting `decision.color` (default true) turns it off.
 - Added: `decision.show` values `differs` and `archived`; `O` steps the filter back, `o` forward. Archived questions stay hidden (they were never listable on this page); `archived` shows only them, `collection.hide-archived` off shows them among the rest. Setting `decision.sort` (`group` default, `undecided-first`).
-- Added: `decision.archive-matching` (`--show`, `--group`, `--days`, `--apply`; lists unless `--apply`; also `question archive-matching` and the MCP tool) and `decision.archive-group`, each one store change, so one undo restores the batch. Keys: `A` archive (a topic row: the whole topic), `R` restore, `g A` list the applied ones older than 30 days, `g Z` archive them.
+- Added: `decision.archive-matching` (`--show`, `--group`, `--days`, `--apply`; lists unless `--apply`; also `question archive-matching` and the MCP tool) and `decision.archive-group`, each one store change, so one undo restores the batch. Keys: `d a` archive (a topic row: the whole topic), `d r` restore, `g A` list the applied ones older than 30 days, `g Z` archive them.
 
 ## v0.7.0
 

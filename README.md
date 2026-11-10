@@ -283,8 +283,8 @@ readable; recolour a state in `themes.json` through its tone. The detail marks t
 recommended option and the chosen one (`✓ chosen`, `≠ differs`), a `Versus` field says
 whether the answer agrees, and a topic row's detail carries the legend.
 
-Archive, never delete: `A` archives the question under the cursor (on a topic row, every
-question of the topic), `R` restores one, `u` undoes (a batch is one change, so one `u`
+Archive, never delete: `d a` archives the question under the cursor (on a topic row, every
+question of the topic), `d r` restores one (`R` is taken by reveal elsewhere in the family), `u` undoes (a batch is one change, so one `u`
 brings it all back), `g A` lists what `decision.archive-matching` would archive (applied ones
 changed more than 30 days ago) and `g Z` archives them. The verb is
 `decision.archive-matching --show STATE --group TOPIC --days N [--apply]`

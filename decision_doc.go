@@ -66,6 +66,9 @@ func (s *Store) docRender(q Question) string {
 	r := q.Decision
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n", q.Title)
+	if !r.locked() {
+		b.WriteString("_Only the checkboxes and the Note section are read; anything else typed here is discarded on the next render._\n\n")
+	}
 	fmt.Fprintf(&b, "%s\n\n", strings.TrimSpace(q.Text))
 	if strings.TrimSpace(r.Details) != "" {
 		fmt.Fprintf(&b, "%s\n\n", strings.TrimSpace(r.Details))

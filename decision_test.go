@@ -401,3 +401,17 @@ func TestDecisionPageOptOut(t *testing.T) {
 func frameText(p *page) string {
 	return ansi.Strip(p.m.View().Content)
 }
+
+func TestRowSegmentSeesThroughAHostPrefix(t *testing.T) {
+	for id, want := range map[string]string{
+		"question/q1": "q1", "decision/questions/question/q1": "q1", "ext/o-questions/decision/questions/question/q1": "q1",
+		"item/q1/a": "q1", "decision/questions/item/q1/a": "q1", "q1": "q1", "my-question/q1": "my-question/q1",
+	} {
+		if got := itemRowQuestion(id); got != want {
+			t.Errorf("itemRowQuestion(%q) = %q, want %q", id, got, want)
+		}
+	}
+	if kind, rest := rowSegment("x/item/q1/a"); kind != "item" || rest != "q1/a" {
+		t.Fatal(kind, rest)
+	}
+}

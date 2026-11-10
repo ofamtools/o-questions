@@ -1,0 +1,1 @@
+{"name":"questions/decision-note","page":"decision","poses":[{"question":"Which port for the web page?","group":"Web","options":["8765","random"],"key":"w1"}],"width":140,"height":40,"script":["j","n","z","e","b","r","a","enter","enter"],"expect":[{"after":9,"contains":["Note: zebra"],"absent":["not found","not run"]}]}

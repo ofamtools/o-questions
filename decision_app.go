@@ -430,6 +430,29 @@ func (a *App) itemRow(q Question, it Item, data map[string]any, search string) o
 // itemRowPrefix starts a checklist item row's id: item/<question id>/<item id>.
 const itemRowPrefix = "item/"
 
+// questionRowPrefix starts a question row's id: question/<question id>.
+const questionRowPrefix = "question/"
+
+// rowSegment splits a row id at its last "item/" or "question/" segment, at
+// the start or after a "/": a host that mounts the page hands over the list's
+// own id in front (decision/questions/question/Q, ext/NAME/.../item/Q/I).
+// kind is the segment ("item" or "question") and rest what follows it; kind is
+// empty when id has neither.
+func rowSegment(id string) (kind, rest string) {
+	best := -1
+	for _, k := range []string{itemRowPrefix, questionRowPrefix} {
+		for i := strings.LastIndex(id, k); i >= 0; i = strings.LastIndex(id[:i], k) {
+			if i == 0 || id[i-1] == '/' {
+				if i > best {
+					best, kind, rest = i, strings.TrimSuffix(k, "/"), id[i+len(k):]
+				}
+				break
+			}
+		}
+	}
+	return
+}
+
 // itemArg is the checklist item a verb acts on: the item argument, else the
 // item row named by the target (a host passes the focused row's id) or the
 // item row the verb runs on (each row of a selection in turn).
@@ -444,7 +467,7 @@ func itemArg(c ochazuke.Ctx) string {
 		}
 	}
 	for _, row := range rows {
-		if rest, ok := strings.CutPrefix(row, itemRowPrefix); ok {
+		if kind, rest := rowSegment(row); kind == "item" {
 			_, item, _ := strings.Cut(rest, "/")
 			return item
 		}
@@ -452,11 +475,15 @@ func itemArg(c ochazuke.Ctx) string {
 	return ""
 }
 
-// itemRowQuestion is the question id of an item row id, else id unchanged.
+// itemRowQuestion is the question id of a question or item row id (as the
+// page or a host names it), else id unchanged.
 func itemRowQuestion(id string) string {
-	if rest, ok := strings.CutPrefix(id, itemRowPrefix); ok {
+	switch kind, rest := rowSegment(id); kind {
+	case "item":
 		q, _, _ := strings.Cut(rest, "/")
 		return q
+	case "question":
+		return rest
 	}
 	return id
 }

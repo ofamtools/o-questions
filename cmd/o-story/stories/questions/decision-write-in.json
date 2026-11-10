@@ -1,0 +1,1 @@
+{"name":"questions/decision-write-in","page":"decision","poses":[{"question":"Which port for the web page?","group":"Web","options":["8765","random"],"key":"w1"}],"width":140,"height":40,"script":["j","w","z","e","b","r","a","enter"],"expect":[{"after":8,"contains":["Web  1/1 decided","zebra"],"absent":["not found","not run"]}]}

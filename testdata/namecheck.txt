@@ -78,3 +78,5 @@ store.go	Store.appendEntry	compare	"follow-up"	1
 decision.go	Store.decisionShown	case	"all"	1	filter name, carried from decisionShown
 decision.go	Store.decisionShown	case	"pending"	1	filter name, carried from decisionShown
 decision.go	isApplied	compare	"applied"	1	the one place the applied status is tested (replaces seven scattered comparisons)
+decision.go	Store.Applied	compare	"done"	1	the applied outcome value (done or failed), not the blocker verb
+decision_web.go	Store.syncWeb	compare	"done"	1	the applied outcome value, not the blocker verb

@@ -115,6 +115,7 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	a.r.Operations.Set(show)
 	declareDecisionPage(a)
 	declareDecisionItemVerbs(a)
+	declareBlockerVerbs(a)
 	a.r.EnsureConfigSettings()
 	a.declareFilterProps()
 	a.r.Define("question").Columns(columns...)

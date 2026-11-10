@@ -915,3 +915,4 @@ move-up	action	seed	ochazuke v0.110
 referrer	noun	seed	ochazuke v0.110
 related	noun	seed	ochazuke v0.110
 related-section	noun	seed	ochazuke v0.110
+blocker	noun	yes	What waits on the owner: an undecided decision or an added item (blocker list, add, done, show)

@@ -30,7 +30,6 @@ type Store struct {
 	Remove          func(string) error
 	Warn            func(string)
 	Outcomes        []Outcome
-	Warn            func(string)
 	// ProjectRef resolves a project reference against the host's projects and
 	// ProjectNameOf names a project by id; both nil when there is no host, and
 	// then project references are stored and shown as they are.

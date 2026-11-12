@@ -74,6 +74,12 @@ func appSettings() []ochazuke.Setting {
 		{Name: "entry.max-bytes", Type: ochazuke.SettingInteger, Default: 65536, Validate: positive, Description: "Larger entries use linked private files"},
 		{Name: "backup.daily", Type: ochazuke.SettingBoolean, Default: true, Description: "Back up before the first write of each UTC day"},
 		{Name: "backup.keep", Type: ochazuke.SettingInteger, Default: 14, Validate: positive, Description: "Daily archives retained"},
+		{Name: "history.keep", Type: ochazuke.SettingInteger, Default: 200, Validate: func(v any) error {
+			if n, ok := v.(int); !ok || n < 0 {
+				return fmt.Errorf("history.keep: use 0 (keep everything) or a count")
+			}
+			return nil
+		}, Description: "Undo history entries retained, newest first; 0 keeps everything"},
 		{Name: "capture.backfill", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for optional Q4 hooks"},
 		{Name: "capture.verbatim-check", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for optional Q4 hooks"},
 		{Name: "capture.prompts", Type: ochazuke.SettingString, Default: "off", Enum: []string{"off", "all"}, Description: "Reserved for optional Q4 capture"},

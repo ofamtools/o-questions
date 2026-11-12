@@ -585,6 +585,7 @@ func (a *App) topicRow(g string, t *topicCounts, lines []string, colored, docs b
 func (a *App) questionData(q Question, g string) map[string]any {
 	st, r := a.store, q.Decision
 	data := questionRowData(q)
+	data["project_name"] = st.projectDisplay(q.Project)
 	data["question"] = q.Text
 	data["topic"] = g
 	data["decision_view"] = st.decisionCell(q)
@@ -740,7 +741,7 @@ func decisionPage(document bool) ocli.CatalogPage {
 					{Label: "Source", Field: "decision.source", Format: "path"},
 					{Label: "Agent", Field: "recorded_by.name", Format: "text"},
 					{Label: "Asked", Field: "asked_at", Format: "relative-time"},
-					{Label: "Project", Field: "project.id", Format: "text"},
+					{Label: "Project", Field: "project_name", Format: "text"},
 				}},
 			},
 		}}

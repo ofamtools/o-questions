@@ -26,7 +26,15 @@ type Store struct {
 	StatusFromEntry map[string]string
 	BackupDaily     bool
 	BackupKeep      int
+	HistoryKeep     int // undo entries retained; 0 keeps all
+	Remove          func(string) error
+	Warn            func(string)
 	Outcomes        []Outcome
+	// ProjectRef resolves a project reference against the host's projects and
+	// ProjectNameOf names a project by id; both nil when there is no host, and
+	// then project references are stored and shown as they are.
+	ProjectRef    func(string) projectMatch
+	ProjectNameOf func(string) string
 }
 
 // migratedDirs are the store directories whose records this process already
@@ -38,6 +46,12 @@ func (s *Store) now() time.Time {
 		return s.Now().UTC()
 	}
 	return time.Now().UTC()
+}
+func (s *Store) remove(p string) error {
+	if s.Remove != nil {
+		return s.Remove(p)
+	}
+	return os.Remove(p)
 }
 func (s *Store) locked(fn func() error) error {
 	if e := os.MkdirAll(filepath.Join(s.Dir, "q"), 0700); e != nil {
@@ -226,6 +240,7 @@ func (s *Store) history() ([]string, error) {
 	return files, e
 }
 func (s *Store) commit(before, after []Question, action string) error {
+	s.normalizeProjects(before, after)
 	if s.BackupDaily {
 		if _, e := s.backup(filepath.Join(s.Dir, "backups"), true); e != nil {
 			return e
@@ -246,7 +261,11 @@ func (s *Store) commit(before, after []Question, action string) error {
 	if e = atomicJSON(filepath.Join(s.Dir, ".history", fmt.Sprintf("%020d.json", next)), Snapshot{Rows: before, At: s.now(), Action: action, By: s.Actor}); e != nil {
 		return e
 	}
-	return s.write(after)
+	if e = s.write(after); e != nil {
+		return e
+	}
+	s.retain(filepath.Join(s.Dir, ".history"), "*.json", s.HistoryKeep)
+	return nil
 }
 func (s *Store) write(rows []Question) error {
 	if e := atomicJSON(filepath.Join(s.Dir, ".transaction.json"), rows); e != nil {
@@ -384,6 +403,7 @@ func (s *Store) Ask(a Ask) (out Asked, err error) {
 			now = rows[len(rows)-1].Created.Add(time.Nanosecond)
 		}
 		q := Question{ID: "q-" + id, Title: a.Title, Text: a.Question, Verbatim: "unchecked", AskedBy: Owner(), RecordedBy: s.Actor, AskedAt: at, Created: now, Updated: now, Status: "open", Project: Project{ID: a.Project}, Cwd: a.Cwd, Task: a.Task, Source: a.Source, Tags: a.Tags, Links: a.Links, Key: a.Key, Entries: []Entry{}}
+		s.resolveProject(&q)
 		q.FileName = q.Created.Format("20060102T150405.000000000Z") + "-" + slug(q.Title) + "-" + q.ID + ".json"
 		out.Question = q
 		rows = append(rows, q)
@@ -486,7 +506,7 @@ func (s *Store) Undo() (err error) {
 			snap.UndoneBy = &s.Actor
 			return atomicJSON(files[i], snap)
 		}
-		return errors.New("nothing to undo")
+		return nothingToUndo(files, s.HistoryKeep)
 	})
 }
 func (s *Store) History() (out []Snapshot, err error) {

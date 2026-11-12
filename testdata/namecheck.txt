@@ -82,3 +82,4 @@ decision_app.go	var decisionAliases	table	"archive-group"	1	question verbs also 
 decision_app.go	var decisionAliases	table	"archive-matching"	1	question verbs also named decision.VERB (the same table as the other aliases)
 mcp.go	var mcpAllowlist	table	"archive-matching"	1	the additive MCP allowlist row for the batch archive verb (agents archive, never delete)
 decision_app.go	App.docsOn	compare	"owner"	1	the actor kind: only the owner's page writes working files
+actor.go	var agentPolicy	table	"resolve-project"	1	the one-time migration is for the owner to run, never an agent (same table as delete)

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"ofam.dev/ochazuke"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -60,6 +61,7 @@ func appSettings() []ochazuke.Setting {
 		{Name: "list.order", Type: ochazuke.SettingString, Default: "oldest-first", Enum: []string{"oldest-first", "newest-first"}, Description: "Chronological list and numbered target order"},
 		{Name: "list.start-newest", Type: ochazuke.SettingBoolean, Default: true, Description: "Initially select the newest question"},
 		{Name: "filter.status", Type: ochazuke.SettingString, Default: "all", Enum: []string{"all", "open", "answered", "follow-up", "moot"}, Description: "Statuses shown"},
+		{Name: "project.source", Type: ochazuke.SettingString, Default: projectSourceDefault(), Enum: []string{"mtm", "none"}, Description: "Where project references are resolved to ids and named: the host's projects (mtm), or none (references stay as typed)"},
 		{Name: "filter.project", Type: ochazuke.SettingString, Default: "all", Description: "Project ID or all"},
 		{Name: "filter.agent", Type: ochazuke.SettingString, Default: "all", Description: "Recording harness or all"},
 		{Name: "filter.since", Type: ochazuke.SettingString, Default: "any", Enum: []string{"any", "today", "7d", "30d"}, Description: "Asking time range"},
@@ -72,6 +74,12 @@ func appSettings() []ochazuke.Setting {
 		{Name: "entry.max-bytes", Type: ochazuke.SettingInteger, Default: 65536, Validate: positive, Description: "Larger entries use linked private files"},
 		{Name: "backup.daily", Type: ochazuke.SettingBoolean, Default: true, Description: "Back up before the first write of each UTC day"},
 		{Name: "backup.keep", Type: ochazuke.SettingInteger, Default: 14, Validate: positive, Description: "Daily archives retained"},
+		{Name: "history.keep", Type: ochazuke.SettingInteger, Default: 200, Validate: func(v any) error {
+			if n, ok := v.(int); !ok || n < 0 {
+				return fmt.Errorf("history.keep: use 0 (keep everything) or a count")
+			}
+			return nil
+		}, Description: "Undo history entries retained, newest first; 0 keeps everything"},
 		{Name: "capture.backfill", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for optional Q4 hooks"},
 		{Name: "capture.verbatim-check", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for optional Q4 hooks"},
 		{Name: "capture.prompts", Type: ochazuke.SettingString, Default: "off", Enum: []string{"off", "all"}, Description: "Reserved for optional Q4 capture"},
@@ -87,4 +95,12 @@ func appSettings() []ochazuke.Setting {
 		{Name: "decision.mgmt", Type: ochazuke.SettingString, Default: "", Description: "mgmt.py path for decision --web; empty discovers it on PATH, then in the legacy home location"},
 		{Name: "export.open", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for Q5 export"},
 	}
+}
+
+// projectSourceDefault picks mtm when it is installed; nothing requires it.
+func projectSourceDefault() string {
+	if _, e := exec.LookPath("mtm"); e == nil {
+		return "mtm"
+	}
+	return "none"
 }

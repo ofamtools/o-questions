@@ -81,7 +81,7 @@ History remains private and is not compacted automatically.
 Use `settings list` and `settings set NAME VALUE`; ochazuke owns the app's config.
 Defaults: oldest first, newest initially selected, all status/project/agent filters,
 any date, complete wrapped answers, metadata on, thread modal on, detail on,
-refresh every 2s, 64 KiB inline entry limit, daily backups on, 14 retained.
+refresh every 2s, 64 KiB inline entry limit, daily backups on, 14 retained, undo history keeps the newest 200 entries (`history.keep`; `0` keeps everything; numbering never resets and undo past the retained range says so).
 Ochazuke v0.67.0 supplies `detail.sections=true` and `detail.side=true`.
 `detail.sections=false` restores the generic record detail; `detail.side=false`
 hides metadata without hiding answers. `detail.side-width=96` is the detail

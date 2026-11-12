@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.9.0 (2026-11-12)
 
 - Added: the `pane` prop of a question and a decision is a reference to the host's `pane` (`hostNoun`), so ochazuke's relation graph follows it in mtm; a pane that is gone stays as written. `project_id` stays a plain string (stored as a project name or an id; mtm keys by id) and `agent_session` names a harness session, which is no noun. Requires ochazuke v0.124.1; the family word list copy is refreshed.
 - Added: setting `history.keep` (default 200, `0` keeps everything) bounds the undo history (`.history/`): the write that adds an entry removes all but the newest N (names only, never entry contents; oldest first, so an interrupted pass resumes), numbering never resets, and undo past the retained range reports `nothing more to undo: older changes were removed by history.keep`. Daily backups already pruned to `backup.keep` (`TestStoreDailyBackupRetention`, now also checking `backups/pre-migration` is left alone); they share one retention function with history. `Store.Remove` makes file removal injectable.

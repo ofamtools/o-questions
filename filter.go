@@ -6,6 +6,13 @@ import (
 	"ofam.dev/ochazuke"
 )
 
+// The pane prop is a reference to the host's pane (hostNoun only: the
+// framework has a pane noun of its own, which a Noun "pane" would name), so ochazuke's
+// relation graph follows it; a pane that is gone stays as written. project_id
+// and agent_session are not references: project_id is stored as a project name
+// or an id (mtm keys by id), and agent_session names a harness session, which
+// is no noun.
+//
 // Declare the scalar fields carried by both question lists. The project
 // parameter names project_id through an alias so the project record remains
 // available to details.
@@ -16,7 +23,7 @@ func (a *App) declareFilterProps() {
 			ochazuke.PropSpec{Name: "project_id", Aliases: []string{"project"}, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Project ID; empty when unassociated"}},
 			ochazuke.PropSpec{Name: "agent", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Recording harness"}},
 			ochazuke.PropSpec{Name: "direction", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Enum: []string{toAgent, toOwner}, Description: "Who answers the question"}},
-			ochazuke.PropSpec{Name: "pane", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Asking pane"}},
+			ochazuke.PropSpec{Name: "pane", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", HostNoun: "pane", Free: true, Description: "Asking pane"}},
 			ochazuke.PropSpec{Name: "agent_session", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Agent session"}},
 		)
 	}

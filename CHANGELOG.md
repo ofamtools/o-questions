@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added: the `pane` prop of a question and a decision is a reference to the host's `pane` (`hostNoun`), so ochazuke's relation graph follows it in mtm; a pane that is gone stays as written. `project_id` stays a plain string (stored as a project name or an id; mtm keys by id) and `agent_session` names a harness session, which is no noun. Requires ochazuke v0.124.1; the family word list copy is refreshed.
+
 ## v0.8.0
 
 - Added: the Decisions page's right pane is a focusable Markdown editor (the Docs page's component, detail kind `markdown`) over a working file per decision, rendered from the record: `x` flips a `- [ ]` line, options and outcomes are one single choice, a Note section takes free text; edits are read back through the decision verbs (on every save standalone, on the next refresh when mounted), then the file is rendered again. Files live in `$XDG_STATE_HOME/o-questions/decision-md/` and are removed with their row. Setting `decision.detail` (`document` default, `sections` = the read-only detail).

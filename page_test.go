@@ -551,3 +551,40 @@ func TestCatalogDeclaresSingularNamespace(t *testing.T) {
 		t.Fatal(op.Key, ok)
 	}
 }
+
+func TestCatalogTypesQuestionReferences(t *testing.T) {
+	var out bytes.Buffer
+	a, e := newApp(fixture(t), strings.NewReader(""), &out, &out)
+	if e != nil {
+		t.Fatal(e)
+	}
+	b, e := ocli.Catalog(a.r, "o-questions", version)
+	if e != nil {
+		t.Fatal(e)
+	}
+	var doc struct {
+		Nouns []struct {
+			Name  string
+			Props []struct{ Name, Noun, HostNoun string }
+		}
+	}
+	if e = json.Unmarshal(b, &doc); e != nil {
+		t.Fatal(e)
+	}
+	want := map[string][2]string{"pane": {"", "pane"}, "project_id": {"", ""}, "agent_session": {"", ""}}
+	seen := 0
+	for _, n := range doc.Nouns {
+		if n.Name != "question" && n.Name != "decision" {
+			continue
+		}
+		seen++
+		for _, p := range n.Props {
+			if w, ok := want[p.Name]; ok && [2]string{p.Noun, p.HostNoun} != w {
+				t.Errorf("%s.%s declares noun/hostNoun %v, want %v", n.Name, p.Name, [2]string{p.Noun, p.HostNoun}, w)
+			}
+		}
+	}
+	if seen != 2 {
+		t.Fatalf("found %d of question and decision", seen)
+	}
+}

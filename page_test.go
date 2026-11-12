@@ -571,7 +571,7 @@ func TestCatalogTypesQuestionReferences(t *testing.T) {
 	if e = json.Unmarshal(b, &doc); e != nil {
 		t.Fatal(e)
 	}
-	want := map[string][2]string{"pane": {"", "pane"}, "project_id": {"", ""}, "agent_session": {"", ""}}
+	want := map[string][2]string{"pane": {"", "pane"}, "project_id": {"project", "project"}, "agent_session": {"", ""}}
 	seen := 0
 	for _, n := range doc.Nouns {
 		if n.Name != "question" && n.Name != "decision" {

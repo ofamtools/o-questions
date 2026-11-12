@@ -20,7 +20,8 @@ func (a *App) declareFilterProps() {
 	for _, noun := range []string{"question", decisionNoun} {
 		a.r.Define(noun).Props(
 			ochazuke.PropSpec{Name: "id", Key: true, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Record ID"}},
-			ochazuke.PropSpec{Name: "project_id", Aliases: []string{"project"}, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Project ID; empty when unassociated"}},
+			ochazuke.PropSpec{Name: "project_id", Aliases: []string{"project"}, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Noun: "project", HostNoun: "project", Free: true, Description: "Project ID (the host project's id once resolved); empty when unassociated"}},
+			ochazuke.PropSpec{Name: "project_name", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "The project's name, as shown; empty when unassociated"}},
 			ochazuke.PropSpec{Name: "agent", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Recording harness"}},
 			ochazuke.PropSpec{Name: "direction", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Enum: []string{toAgent, toOwner}, Description: "Who answers the question"}},
 			ochazuke.PropSpec{Name: "pane", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", HostNoun: "pane", Free: true, Description: "Asking pane"}},
@@ -42,6 +43,7 @@ func questionRowData(q Question) map[string]any {
 	data := map[string]any{}
 	_ = json.Unmarshal(b, &data)
 	data["project_id"] = q.Project.ID
+	data["project_name"] = q.Project.Shown()
 	data["agent"] = q.RecordedBy.Harness
 	data["pane"] = q.Source.Pane
 	data["agent_session"] = q.Source.AgentSession

@@ -20,7 +20,7 @@ func questionPage(detail bool) ocli.CatalogPage {
 				{Kind: "thread", Title: "Answers", Field: "entries", Author: "by.kind", At: "at", Body: "text"},
 				{Kind: "fields", Title: "Metadata", Region: "side", Fields: []ocli.CatalogDetailField{
 					{Label: "Status", Field: "status", Format: "badge"},
-					{Label: "Project", Field: "project.id", Format: "text"},
+					{Label: "Project", Field: "project_name", Format: "text"},
 					{Label: "Asker", Field: "asked_by.kind", Format: "text"},
 					{Label: "Agent", Field: "recorded_by.name", Format: "text"},
 					{Label: "Harness", Field: "recorded_by.harness", Format: "text"},
@@ -120,7 +120,7 @@ func (v *questionDetail) Block(w, h int) ochazuke.Block {
 		text += "\n\nLatest answer\n" + strings.Join(answer, "\n")
 	}
 	if settings.Bool("detail.provenance") {
-		text += fmt.Sprintf("\n\nStatus: %s\nAgent: %s · Model: %s\nProject: %s\nCwd: %s\nAsked: %s\nVerbatim: %s\nPane: %s · Session: %s\nTranscript: %s", q.Status, q.RecordedBy.Harness, q.RecordedBy.Model, q.Project.ID, q.Cwd, q.AskedAt.Format("2006-01-02 15:04Z"), q.Verbatim, q.Source.Pane, q.Source.AgentSession, q.Source.Transcript)
+		text += fmt.Sprintf("\n\nStatus: %s\nAgent: %s · Model: %s\nProject: %s\nCwd: %s\nAsked: %s\nVerbatim: %s\nPane: %s · Session: %s\nTranscript: %s", q.Status, q.RecordedBy.Harness, q.RecordedBy.Model, q.Project.Shown(), q.Cwd, q.AskedAt.Format("2006-01-02 15:04Z"), q.Verbatim, q.Source.Pane, q.Source.AgentSession, q.Source.Transcript)
 	}
 	for _, l := range q.Links {
 		text += "\n" + l.Label + ": " + l.Target

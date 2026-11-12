@@ -950,3 +950,4 @@ write-in	action	yes	Owner outcome that takes text (decision write-in): write you
 blocker	noun	yes	What waits on the owner: an undecided decision or an added item (blocker list, add, done, show)
 archive-group	action	yes	
 archive-matching	action	yes	
+resolve-project	action	yes	Rewrite stored project references to the host project ids (question resolve-project)

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"ofam.dev/ochazuke"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -60,6 +61,7 @@ func appSettings() []ochazuke.Setting {
 		{Name: "list.order", Type: ochazuke.SettingString, Default: "oldest-first", Enum: []string{"oldest-first", "newest-first"}, Description: "Chronological list and numbered target order"},
 		{Name: "list.start-newest", Type: ochazuke.SettingBoolean, Default: true, Description: "Initially select the newest question"},
 		{Name: "filter.status", Type: ochazuke.SettingString, Default: "all", Enum: []string{"all", "open", "answered", "follow-up", "moot"}, Description: "Statuses shown"},
+		{Name: "project.source", Type: ochazuke.SettingString, Default: projectSourceDefault(), Enum: []string{"mtm", "none"}, Description: "Where project references are resolved to ids and named: the host's projects (mtm), or none (references stay as typed)"},
 		{Name: "filter.project", Type: ochazuke.SettingString, Default: "all", Description: "Project ID or all"},
 		{Name: "filter.agent", Type: ochazuke.SettingString, Default: "all", Description: "Recording harness or all"},
 		{Name: "filter.since", Type: ochazuke.SettingString, Default: "any", Enum: []string{"any", "today", "7d", "30d"}, Description: "Asking time range"},
@@ -87,4 +89,12 @@ func appSettings() []ochazuke.Setting {
 		{Name: "decision.mgmt", Type: ochazuke.SettingString, Default: "", Description: "mgmt.py path for decision --web; empty discovers it on PATH, then in the legacy home location"},
 		{Name: "export.open", Type: ochazuke.SettingBoolean, Default: true, Description: "Reserved for Q5 export"},
 	}
+}
+
+// projectSourceDefault picks mtm when it is installed; nothing requires it.
+func projectSourceDefault() string {
+	if _, e := exec.LookPath("mtm"); e == nil {
+		return "mtm"
+	}
+	return "none"
 }

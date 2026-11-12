@@ -28,6 +28,9 @@ type App struct {
 	changed     func()
 	run         func(*exec.Cmd) error
 	showThread  func(Question) error
+	projects    []hostProject
+	projectsAt  time.Time
+	projectList func(context.Context) ([]hostProject, error)
 }
 type verbSpec struct {
 	name, description string
@@ -207,6 +210,7 @@ func (a *App) configure() {
 		}
 	}
 	a.store.StatusFromEntry = table
+	a.linkProjects()
 }
 func (a *App) newestFirst() bool { return a.r.Settings().String("list.order") == "newest-first" }
 func (a *App) specs() []verbSpec {
@@ -233,6 +237,7 @@ func (a *App) specs() []verbSpec {
 		{"open", "Open a link or source transcript", map[string]ochazuke.Parameter{"target": target, "link": param("Link target; required when several")}, []string{"target", "link"}, false, runOpen, nil},
 		{"split", "Split a thread entry into a child question", map[string]ochazuke.Parameter{"target": target, "entry": required("Entry ID")}, []string{"target", "entry"}, false, changeVerb(opSplit, "text", nil), nil},
 		{"merge", "Merge another question here", map[string]ochazuke.Parameter{"target": target, "other": required("Other question")}, []string{"target", "other"}, false, changeVerb(opMerge, "text", nil), nil},
+		{"resolve-project", "Rewrite every question's project that names exactly one host project (by name, id or mtm:<id>) as that project's id, keeping the name in the project's label; unmatched and ambiguous names and questions without a project stay byte for byte as they were. --dry-run writes nothing and prints the counts; a real run first copies q/ to <data>.bak-<date>-project-ids and is idempotent", map[string]ochazuke.Parameter{"dry-run": {Type: "boolean", Description: "Print what would change and write nothing"}}, nil, false, runResolveProjects, nil},
 		{"backup", "Write a private tar.gz backup", map[string]ochazuke.Parameter{"to": param("Destination directory")}, nil, false, runBackup, nil},
 		{"restore", "Restore an archived question (--target) or a backup (FILE), preserving undo", map[string]ochazuke.Parameter{"target": target, "file": param("Backup tar.gz; omit when restoring a question with --target")}, []string{"file"}, false, runRestore, nil},
 	}
@@ -361,6 +366,7 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 	pane := get("pane", "")
 	session := get("agent_session", "")
 	number := 0
+	match := a.store.projectMatcher(project)
 	for _, q := range qs {
 		cellNumber := "-"
 		if !q.Deleted {
@@ -373,7 +379,7 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		if status != "" && status != "all" && q.Status != status {
 			continue
 		}
-		if project != "" && project != "all" && q.Project.ID != project {
+		if project != "" && project != "all" && !match(q.Project) {
 			continue
 		}
 		if agent != "" && agent != "all" && q.RecordedBy.Harness != agent {
@@ -393,6 +399,7 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 			continue
 		}
 		data := questionRowData(q)
+		data["project_name"] = a.store.projectDisplay(q.Project)
 		data["search"] = search
 		data["question"] = q.Text
 		data["answer"] = latestAnswer(q)
@@ -407,7 +414,7 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 		if q.Starred {
 			label = "★ " + label
 		}
-		out = append(out, ocli.Row{Noun: "question", ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{cellNumber, q.Status, label, q.Project.ID, q.RecordedBy.Harness, age(q.AskedAt, a.store.now()), strconv.Itoa(count), search}})
+		out = append(out, ocli.Row{Noun: "question", ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{cellNumber, q.Status, label, a.store.projectDisplay(q.Project), q.RecordedBy.Harness, age(q.AskedAt, a.store.now()), strconv.Itoa(count), search}})
 	}
 	limit := 0
 	switch v := args["limit"].(type) {

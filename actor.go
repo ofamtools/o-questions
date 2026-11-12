@@ -23,7 +23,7 @@ type Actor struct {
 func Owner() Actor { return Actor{Kind: "owner"} }
 
 // Undeclared writes are open; these declarations also feed the catalog.
-var agentPolicy = map[string]string{"delete": ochazuke.AgentNever}
+var agentPolicy = map[string]string{"delete": ochazuke.AgentNever, "resolve-project": ochazuke.AgentNever}
 
 type RefusedError struct{ Action, Rule string }
 

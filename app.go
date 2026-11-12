@@ -181,6 +181,7 @@ func (a *App) configure() {
 	a.store.MaxBytes = s.Int("entry.max-bytes")
 	a.store.BackupDaily = s.Bool("backup.daily")
 	a.store.BackupKeep = s.Int("backup.keep")
+	a.store.HistoryKeep = s.Int("history.keep")
 	if out, e := parseOutcomes(s.Strings("decision.outcomes")); e == nil {
 		a.store.Outcomes = out
 	}

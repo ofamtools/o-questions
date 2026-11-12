@@ -26,6 +26,8 @@ type Store struct {
 	StatusFromEntry map[string]string
 	BackupDaily     bool
 	BackupKeep      int
+	HistoryKeep     int // undo entries retained; 0 keeps all
+	Remove          func(string) error
 	Outcomes        []Outcome
 }
 
@@ -38,6 +40,12 @@ func (s *Store) now() time.Time {
 		return s.Now().UTC()
 	}
 	return time.Now().UTC()
+}
+func (s *Store) remove(p string) error {
+	if s.Remove != nil {
+		return s.Remove(p)
+	}
+	return os.Remove(p)
 }
 func (s *Store) locked(fn func() error) error {
 	if e := os.MkdirAll(filepath.Join(s.Dir, "q"), 0700); e != nil {
@@ -246,7 +254,10 @@ func (s *Store) commit(before, after []Question, action string) error {
 	if e = atomicJSON(filepath.Join(s.Dir, ".history", fmt.Sprintf("%020d.json", next)), Snapshot{Rows: before, At: s.now(), Action: action, By: s.Actor}); e != nil {
 		return e
 	}
-	return s.write(after)
+	if e = s.write(after); e != nil {
+		return e
+	}
+	return s.retain(filepath.Join(s.Dir, ".history"), "*.json", s.HistoryKeep)
 }
 func (s *Store) write(rows []Question) error {
 	if e := atomicJSON(filepath.Join(s.Dir, ".transaction.json"), rows); e != nil {
@@ -486,7 +497,7 @@ func (s *Store) Undo() (err error) {
 			snap.UndoneBy = &s.Actor
 			return atomicJSON(files[i], snap)
 		}
-		return errors.New("nothing to undo")
+		return nothingToUndo(files, s.HistoryKeep)
 	})
 }
 func (s *Store) History() (out []Snapshot, err error) {

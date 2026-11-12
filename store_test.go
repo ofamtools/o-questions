@@ -313,6 +313,10 @@ func TestStoreDailyBackupRetention(t *testing.T) {
 	s.BackupKeep = 2
 	at := s.now()
 	s.Now = func() time.Time { return at }
+	pre := filepath.Join(s.Dir, "backups", "pre-migration", "2020-01-01.tar.gz")
+	if e := os.MkdirAll(filepath.Dir(pre), 0700); e != nil || os.WriteFile(pre, []byte("x"), 0600) != nil {
+		t.Fatal(e)
+	}
 	for i := 0; i < 4; i++ {
 		at = at.Add(24 * time.Hour)
 		ask(t, s, fmt.Sprintf("Day %d?", i))
@@ -320,6 +324,48 @@ func TestStoreDailyBackupRetention(t *testing.T) {
 	files, e := filepath.Glob(filepath.Join(s.Dir, "backups", "????-??-??.tar.gz"))
 	if e != nil || len(files) != 2 {
 		t.Fatal(files, e)
+	}
+	if _, e = os.Stat(pre); e != nil {
+		t.Fatal("pre-migration archive pruned by the daily rule", e)
+	}
+}
+func TestHistoryKeep(t *testing.T) {
+	for _, keep := range []int{0, 3} {
+		s := fixture(t)
+		s.HistoryKeep = keep
+		removed := 0
+		s.Remove = func(p string) error { removed++; return os.Remove(p) }
+		for i := 0; i < 6; i++ {
+			ask(t, s, fmt.Sprintf("Q%d?", i))
+		}
+		files, _ := filepath.Glob(filepath.Join(s.Dir, ".history", "*.json"))
+		if keep == 0 && len(files) != 6 {
+			t.Fatal("keep 0 must retain all", files)
+		}
+		if keep == 3 {
+			if len(files) != 3 || !strings.HasSuffix(files[0], "04.json") || removed != 3 {
+				t.Fatal("keep 3 must retain the newest three", files, removed)
+			}
+			ask(t, s, "next?")
+			if files, _ = filepath.Glob(filepath.Join(s.Dir, ".history", "*.json")); !strings.HasSuffix(files[2], "07.json") {
+				t.Fatal("numbering reset", files)
+			}
+		}
+	}
+}
+func TestUndoPastRetainedHistory(t *testing.T) {
+	s := fixture(t)
+	s.HistoryKeep = 2
+	for i := 0; i < 4; i++ {
+		ask(t, s, fmt.Sprintf("Q%d?", i))
+	}
+	for i := 0; i < 2; i++ {
+		if e := s.Undo(); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if e := s.Undo(); e == nil || !strings.Contains(e.Error(), "history.keep (2)") {
+		t.Fatal(e)
 	}
 }
 func TestStoreHiddenIdempotencyAndCreationUndo(t *testing.T) {

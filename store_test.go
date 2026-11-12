@@ -410,3 +410,20 @@ func useDetail(t *testing.T, style string) {
 		t.Fatal(e)
 	}
 }
+func TestHistoryPruneFailureKeepsChange(t *testing.T) {
+	s := fixture(t)
+	s.HistoryKeep = 1
+	var warned []string
+	s.Warn = func(m string) { warned = append(warned, m) }
+	s.Remove = func(p string) error {
+		if strings.Contains(p, ".history") {
+			return errors.New("denied")
+		}
+		return os.Remove(p)
+	}
+	ask(t, s, "One?")
+	q := ask(t, s, "Two?")
+	if got, e := s.Resolve(q.ID, false); e != nil || got.ID != q.ID || len(warned) == 0 {
+		t.Fatal(got, e, warned)
+	}
+}

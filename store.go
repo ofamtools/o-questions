@@ -28,6 +28,7 @@ type Store struct {
 	BackupKeep      int
 	HistoryKeep     int // undo entries retained; 0 keeps all
 	Remove          func(string) error
+	Warn            func(string)
 	Outcomes        []Outcome
 }
 
@@ -257,7 +258,8 @@ func (s *Store) commit(before, after []Question, action string) error {
 	if e = s.write(after); e != nil {
 		return e
 	}
-	return s.retain(filepath.Join(s.Dir, ".history"), "*.json", s.HistoryKeep)
+	s.retain(filepath.Join(s.Dir, ".history"), "*.json", s.HistoryKeep)
+	return nil
 }
 func (s *Store) write(rows []Question) error {
 	if e := atomicJSON(filepath.Join(s.Dir, ".transaction.json"), rows); e != nil {

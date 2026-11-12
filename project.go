@@ -237,6 +237,9 @@ func (s *Store) normalizeProjects(before, after []Question) {
 
 // resolveProject stores q's project as the id it resolves to, with the name.
 func (s *Store) resolveProject(q *Question) {
+	if s.ProjectRef == nil || q.Project.ID == "" {
+		return
+	}
 	m := s.ProjectRef(q.Project.ID)
 	if m.Resolved {
 		q.Project.ID, q.Project.Label = m.ID, m.Name

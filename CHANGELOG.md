@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.10.0 (2026-11-12)
 
 - Added: a question or decision recorded with no project takes one from its context, through the same path for `ask` and `pose`: the asking pane's project as the host reports it (`pane list`, ended panes included), else the project whose directory holds `--cwd` (or the current directory; the longest matching directory wins, several equal matches store nothing), else none. A given `--project` always wins; a follow-up keeps its thread's. The host read is one call, cached for a few seconds; a failed or slow read stores no project and never fails the ask. `project.source` `none` makes no host call and defaults nothing.
 - Added: `resolve-project` also fills questions that have no project and a recorded pane from that pane's project where the host still lists the pane; the report gains `pane_filled`, `pane_unknown`, `pane_no_project` and `no_pane` (and `panes_error` when the host's pane list could not be read). Same dry run, backup and byte-splice rules; set projects and every other byte are untouched.

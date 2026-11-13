@@ -35,6 +35,10 @@ type Store struct {
 	// then project references are stored and shown as they are.
 	ProjectRef    func(string) projectMatch
 	ProjectNameOf func(string) string
+	// ProjectDefault is the project id a new question with none gets, from the
+	// asking pane and a directory (empty: the current one); nil, or "" when
+	// the host knows nothing, leaves the question without a project.
+	ProjectDefault func(pane, cwd string) string
 }
 
 // migratedDirs are the store directories whose records this process already
@@ -403,6 +407,7 @@ func (s *Store) Ask(a Ask) (out Asked, err error) {
 			now = rows[len(rows)-1].Created.Add(time.Nanosecond)
 		}
 		q := Question{ID: "q-" + id, Title: a.Title, Text: a.Question, Verbatim: "unchecked", AskedBy: Owner(), RecordedBy: s.Actor, AskedAt: at, Created: now, Updated: now, Status: "open", Project: Project{ID: a.Project}, Cwd: a.Cwd, Task: a.Task, Source: a.Source, Tags: a.Tags, Links: a.Links, Key: a.Key, Entries: []Entry{}}
+		s.defaultProjectOf(&q, a.Cwd)
 		s.resolveProject(&q)
 		q.FileName = q.Created.Format("20060102T150405.000000000Z") + "-" + slug(q.Title) + "-" + q.ID + ".json"
 		out.Question = q

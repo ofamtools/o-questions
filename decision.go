@@ -522,6 +522,7 @@ func (s *Store) Pose(p Pose) (out Posed, err error) {
 		fillDecision(r, p)
 		q := Question{ID: "q-" + id, Title: poseTitle(p), Text: p.Question, Verbatim: "agent", AskedBy: s.Actor, RecordedBy: s.Actor, AskedAt: now, Created: now, Updated: now, Status: "open", Direction: toOwner, Decision: r, Project: Project{ID: p.Project}, Cwd: p.Cwd, Task: p.Task, Source: p.Provenance, Tags: p.Tags, Links: p.Links, Key: p.Key, Entries: []Entry{}}
 		q.FileName = q.Created.Format("20060102T150405.000000000Z") + "-" + slug(q.Title) + "-" + q.ID + ".json"
+		s.defaultProjectOf(&q, p.Cwd)
 		out.Question = q
 		return s.commit(before, append(rows, q), "pose")
 	})

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added: a question or decision recorded with no project takes one from its context, through the same path for `ask` and `pose`: the asking pane's project as the host reports it (`pane list`, ended panes included), else the project whose directory holds `--cwd` (or the current directory; the longest matching directory wins, several equal matches store nothing), else none. A given `--project` always wins; a follow-up keeps its thread's. The host read is one call, cached for a few seconds; a failed or slow read stores no project and never fails the ask. `project.source` `none` makes no host call and defaults nothing.
+- Added: `resolve-project` also fills questions that have no project and a recorded pane from that pane's project where the host still lists the pane; the report gains `pane_filled`, `pane_unknown`, `pane_no_project` and `no_pane` (and `panes_error` when the host's pane list could not be read). Same dry run, backup and byte-splice rules; set projects and every other byte are untouched.
+- Added (missed in v0.9.0): a project reference typed as a name, an id or `mtm:<id>` is stored as the host project's id with its name kept in `project.label` (shown as the host's current name); setting `project.source` (`mtm` when installed, else `none`) chooses where references resolve; `resolve-project [--dry-run]` (owner only) rewrites existing questions the same way, after a backup to `<data>.bak-<date>-project-ids`, leaving unmatched and ambiguous names as they were.
+
 ## v0.9.0 (2026-11-12)
 
 - Added: the `pane` prop of a question and a decision is a reference to the host's `pane` (`hostNoun`), so ochazuke's relation graph follows it in mtm; a pane that is gone stays as written. `project_id` stays a plain string (stored as a project name or an id; mtm keys by id) and `agent_session` names a harness session, which is no noun. Requires ochazuke v0.124.1; the family word list copy is refreshed.

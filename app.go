@@ -20,17 +20,19 @@ const pageID = "questions"
 const listID = "questions/questions"
 
 type App struct {
-	store       *Store
-	r           *ochazuke.Runtime
-	in          io.Reader
-	out, errOut io.Writer
-	tui         bool
-	changed     func()
-	run         func(*exec.Cmd) error
-	showThread  func(Question) error
-	projects    []hostProject
-	projectsAt  time.Time
-	projectList func(context.Context) ([]hostProject, error)
+	store        *Store
+	r            *ochazuke.Runtime
+	in           io.Reader
+	out, errOut  io.Writer
+	tui          bool
+	changed      func()
+	run          func(*exec.Cmd) error
+	showThread   func(Question) error
+	projects     []hostProject
+	projectsAt   time.Time
+	projectList  func(context.Context) ([]hostProject, error)
+	paneList     func(context.Context, string) (map[string]string, error)
+	paneProjects map[string]paneProject
 }
 type verbSpec struct {
 	name, description string
@@ -218,7 +220,7 @@ func (a *App) newestFirst() bool { return a.r.Settings().String("list.order") ==
 func (a *App) specs() []verbSpec {
 	target := ochazuke.Parameter{Type: "string", Description: "Question title, number or ID prefix; omitted uses the selected row", Noun: "question"}
 	arr := ochazuke.Parameter{Type: "array", Description: "Values to append"}
-	ask := map[string]ochazuke.Parameter{"question": {Type: "string", Required: true, Rest: true, Description: "Owner's exact words, verbatim"}, "title": param("Short title"), "project": param("Project ID; absence is unassociated"), "cwd": param("Project directory"), "task": param("Task ID"), "tags": arr, "links": arr, "asked_at": param("RFC3339 asking time"), "follow_up_of": param("Append follow-up to this question"), "key": param("Idempotency key"), "source": {Type: "object", Description: "Source provenance"}}
+	ask := map[string]ochazuke.Parameter{"question": {Type: "string", Required: true, Rest: true, Description: "Owner's exact words, verbatim"}, "title": param("Short title"), "project": param("Project ID; absence takes the asking pane's project, else the project holding the directory (project.source), else unassociated"), "cwd": param("Project directory"), "task": param("Task ID"), "tags": arr, "links": arr, "asked_at": param("RFC3339 asking time"), "follow_up_of": param("Append follow-up to this question"), "key": param("Idempotency key"), "source": {Type: "object", Description: "Source provenance"}}
 	out := []verbSpec{
 		{"ask", "Record the owner's verbatim question", ask, []string{"question"}, false, runAsk, []string{"add", "new"}},
 		{"list", "List questions, newest last", map[string]ochazuke.Parameter{"filter": param("Search title, text, entries and tags"), "status": {Type: "string", Enum: append([]string{"all"}, statuses...)}, "project": param("Project ID"), "agent": param("Recording harness"), "direction": {Type: "string", Enum: directions, Description: "Who answers: to-agent (the owner asked), to-owner (an agent asked); default filter.direction"}, "pane": param("Asking pane"), "agent_session": param("Agent session"), "since": param("RFC3339, today, 7d or 30d"), "limit": {Type: "integer"}}, nil, true, runList, nil},
@@ -239,7 +241,7 @@ func (a *App) specs() []verbSpec {
 		{"open", "Open a link or source transcript", map[string]ochazuke.Parameter{"target": target, "link": param("Link target; required when several")}, []string{"target", "link"}, false, runOpen, nil},
 		{"split", "Split a thread entry into a child question", map[string]ochazuke.Parameter{"target": target, "entry": required("Entry ID")}, []string{"target", "entry"}, false, changeVerb(opSplit, "text", nil), nil},
 		{"merge", "Merge another question here", map[string]ochazuke.Parameter{"target": target, "other": required("Other question")}, []string{"target", "other"}, false, changeVerb(opMerge, "text", nil), nil},
-		{"resolve-project", "Rewrite every question's project that names exactly one host project (by name, id or mtm:<id>) as that project's id, keeping the name in the project's label; unmatched and ambiguous names and questions without a project stay byte for byte as they were. --dry-run writes nothing and prints the counts; a real run first copies q/ to <data>.bak-<date>-project-ids and is idempotent", map[string]ochazuke.Parameter{"dry-run": {Type: "boolean", Description: "Print what would change and write nothing"}}, nil, false, runResolveProjects, nil},
+		{"resolve-project", "Rewrite every question's project that names exactly one host project (by name, id or mtm:<id>) as that project's id, keeping the name in the project's label; unmatched and ambiguous names stay as they were. A question with no project and a recorded pane takes that pane's project where the host still lists the pane (ended panes included); the report counts pane_filled, pane_unknown, pane_no_project and no_pane. Every other byte stays as it was. --dry-run writes nothing and prints the counts; a real run first copies q/ to <data>.bak-<date>-project-ids and is idempotent", map[string]ochazuke.Parameter{"dry-run": {Type: "boolean", Description: "Print what would change and write nothing"}}, nil, false, runResolveProjects, nil},
 		{"backup", "Write a private tar.gz backup", map[string]ochazuke.Parameter{"to": param("Destination directory")}, nil, false, runBackup, nil},
 		{"restore", "Restore an archived question (--target) or a backup (FILE), preserving undo", map[string]ochazuke.Parameter{"target": target, "file": param("Backup tar.gz; omit when restoring a question with --target")}, []string{"file"}, false, runRestore, nil},
 	}

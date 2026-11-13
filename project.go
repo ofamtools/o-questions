@@ -26,7 +26,7 @@ import (
 // one project; one that matches nothing, or several, is stored as typed.
 
 // hostProject is a project of the host: the id mtm keys it by and its name.
-type hostProject struct{ ID, Name string }
+type hostProject struct{ ID, Name, Dir string }
 
 // Resolution outcomes.
 const (
@@ -108,11 +108,10 @@ func hostProjectsFrom(ctx context.Context, source string) ([]hostProject, error)
 		return nil, fmt.Errorf("project.source %s: %w", source, e)
 	}
 	// mtm answers an array, or {"items": [...]} for a paged list.
-	var rows []struct{ ID, Name, Label string }
+	type row struct{ ID, Name, Label, Dir string }
+	var rows []row
 	if e = json.Unmarshal(b, &rows); e != nil {
-		var page struct {
-			Items []struct{ ID, Name, Label string }
-		}
+		var page struct{ Items []row }
 		if e2 := json.Unmarshal(b, &page); e2 != nil {
 			return nil, e
 		}
@@ -127,7 +126,7 @@ func hostProjectsFrom(ctx context.Context, source string) ([]hostProject, error)
 		if name == "" {
 			name = r.ID
 		}
-		out = append(out, hostProject{ID: r.ID, Name: name})
+		out = append(out, hostProject{ID: r.ID, Name: name, Dir: r.Dir})
 	}
 	return out, nil
 }
@@ -152,6 +151,135 @@ func (a *App) hostProjects(ctx context.Context) ([]hostProject, error) {
 	return hostProjectsFrom(ctx, a.r.Settings().String("project.source"))
 }
 
+// hostRows runs a host list verb: mounted, through the host; standalone,
+// through mtm on PATH. The answer is an array or a page {"items": [...]}.
+func hostRows(ctx context.Context, noun string, args ochazuke.Arguments, cli []string) ([]map[string]any, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	var b []byte
+	host, hosted, e := ocli.HostFromEnv()
+	if e != nil {
+		return nil, e
+	}
+	if hosted {
+		b, e = host.Run(ctx, noun+".list", args)
+	} else {
+		b, e = exec.CommandContext(ctx, "mtm", append([]string{noun, "list"}, cli...)...).Output()
+	}
+	if e != nil {
+		return nil, e
+	}
+	var rows []map[string]any
+	if e = json.Unmarshal(b, &rows); e != nil {
+		var page struct{ Items []map[string]any }
+		if e2 := json.Unmarshal(b, &page); e2 != nil {
+			return nil, e
+		}
+		rows = page.Items
+	}
+	return rows, nil
+}
+
+// hostPanesFrom reads the host's panes as pane id to project id (empty when
+// the pane has none): one pane when id is given, every pane, ended ones
+// included, when it is empty. A pane the host does not know is absent.
+// Source none has none.
+func hostPanesFrom(ctx context.Context, source, id string) (map[string]string, error) {
+	if source == "" || source == "none" {
+		return nil, nil
+	}
+	args, cli := ochazuke.Arguments{"props": "project", "limit": 0}, []string{"--props", "project", "--limit", "0"}
+	if id != "" {
+		args["where"] = "id=" + id
+		cli = append(cli, "--where", "id="+id)
+	}
+	rows, e := hostRows(ctx, "pane", args, cli)
+	if e != nil {
+		return nil, fmt.Errorf("project.source %s: %w", source, e)
+	}
+	out := map[string]string{}
+	for _, r := range rows {
+		pid, _ := r["id"].(string)
+		proj, _ := r["project"].(string)
+		if pid != "" {
+			out[pid] = proj
+		}
+	}
+	return out, nil
+}
+
+// projectForDir is the id of the project whose directory contains dir: the
+// longest matching directory wins, and several different projects at that
+// length match nothing (ambiguous).
+func projectForDir(projects []hostProject, dir string) string {
+	dir = filepath.Clean(dir)
+	best, id, tied := -1, "", false
+	for _, p := range projects {
+		if p.Dir == "" {
+			continue
+		}
+		root := filepath.Clean(p.Dir)
+		if dir != root && !strings.HasPrefix(dir, strings.TrimSuffix(root, "/")+"/") {
+			continue
+		}
+		switch {
+		case len(root) > best:
+			best, id, tied = len(root), p.ID, false
+		case len(root) == best && p.ID != id:
+			tied = true
+		}
+	}
+	if tied {
+		return ""
+	}
+	return id
+}
+
+type paneProject struct {
+	id string
+	at time.Time
+}
+
+// defaultProject is the project a new question gets when none was given: the
+// asking pane's project as the host reports it, else the project whose
+// directory contains cwd (the given one, else the current one). A failed
+// read, a pane the host does not know, or an ambiguous directory gives
+// none: the question is recorded without a project.
+func (a *App) defaultProject(pane, cwd string) string {
+	if src := a.r.Settings().String("project.source"); a.projectList == nil && (src == "" || src == "none") {
+		return ""
+	}
+	if pane != "" && !strings.ContainsAny(pane, " ,=") {
+		if c, ok := a.paneProjects[pane]; ok && time.Since(c.at) < 3*time.Second {
+			if c.id != "" {
+				return c.id
+			}
+		} else if m, e := a.hostPanes(context.Background(), pane); e == nil {
+			if a.paneProjects == nil {
+				a.paneProjects = map[string]paneProject{}
+			}
+			a.paneProjects[pane] = paneProject{m[pane], time.Now()}
+			if m[pane] != "" {
+				return m[pane]
+			}
+		}
+	}
+	if cwd == "" {
+		cwd, _ = os.Getwd()
+	}
+	if cwd == "" {
+		return ""
+	}
+	return projectForDir(a.projectIndex(), cwd)
+}
+
+func (a *App) hostPanes(ctx context.Context, id string) (map[string]string, error) {
+	if a.paneList != nil {
+		return a.paneList(ctx, id)
+	}
+	return hostPanesFrom(ctx, a.r.Settings().String("project.source"), id)
+}
+
 // linkProjects gives the store its views of the host's projects.
 func (a *App) linkProjects() {
 	a.store.ProjectRef = func(ref string) projectMatch {
@@ -160,6 +288,7 @@ func (a *App) linkProjects() {
 		}
 		return resolveProjectRef(a.projectIndex(), ref)
 	}
+	a.store.ProjectDefault = a.defaultProject
 	a.store.ProjectNameOf = func(id string) string {
 		if id == "" {
 			return ""
@@ -263,6 +392,14 @@ type ProjectReport struct {
 	Unmatched []ProjectKept `json:"unmatched"`
 	Ambiguous []ProjectKept `json:"ambiguous"`
 	Backup    string        `json:"backup,omitempty"`
+
+	// Backfill: questions with no project and a recorded pane take that
+	// pane's project where the host still knows the pane.
+	PaneFilled  int    `json:"pane_filled"`
+	PaneUnknown int    `json:"pane_unknown"`    // the host does not know the pane
+	PaneNoProj  int    `json:"pane_no_project"` // the host knows the pane; it has no project
+	NoPane      int    `json:"no_pane"`         // no pane recorded
+	PanesError  string `json:"panes_error,omitempty"`
 }
 
 // ProjectKept is a reference left as stored, with its row count.
@@ -442,13 +579,116 @@ func applySplices(b []byte, sp []splice) []byte {
 	return out
 }
 
+// paneFillSplice finds a question whose project is empty and whose source
+// pane the host knows with a project, and gives the edit that writes that
+// project into the empty object (id, and the name when the host lists it),
+// indented as the file is. Nothing else in the file is touched.
+func paneFillSplice(b []byte, projects []hostProject, panes map[string]string, rep *ProjectReport) ([]splice, error) {
+	var probe struct {
+		Project struct{ ID string }
+		Source  struct{ Pane string }
+	}
+	if e := json.Unmarshal(b, &probe); e != nil {
+		return nil, e
+	}
+	if probe.Project.ID != "" {
+		return nil, nil
+	}
+	pane := probe.Source.Pane
+	if pane == "" {
+		rep.NoPane++
+		return nil, nil
+	}
+	proj, known := panes[pane]
+	switch {
+	case !known:
+		rep.PaneUnknown++
+		return nil, nil
+	case proj == "":
+		rep.PaneNoProj++
+		return nil, nil
+	}
+	// Find the top-level "project" object's braces.
+	dec := json.NewDecoder(bytes.NewReader(b))
+	var stack []rowFrame
+	var open int
+	ps := &projectScan{obj: "project", b: b}
+	objKey := ps.obj
+	done := func() {
+		if n := len(stack); n > 0 && stack[n-1].obj {
+			stack[n-1].key = true
+		}
+	}
+	for {
+		tok, e := dec.Token()
+		if e != nil {
+			return nil, nil
+		}
+		off := int(dec.InputOffset())
+		switch t := tok.(type) {
+		case json.Delim:
+			if t == '{' || t == '[' {
+				if len(stack) == 1 && stack[0].cur == objKey && t == '{' {
+					open = off - 1
+				}
+				stack = append(stack, rowFrame{obj: t == '{', key: t == '{'})
+				continue
+			}
+			if len(stack) == 2 && stack[0].cur == objKey {
+				if len(bytes.TrimSpace(b[open+1:off-1])) > 0 {
+					return nil, nil // fields but no id: left alone
+				}
+				rep.PaneFilled++
+				return []splice{{from: open, to: off, text: projectObject(b, stack[0].keyAt, proj, projects)}}, nil
+			}
+			stack = stack[:len(stack)-1]
+			done()
+		case string:
+			if n := len(stack); n > 0 && stack[n-1].obj && stack[n-1].key {
+				stack[n-1].cur, stack[n-1].key, stack[n-1].keyAt = t, false, ps.stringStart(off)
+				continue
+			}
+			done()
+		default:
+			done()
+		}
+	}
+}
+
+// projectObject writes {"id", "label"} in the file's own layout: one field
+// per line, indented one step past the project key, when the key sits on a
+// line of its own.
+func projectObject(b []byte, keyAt int, id string, projects []hostProject) string {
+	name := ""
+	for _, p := range projects {
+		if p.ID == id {
+			name = p.Name
+		}
+	}
+	idj, _ := json.Marshal(id)
+	namej, _ := json.Marshal(name)
+	nl := bytes.LastIndexByte(b[:keyAt], '\n')
+	if nl < 0 || len(bytes.TrimSpace(b[nl+1:keyAt])) != 0 {
+		if name == "" {
+			return `{"id":` + string(idj) + `}`
+		}
+		return `{"id":` + string(idj) + `,"label":` + string(namej) + `}`
+	}
+	ind := string(b[nl+1 : keyAt])
+	out := "{\n" + ind + "  \"id\": " + string(idj)
+	if name != "" {
+		out += ",\n" + ind + "  \"label\": " + string(namej)
+	}
+	return out + "\n" + ind + "}"
+}
+
 // ResolveProjects rewrites every question's project id that matches exactly
 // one of projects to that project's id, keeping its name in project.label.
 // References that match nothing or several, and every question without a
 // project, stay byte for byte as they were. A dry run writes nothing. A real
 // run first copies q/ to backup (dir + ".bak-<date>-project-ids"), refuses to
 // write when that fails, and is idempotent: ids are not rewritten.
-func (s *Store) ResolveProjects(projects []hostProject, dry bool) (ProjectReport, error) {
+func (s *Store) ResolveProjects(projects []hostProject, panes map[string]string, dry bool) (ProjectReport, error) {
 	rep := ProjectReport{DryRun: dry, Unmatched: []ProjectKept{}, Ambiguous: []ProjectKept{}}
 	err := s.locked(func() error {
 		files, e := filepath.Glob(filepath.Join(s.Dir, "q", "*.json"))
@@ -471,6 +711,13 @@ func (s *Store) ResolveProjects(projects []hostProject, dry bool) (ProjectReport
 			sp, e := projectSplices(b, projects, &rep, kept, amb)
 			if e != nil {
 				return fmt.Errorf("%s: %w", f, e)
+			}
+			if panes != nil {
+				fill, e := paneFillSplice(b, projects, panes, &rep)
+				if e != nil {
+					return fmt.Errorf("%s: %w", f, e)
+				}
+				sp = append(sp, fill...)
 			}
 			if len(sp) > 0 {
 				edits = append(edits, edit{path: f, data: b, sp: sp})
@@ -551,6 +798,23 @@ func runResolveProjects(a *App, c ochazuke.Ctx) ochazuke.Result {
 		return result(nil, errors.New("no projects from project.source (mtm); nothing to resolve against, nothing written"))
 	}
 	dry, _ := c.Args["dry-run"].(bool)
-	rep, e := a.store.ResolveProjects(list, dry)
+	panes, pe := a.hostPanes(context.Background(), "")
+	if pe != nil || panes == nil {
+		panes = nil
+	}
+	rep, e := a.store.ResolveProjects(list, panes, dry)
+	if pe != nil {
+		rep.PanesError = pe.Error()
+	}
 	return result(rep, e)
+}
+
+// defaultProjectOf gives q the project the host can name from its pane and
+// the given directory when it has none; one path for every verb that
+// creates a question. A project that was given is never replaced.
+func (s *Store) defaultProjectOf(q *Question, cwd string) {
+	if q.Project.ID != "" || s.ProjectDefault == nil {
+		return
+	}
+	q.Project = Project{ID: s.ProjectDefault(q.Source.Pane, cwd)}
 }

@@ -6,6 +6,8 @@
 | model.go | Question, entry, source, links and thread projection |
 | actor.go | Entry-point identities, shared catalog/store right declarations, open writes except delete, and framework-override policy |
 | atomic.go | Reused slug/token and atomic-file helpers |
+| keys.go | Unknown-key did-you-mean (edit distance) over a struct's JSON fields |
+| legacy.go | Read-time data migration (`migrateLegacy`): decision block renames and `legacyKeys` (tuios_session -> mtm_session) |
 | store.go | Process lock, record files, write-ahead recovery, idempotency, attributed history/undo and archived-record resolution; live positional numbers skip archived records |
 | changes.go | Store mutations, annotations, merge/split and the shared soft-delete/archive/restore changes |
 | backup.go | Daily/manual archives, retention, validated undoable restore |
@@ -19,7 +21,7 @@
 | editor.go | Commit-on-change question/title/entry and association editors; pickers |
 | thread_view.go | Read-only thread modal and scroll rows |
 | decision.go | Questions for the owner: pose, decide, reply, applied, export (mgmt semantics) |
-| decision_app.go | Decision verbs, rows (topic, question, checklist item), the Options section, the decision noun's aliases, page and key rows (outcome keys come from decision.outcomes) |
+| decision_app.go | Decision verbs (pose names unknown option/item keys), rows (topic, question, checklist item), the Options section, the decision noun's aliases, page and key rows (outcome keys come from decision.outcomes) |
 | decision_state.go | Decision row states (glyph, tone, rank), differs-from-recommendation, state sort, archived listing, batch archive (ArchiveMany/ArchiveMatching) |
 | decision_doc.go | The document pane: working Markdown file per decision (render, parse, read-back through the decision verbs, prune), the editor source that syncs on save |
 | decision_web.go | decision --web: mgmt session out, decisions back |

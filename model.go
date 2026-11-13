@@ -19,7 +19,7 @@ type Source struct {
 	Harness      string `json:"harness,omitempty"`
 	AgentSession string `json:"agent_session,omitempty"`
 	Pane         string `json:"pane,omitempty"`
-	TuiosSession string `json:"tuios_session,omitempty"`
+	MtmSession   string `json:"mtm_session,omitempty"`
 	Transcript   string `json:"transcript,omitempty"`
 	Turn         string `json:"turn,omitempty"`
 }

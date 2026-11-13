@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Fixed (SC-072, SC-073): `question pose` dropped unknown keys on an option or item object without a word. It now names each in a notice with did-you-mean (`option 2: unknown key "lable" was not saved (did you mean "label"?)`) and keeps the rest; a bare string stays an id and label.
+- Changed (record first, S15, ER-1420, ER-1453): an empty question is saved as `untitled-STAMP` (edit it later); an empty reply, answer or edit is recorded instead of refused.
+- Changed (tuios purge): the question source's session is stored as `mtm_session` (`Source.MtmSession`); a stored `tuios_session` is read as `mtm_session` by `migrateLegacy` (one row in `legacyKeys`) and the next write stores the new name. Identity reads `MTM_<name>` only (`paneenv.go` removed; no `TUIOS_` fallback).
+- Added: `question list` and `decision list` print a table at a terminal (`cli.tty-format`, ochazuke v0.135.0); a pipe still gets JSON.
+- Not yet: the catalog does not declare `serve` (ochazuke `host serve`): the shell's actor is read once per process, so a served call could run with an earlier call's identity (needs a per-call actor hook in ochazuke). The source fields read from the environment (transcript, turn, agent session) are already read per call.
+- Deps: ochazuke v0.135.0; the family word list copy gains `look`, `rail`, `resize`.
+
 ## v0.11.0 (2026-11-13)
 
 - Changed: reads never call the host for projects. `question list`, `decision list` and the pages show the stored project id with the name kept on the question (`project.label`) and match a `--project` filter from them; the host (`mtm project list`, about 2 s per call when mounted) is asked only to resolve a typed reference on a write, to default a new question's project from its pane, and for a filter that matches no stored id or name. A renamed project shows its old name until a write touches the question.

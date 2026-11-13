@@ -101,7 +101,7 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 			b.Positional(v.positional...)
 		}
 		if v.rows {
-			b.Rows(noun).Fetch().Quiet()
+			b.Rows(noun).Fetch().Quiet().Table() // a person at a terminal reads rows as a table (cli.tty-format)
 		}
 		if noun != "question" && verbHomes[v.name].alias {
 			b.AliasOn("question", v.name)
@@ -288,7 +288,7 @@ func mapAction(kind string) string {
 	return kind
 }
 func sourceFromEnv(a Actor) Source {
-	return Source{Harness: a.Harness, Pane: a.Pane, TuiosSession: a.Session, AgentSession: firstEnv("CODEX_THREAD_ID", "CLAUDE_SESSION_ID"), Transcript: os.Getenv("TRANSCRIPT_PATH"), Turn: os.Getenv("AGENT_TURN_ID")}
+	return Source{Harness: a.Harness, Pane: a.Pane, MtmSession: a.Session, AgentSession: firstEnv("CODEX_THREAD_ID", "CLAUDE_SESSION_ID"), Transcript: os.Getenv("TRANSCRIPT_PATH"), Turn: os.Getenv("AGENT_TURN_ID")}
 }
 func firstEnv(keys ...string) string {
 	for _, k := range keys {
@@ -437,7 +437,7 @@ func fillSource(given, fallback Source) Source {
 	for _, v := range []struct {
 		to       *string
 		fallback string
-	}{{&given.Harness, fallback.Harness}, {&given.AgentSession, fallback.AgentSession}, {&given.Pane, fallback.Pane}, {&given.TuiosSession, fallback.TuiosSession}, {&given.Transcript, fallback.Transcript}, {&given.Turn, fallback.Turn}} {
+	}{{&given.Harness, fallback.Harness}, {&given.AgentSession, fallback.AgentSession}, {&given.Pane, fallback.Pane}, {&given.MtmSession, fallback.MtmSession}, {&given.Transcript, fallback.Transcript}, {&given.Turn, fallback.Turn}} {
 		if *v.to == "" {
 			*v.to = v.fallback
 		}

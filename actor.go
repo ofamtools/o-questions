@@ -31,7 +31,7 @@ func (e *RefusedError) Error() string {
 	return fmt.Sprintf("agent refused %s (%s); ask the owner", e.Action, e.Rule)
 }
 func cliActor(env func(string) string) (Actor, error) {
-	a := Actor{Kind: "owner", Name: paneEnv(env, "AGENT_NAME"), Harness: paneEnv(env, "HARNESS"), Pane: paneEnv(env, "PANE_ID"), Session: paneEnv(env, "SESSION"), Model: env("AGENT_MODEL")}
+	a := Actor{Kind: "owner", Name: env(ochazuke.HostEnvMTM + "AGENT_NAME"), Harness: env(ochazuke.HostEnvMTM + "HARNESS"), Pane: env(ochazuke.HostEnvMTM + "PANE_ID"), Session: env(ochazuke.HostEnvMTM + "SESSION"), Model: env("AGENT_MODEL")}
 	if a.Harness == "" {
 		a.Harness = env("AGENT_HARNESS")
 	}

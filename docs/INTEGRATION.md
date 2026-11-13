@@ -123,7 +123,7 @@ The comparison was checked against the installed Vim 9.1 help files under
 Keys are binding rows. s is status; c is create. Star is available through the
 palette/CLI without a default key. j/k, g g/G and / remain framework motions.
 
-The integration drivers remove every inherited TUIOS_* and MTM_* variable from
+The integration drivers remove every inherited MTM_* variable from
 subprocess environments and pass --socket /tmp/oq-core/dead.sock on every mtm
 call. The shared runner asserts the socket path is absent and these variables
 are absent before execution. HOME/XDG/config/data are all under /tmp/oq-core.

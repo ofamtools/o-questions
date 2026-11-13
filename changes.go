@@ -139,9 +139,6 @@ func changeRestore(s *Store, c Change, q *Question, rows *[]Question) error {
 }
 
 func changeEdit(s *Store, c Change, q *Question, rows *[]Question) error {
-	if strings.TrimSpace(c.Value) == "" {
-		return errors.New("question must not be empty")
-	}
 	q.Text = c.Value
 	q.Verbatim = "unchecked"
 	return nil

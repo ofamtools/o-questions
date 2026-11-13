@@ -211,8 +211,8 @@ func (a *App) callTool(name string, raw json.RawMessage, client string) any {
 	return toolContent(value, nil)
 }
 
-// Stdio framing and the initialize/tools lifecycle follow the family's tuios
-// MCP server: newline-delimited JSON-RPC, notifications receive no response.
+// Stdio framing and the initialize/tools lifecycle follow the family's MCP
+// servers: newline-delimited JSON-RPC, notifications receive no response.
 func (a *App) serveMCP() error {
 	scan := bufio.NewScanner(a.in)
 	scan.Buffer(make([]byte, 64*1024), 16*1024*1024)

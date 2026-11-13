@@ -39,7 +39,7 @@ func setupHome(t *testing.T) (string, string, string) {
 	return home, claude, codex
 }
 
-const existing = "# Global rules\n\n<!-- h-tuios:begin -->\nkeep me\n<!-- h-tuios:end -->\n"
+const existing = "# Global rules\n\n<!-- h-other:begin -->\nkeep me\n<!-- h-other:end -->\n"
 
 func TestSetupInstructionNote(t *testing.T) {
 	s := fixture(t)

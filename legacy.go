@@ -17,7 +17,7 @@ import (
 // now "status". It is a data migration, not a name alias: the next write of
 // the file stores the new names. Text without a legacy key is returned as is.
 func migrateLegacy(b []byte) ([]byte, error) {
-	if !bytes.Contains(b, []byte(`"state"`)) && !bytes.Contains(b, []byte(`"review"`)) && !bytes.Contains(b, []byte(`"note":`)) && !bytes.Contains(b, []byte(`"decision"`)) {
+	if !bytes.Contains(b, []byte(`"state"`)) && !bytes.Contains(b, []byte(`"review"`)) && !bytes.Contains(b, []byte(`"note":`)) && !bytes.Contains(b, []byte(`"decision"`)) && !hasLegacyKey(b) {
 		return b, nil
 	}
 	dec := json.NewDecoder(bytes.NewReader(b))
@@ -32,6 +32,19 @@ func migrateLegacy(b []byte) ([]byte, error) {
 	return json.Marshal(doc)
 }
 
+// legacyKeys are keys renamed one shot, old to new, in any object of the
+// store: the next write stores the new name.
+var legacyKeys = map[string]string{"tuios_session": "mtm_session"}
+
+func hasLegacyKey(b []byte) bool {
+	for old := range legacyKeys {
+		if bytes.Contains(b, []byte(`"`+old+`"`)) {
+			return true
+		}
+	}
+	return false
+}
+
 // migrateNode renames the legacy keys in every decision block under v and
 // reports whether it did: "review" becomes "decision" (when the record has
 // no decision yet), and the block's "state" becomes "status".
@@ -42,6 +55,15 @@ func migrateNode(v any) (changed bool) {
 			changed = migrateNode(item) || changed
 		}
 	case map[string]any:
+		for old, name := range legacyKeys {
+			if v, has := x[old]; has {
+				if _, taken := x[name]; !taken {
+					x[name] = v
+				}
+				delete(x, old)
+				changed = true
+			}
+		}
 		if old, ok := x["review"].(map[string]any); ok {
 			if _, taken := x["decision"]; !taken {
 				x["decision"] = old

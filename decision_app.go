@@ -97,10 +97,47 @@ func runPose(a *App, c ochazuke.Ctx) ochazuke.Result {
 	if e := decodeArgs(c.Args, &p); e != nil {
 		return result(nil, e)
 	}
+	for _, text := range poseKeyNotices(c.Args) {
+		c.Notify(text)
+	}
 	p.Provenance = sourceFromEnv(a.store.Actor)
 	v, e := a.store.Pose(p)
 	a.refresh()
 	return result(v, e)
+}
+
+// poseKeyNotices names each key of an option or item object that the
+// option or item does not have, with did-you-mean (never refused: the rest
+// of the row is kept; a bare string stays an id and label).
+func poseKeyNotices(args ochazuke.Arguments) []string {
+	var out []string
+	for _, field := range []struct {
+		arg   string
+		known []string
+	}{{"options", jsonFields(Option{})}, {"items", jsonFields(Item{})}} {
+		raw, ok := args[field.arg]
+		if !ok {
+			continue
+		}
+		if text, isText := raw.(string); isText {
+			var v any
+			if json.Unmarshal([]byte(text), &v) != nil {
+				continue
+			}
+			raw = v
+		}
+		rows, _ := raw.([]any)
+		for i, row := range rows {
+			m, isObject := row.(map[string]any)
+			if !isObject {
+				continue
+			}
+			for _, text := range unknownKeys(m, field.known) {
+				out = append(out, fmt.Sprintf("question pose: %s %d: %s", strings.TrimSuffix(field.arg, "s"), i+1, text))
+			}
+		}
+	}
+	return out
 }
 
 // declareDecisionPage defines decision.open-page, the verb bare `decision` runs.

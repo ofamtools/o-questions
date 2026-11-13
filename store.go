@@ -333,8 +333,9 @@ type Asked struct {
 }
 
 func (s *Store) Ask(a Ask) (out Asked, err error) {
-	if strings.TrimSpace(a.Question) == "" {
-		return out, errors.New("question must not be empty")
+	if strings.TrimSpace(a.Question) == "" && strings.TrimSpace(a.Title) == "" {
+		// Record first: an empty question is saved as untitled-STAMP, edited later.
+		a.Title = "untitled-" + s.now().Format("20060102-150405")
 	}
 	at := s.now()
 	if a.AskedAt != "" {
@@ -420,9 +421,7 @@ func (s *Store) Ask(a Ask) (out Asked, err error) {
 	return
 }
 func (s *Store) appendEntry(q *Question, en Entry) error {
-	if strings.TrimSpace(en.Text) == "" {
-		return errors.New("entry text must not be empty")
-	}
+	// Record first: an empty reply or answer is recorded like any other.
 	table := s.StatusFromEntry
 	if table == nil {
 		table = entryStatuses

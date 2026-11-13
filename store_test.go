@@ -15,7 +15,7 @@ import (
 func fixture(t *testing.T) *Store {
 	t.Helper()
 	dir := t.TempDir()
-	for _, key := range []string{"CODEX_THREAD_ID", "CODEX_CI", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_SESSION_ID", "MTM_AGENT_NAME", "TUIOS_AGENT_NAME", "MTM_HARNESS", "TUIOS_HARNESS", "MTM_PANE_ID", "TUIOS_PANE_ID", "MTM_SESSION", "TUIOS_SESSION", "AGENT_HARNESS", "AGENT_MODEL", "TRANSCRIPT_PATH", "AGENT_TURN_ID", "MTM_ACTOR", "O_QUESTIONS_ACTOR"} {
+	for _, key := range []string{"CODEX_THREAD_ID", "CODEX_CI", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_SESSION_ID", "MTM_AGENT_NAME", "MTM_HARNESS", "MTM_PANE_ID", "MTM_SESSION", "AGENT_HARNESS", "AGENT_MODEL", "TRANSCRIPT_PATH", "AGENT_TURN_ID", "MTM_ACTOR", "O_QUESTIONS_ACTOR"} {
 		t.Setenv(key, "")
 	}
 	t.Setenv("HOME", dir)
@@ -237,7 +237,7 @@ func TestStoreCorruptRecordVisible(t *testing.T) {
 	}
 }
 func TestActor(t *testing.T) {
-	env := map[string]string{"CODEX_THREAD_ID": "test", "TUIOS_PANE_ID": "pane"}
+	env := map[string]string{"CODEX_THREAD_ID": "test", "MTM_PANE_ID": "pane"}
 	a, e := cliActor(func(k string) string { return env[k] })
 	if e != nil || a.Kind != "agent" || a.Harness != "codex" {
 		t.Fatal(a, e)

@@ -30,11 +30,11 @@ type Store struct {
 	Remove          func(string) error
 	Warn            func(string)
 	Outcomes        []Outcome
-	// ProjectRef resolves a project reference against the host's projects and
-	// ProjectNameOf names a project by id; both nil when there is no host, and
-	// then project references are stored and shown as they are.
-	ProjectRef    func(string) projectMatch
-	ProjectNameOf func(string) string
+	// ProjectRef resolves a typed project reference against the host's
+	// projects; nil when there is no host, and then references are stored as
+	// typed. Reads never call it for a stored value: they use the stored id
+	// and the name kept beside it.
+	ProjectRef func(string) projectMatch
 	// ProjectDefault is the project id a new question with none gets, from the
 	// asking pane and a directory (empty: the current one); nil, or "" when
 	// the host knows nothing, leaves the question without a project.

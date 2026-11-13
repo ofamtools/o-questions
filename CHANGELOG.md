@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Changed: reads never call the host for projects. `question list`, `decision list` and the pages show the stored project id with the name kept on the question (`project.label`) and match a `--project` filter from them; the host (`mtm project list`, about 2 s per call when mounted) is asked only to resolve a typed reference on a write, to default a new question's project from its pane, and for a filter that matches no stored id or name. A renamed project shows its old name until a write touches the question.
+
 ## v0.10.0 (2026-11-12)
 
 - Added: a question or decision recorded with no project takes one from its context, through the same path for `ask` and `pose`: the asking pane's project as the host reports it (`pane list`, ended panes included), else the project whose directory holds `--cwd` (or the current directory; the longest matching directory wins, several equal matches store nothing), else none. A given `--project` always wins; a follow-up keeps its thread's. The host read is one call, cached for a few seconds; a failed or slow read stores no project and never fails the ask. `project.source` `none` makes no host call and defaults nothing.

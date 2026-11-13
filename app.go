@@ -370,7 +370,7 @@ func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
 	pane := get("pane", "")
 	session := get("agent_session", "")
 	number := 0
-	match := a.store.projectMatcher(project)
+	match := a.store.projectMatcher(project, qs)
 	for _, q := range qs {
 		cellNumber := "-"
 		if !q.Deleted {

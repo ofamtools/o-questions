@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -289,32 +290,12 @@ func (a *App) linkProjects() {
 		return resolveProjectRef(a.projectIndex(), ref)
 	}
 	a.store.ProjectDefault = a.defaultProject
-	a.store.ProjectNameOf = func(id string) string {
-		if id == "" {
-			return ""
-		}
-		for _, p := range a.projectIndex() {
-			if p.ID == id {
-				return p.Name
-			}
-		}
-		return ""
-	}
 }
 
-// projectDisplay is the name a stored project is shown as: the host's name
-// for the id, else the name kept on the question, else the stored value.
-func (s *Store) projectDisplay(p Project) string {
-	if p.ID == "" {
-		return ""
-	}
-	if s.ProjectNameOf != nil {
-		if n := s.ProjectNameOf(p.ID); n != "" {
-			return n
-		}
-	}
-	return p.Shown()
-}
+// projectDisplay is the name a stored project is shown as: the name kept on
+// the question, else the stored value. A read never asks the host, so a
+// renamed project keeps its old name until a write touches the question.
+func (s *Store) projectDisplay(p Project) string { return p.Shown() }
 
 // Shown is the name kept on the question, else the stored value.
 func (p Project) Shown() string {
@@ -335,11 +316,41 @@ func (s *Store) canonProject(ref string) string {
 }
 
 // projectMatcher reports whether a question's project is the queried
-// reference: by id, by name or by kind:id.
-func (s *Store) projectMatcher(query string) func(Project) bool {
-	q := s.canonProject(query)
+// reference: by id, by name or by kind:id. It matches from what is stored.
+// The host is asked only when the query names nothing stored: at once when
+// qs are given and none matches (checked at the first use, so an unused
+// matcher never asks), else (no questions) on the first project that does not
+// match directly.
+func (s *Store) projectMatcher(query string, qs []Question) func(Project) bool {
+	query = strings.TrimSpace(query)
+	id := strings.TrimPrefix(query, "mtm:")
+	direct := func(p Project) bool {
+		return p.ID != "" && (p.ID == id || p.Label != "" && strings.EqualFold(p.Label, query))
+	}
+	asked, canon := false, ""
+	ask := func() {
+		if !asked {
+			asked, canon = true, s.canonProject(query)
+		}
+	}
+	scanned := false
 	return func(p Project) bool {
-		return p.ID != "" && (s.canonProject(p.ID) == q || p.Label != "" && strings.EqualFold(p.Label, strings.TrimSpace(query)))
+		if p.ID == "" {
+			return false
+		}
+		if !scanned && qs != nil && query != "" {
+			scanned = true
+			if !slices.ContainsFunc(qs, func(q Question) bool { return direct(q.Project) }) {
+				ask()
+			}
+		}
+		if direct(p) {
+			return true
+		}
+		if qs == nil && query != "" {
+			ask()
+		}
+		return asked && s.canonProject(p.ID) == canon
 	}
 }
 

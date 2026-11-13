@@ -13,14 +13,6 @@ var testProjects = []hostProject{{"1", "Alpha", ""}, {"2", "Beta", ""}, {"3", "D
 
 func withProjects(s *Store) {
 	s.ProjectRef = func(ref string) projectMatch { return resolveProjectRef(testProjects, ref) }
-	s.ProjectNameOf = func(id string) string {
-		for _, p := range testProjects {
-			if p.ID == id {
-				return p.Name
-			}
-		}
-		return ""
-	}
 }
 
 func askIn(t *testing.T, s *Store, text, project string) Question {
@@ -108,15 +100,15 @@ func TestProjectNameResolvesOnWriteAndShowsAsName(t *testing.T) {
 	if d := askIn(t, s, "y", "dup"); d.Project.ID != "dup" || d.Project.Label != "" {
 		t.Fatalf("ambiguous stored as %+v", d.Project)
 	}
-	if !s.projectMatcher("BETA")(q.Project) || !s.projectMatcher("mtm:2")(q.Project) || s.projectMatcher("alpha")(q.Project) {
+	if !s.projectMatcher("BETA", nil)(q.Project) || !s.projectMatcher("mtm:2", nil)(q.Project) || s.projectMatcher("alpha", nil)(q.Project) {
 		t.Fatal("filter by name or id")
 	}
 	if s.projectDisplay(q.Project) != "Beta" {
 		t.Fatal(s.projectDisplay(q.Project))
 	}
-	s.ProjectNameOf = func(string) string { return "" } // the project is gone from the host
-	if s.projectDisplay(q.Project) != "Beta" {
-		t.Fatal("gone project lost its name")
+	s.ProjectRef = func(string) projectMatch { t.Fatal("a read asked the host"); return projectMatch{} }
+	if s.projectDisplay(q.Project) != "Beta" || !s.projectMatcher("beta", []Question{q})(q.Project) {
+		t.Fatal("a read needed the host")
 	}
 	if r := questionRowData(q); r["project_id"] != "2" || r["project_name"] != "Beta" {
 		t.Fatalf("row data %v", r)

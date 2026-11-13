@@ -332,11 +332,17 @@ type Asked struct {
 	Existed  bool     `json:"existed"`
 }
 
-func (s *Store) Ask(a Ask) (out Asked, err error) {
+// titleOrUntitled is the question's title; an empty question with no title
+// is saved as untitled-STAMP (record first), edited later.
+func (s *Store) titleOrUntitled(a Ask) string {
 	if strings.TrimSpace(a.Question) == "" && strings.TrimSpace(a.Title) == "" {
-		// Record first: an empty question is saved as untitled-STAMP, edited later.
-		a.Title = "untitled-" + s.now().Format("20060102-150405")
+		return "untitled-" + s.now().Format("20060102-150405")
 	}
+	return a.Title
+}
+
+func (s *Store) Ask(a Ask) (out Asked, err error) {
+	a.Title = s.titleOrUntitled(a)
 	at := s.now()
 	if a.AskedAt != "" {
 		at, err = time.Parse(time.RFC3339, a.AskedAt)

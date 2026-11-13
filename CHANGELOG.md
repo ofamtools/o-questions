@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.12.0
 
 - Fixed (SC-072, SC-073): `question pose` dropped unknown keys on an option or item object without a word. It now names each in a notice with did-you-mean (`option 2: unknown key "lable" was not saved (did you mean "label"?)`) and keeps the rest; a bare string stays an id and label.
 - Changed (record first, S15, ER-1420, ER-1453): an empty question is saved as `untitled-STAMP` (edit it later); an empty reply, answer or edit is recorded instead of refused.

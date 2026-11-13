@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.11.0 (2026-11-13)
 
 - Changed: reads never call the host for projects. `question list`, `decision list` and the pages show the stored project id with the name kept on the question (`project.label`) and match a `--project` filter from them; the host (`mtm project list`, about 2 s per call when mounted) is asked only to resolve a typed reference on a write, to default a new question's project from its pane, and for a filter that matches no stored id or name. A renamed project shows its old name until a write touches the question.
 

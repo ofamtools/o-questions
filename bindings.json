@@ -1,0 +1,41 @@
+// o-questions' default key rows from the run-3 key picker (ochazuke bindings, JSONC), all hidden; the rows bound in Go (page.go, decision_app.go) stay there. A user's bindings.json overrides them.
+{
+  "bindings": [
+    {"context": "decision/normal", "bindings": [
+      {"key": "s", "action": "decision.create", "hidden": true},
+      {"key": "C", "action": "decision.edit", "hidden": true},
+      {"key": "R", "action": "decision.export", "hidden": true},
+      {"key": "ctrl+z", "action": "decision.follow", "hidden": true},
+      {"key": "alt+j", "action": "decision.get", "hidden": true},
+      {"key": "alt+m", "action": "decision.history", "hidden": true},
+      {"key": "*", "action": "decision.set", "hidden": true}
+    ]},
+    {"context": "question/normal", "bindings": [
+      {"key": "b", "action": "question.applied", "hidden": true},
+      {"key": "p", "action": "question.ask-back", "hidden": true},
+      {"key": "w", "action": "question.backup", "hidden": true},
+      {"key": "A", "action": "question.check", "hidden": true},
+      {"key": "B", "action": "question.correct", "hidden": true},
+      {"key": "F", "action": "question.create", "hidden": true},
+      {"key": "H", "action": "question.follow", "hidden": true},
+      {"key": "M", "action": "question.get", "hidden": true},
+      {"key": "U", "action": "question.history", "hidden": true},
+      {"key": "E", "action": "question.import", "hidden": true},
+      {"key": "O", "action": "question.link", "hidden": true},
+      {"key": "R", "action": "question.list", "hidden": true},
+      {"key": "W", "action": "question.merge", "hidden": true},
+      {"key": "X", "action": "question.moot", "hidden": true},
+      {"key": "ctrl+h", "action": "question.pose", "hidden": true},
+      {"key": "ctrl+v", "action": "question.reopen", "hidden": true},
+      {"key": "ctrl+n", "action": "question.reply", "hidden": true},
+      {"key": "ctrl+o", "action": "question.resolve-project", "hidden": true},
+      {"key": "*", "action": "question.set", "hidden": true},
+      {"key": "ctrl+r", "action": "question.split", "hidden": true},
+      {"key": "ctrl+s", "action": "question.star", "hidden": true},
+      {"key": "g f", "action": "question.unlink", "hidden": true},
+      {"key": "alt+m", "action": "question.unstar", "hidden": true},
+      {"key": "alt+x", "action": "question.untag", "hidden": true},
+      {"key": "alt+y", "action": "question.watch", "hidden": true}
+    ]}
+  ]
+}

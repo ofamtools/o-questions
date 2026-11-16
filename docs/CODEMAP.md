@@ -17,6 +17,7 @@
 | pickers.go | The question and decision noun pickers (PickerDef), listed by the catalog |
 | mcp.go | Tool allowlist, schemas and JSON-RPC stdio lifecycle |
 | page.go | Shared catalog detail Sections, legacy preview kind, binding rows |
+| bindings.go, bindings.json | Hidden default key rows as data (the run-3 key picker's), loaded after the Go rows |
 | tui.go | Standalone mount, refresh and smoke frame |
 | editor.go | Commit-on-change question/title/entry and association editors; pickers |
 | thread_view.go | Read-only thread modal and scroll rows |

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added: 32 hidden default key rows from the run-3 key picker in a new `bindings.json` (embedded, loaded into the default layer after the Go rows; a user's `bindings.json` overrides them), on `question` (`b` applied, `p` ask-back, `w` backup, `A` check, `B` correct, `F` create, `H` follow, `M` get, `U` history, `E` import, `O` link, `R` list, `W` merge, `X` moot, `ctrl+h` pose, `ctrl+v` reopen, `ctrl+n` reply, `ctrl+o` resolve-project, `*` set, `ctrl+r` split, `ctrl+s` star, `g f` unlink, `alt+m` unstar, `alt+x` untag, `alt+y` watch) and `decision` (`s` create, `C` edit, `R` export, `ctrl+z` follow, `alt+j` get, `alt+m` history, `*` set). No existing row changed; the hint line is unchanged. Ten picker rows were held back: four name verbs mtm adds on mount (`decision.annotate`, `decision.delete`, `question.relate`/`unrelate`), two take keys the question list binds (`n`, `o`), four give a verb a second key (`accept`, `decide`, `decision-note`, `undecide`).
 - Deps: ochazuke v0.144.0 (from v0.135.0). The family word list copy gains ochazuke's new words (`add-key`, `binding-file`, `capture-*`, `cycle-mode`, `drop`, `edit-fields`, `explain`, `explain-key`, `help-node`, `help-page`, `help-page-state`, `help-row`, `jump`, `narrow`, `overlay`, `rebind`, `redirect`, `refocus`, `show-file`, `unify`). `serve` stays undeclared: v0.144.0 still has no per-call actor hook (`Shell.Run` uses `Shell.Actor`, which this tool sets once per process).
 
 ## v0.12.0

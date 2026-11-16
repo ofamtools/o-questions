@@ -125,6 +125,9 @@ func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
 	a.declareFilterProps()
 	a.r.Define("question").Columns(columns...)
 	registerQuestionUI(a)
+	if e := loadDefaultBindings(a); e != nil {
+		return nil, e
+	}
 	if e := a.declareSetup(); e != nil {
 		return nil, e
 	}

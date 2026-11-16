@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Deps: ochazuke v0.144.0 (from v0.135.0). The family word list copy gains ochazuke's new words (`add-key`, `binding-file`, `capture-*`, `cycle-mode`, `drop`, `edit-fields`, `explain`, `explain-key`, `help-node`, `help-page`, `help-page-state`, `help-row`, `jump`, `narrow`, `overlay`, `rebind`, `redirect`, `refocus`, `show-file`, `unify`). `serve` stays undeclared: v0.144.0 still has no per-call actor hook (`Shell.Run` uses `Shell.Actor`, which this tool sets once per process).
+
 ## v0.12.0
 
 - Fixed (SC-072, SC-073): `question pose` dropped unknown keys on an option or item object without a word. It now names each in a notice with did-you-mean (`option 2: unknown key "lable" was not saved (did you mean "label"?)`) and keeps the rest; a bare string stays an id and label.

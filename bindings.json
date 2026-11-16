@@ -3,7 +3,6 @@
   "bindings": [
     {"context": "decision/normal", "bindings": [
       {"key": "s", "action": "decision.create", "hidden": true},
-      {"key": "C", "action": "decision.edit", "hidden": true},
       {"key": "R", "action": "decision.export", "hidden": true},
       {"key": "ctrl+z", "action": "decision.follow", "hidden": true},
       {"key": "alt+j", "action": "decision.get", "hidden": true},

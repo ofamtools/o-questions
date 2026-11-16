@@ -1,0 +1,9 @@
+# rulecheck hiddenkeys baseline: table (noun/mode or #instance/mode), key, operation with its arguments, count, reason (tab separated).
+# A row says: the hidden row on KEY in TABLE takes a key that, at some focus, already did something: without the hidden rows, a
+# visible row answered KEY there, at once or under a guard. A hidden row is meant to give a verb a key
+# nobody uses; one that shadows a motion or a standard key changes what that key does (v0.143.0: outline k opened an args form on a
+# tree's top row). Fix it by removing the row or moving it to a free key.
+# A row with a reason is a reviewed hidden row that takes the key on purpose; a row without one is debt that only shrinks
+# (RULECHECK_UPDATE=1 removes and lowers rows, never adds one; adding a row is a reviewed edit).
+decision/normal	l	question.decide {"action":"later"}	1	predates the key picker; not reviewed
+decision/normal	w	decision.write-in {"action":"other"}	1	predates the key picker; not reviewed

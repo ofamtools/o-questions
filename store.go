@@ -26,6 +26,7 @@ type Store struct {
 	StatusFromEntry map[string]string
 	BackupDaily     bool
 	BackupKeep      int
+	BackupDays      int
 	HistoryKeep     int // undo entries retained; 0 keeps all
 	Remove          func(string) error
 	Warn            func(string)

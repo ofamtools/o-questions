@@ -1,9 +1,12 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -425,5 +428,112 @@ func TestHistoryPruneFailureKeepsChange(t *testing.T) {
 	q := ask(t, s, "Two?")
 	if got, e := s.Resolve(q.ID, false); e != nil || got.ID != q.ID || len(warned) == 0 {
 		t.Fatal(got, e, warned)
+	}
+}
+func TestDailyBackupAgeAndNoHistory(t *testing.T) {
+	for _, days := range []int{14, 0} {
+		s := fixture(t)
+		s.BackupDaily = true
+		s.BackupDays = days
+		at := time.Date(2026, 1, 30, 0, 0, 0, 0, time.UTC)
+		s.Now = func() time.Time { return at }
+		dir := filepath.Join(s.Dir, "backups")
+		if e := os.MkdirAll(dir, 0700); e != nil {
+			t.Fatal(e)
+		}
+		for _, n := range []string{"2026-01-01", "2026-01-20"} {
+			if e := os.WriteFile(filepath.Join(dir, n+".tar.gz"), []byte("x"), 0600); e != nil {
+				t.Fatal(e)
+			}
+		}
+		ask(t, s, "Age?")
+		files, _ := filepath.Glob(filepath.Join(dir, "????-??-??.tar.gz"))
+		want := 3
+		if days == 14 {
+			want = 2
+		}
+		if len(files) != want {
+			t.Fatal(days, files)
+		}
+		if days == 14 {
+			if _, e := os.Stat(filepath.Join(dir, "2026-01-01.tar.gz")); e == nil {
+				t.Fatal("old daily kept")
+			}
+			path, e := s.Backup(dir)
+			if e != nil {
+				t.Fatal(e)
+			}
+			names := archiveMembers(t, path)
+			if len(names) == 0 {
+				t.Fatal("empty archive")
+			}
+			for _, n := range names {
+				if strings.HasPrefix(n, ".history/") {
+					t.Fatal("history member", n)
+				}
+			}
+		}
+	}
+}
+func archiveMembers(t *testing.T, path string) []string {
+	f, e := os.Open(path)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer f.Close()
+	gz, e := gzip.NewReader(f)
+	if e != nil {
+		t.Fatal(e)
+	}
+	tr := tar.NewReader(gz)
+	var out []string
+	for {
+		h, e := tr.Next()
+		if e == io.EOF {
+			return out
+		}
+		if e != nil {
+			t.Fatal(e)
+		}
+		out = append(out, h.Name)
+	}
+}
+func TestRestoreOldArchiveWithHistory(t *testing.T) {
+	s := fixture(t)
+	q := ask(t, s, "Old archive?")
+	src, e := s.Backup(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
+	old := filepath.Join(t.TempDir(), "old.tar.gz")
+	in, _ := os.Open(src)
+	defer in.Close()
+	gz, _ := gzip.NewReader(in)
+	tr := tar.NewReader(gz)
+	out, _ := os.Create(old)
+	ogz := gzip.NewWriter(out)
+	tw := tar.NewWriter(ogz)
+	for {
+		h, e := tr.Next()
+		if e != nil {
+			break
+		}
+		b, _ := io.ReadAll(tr)
+		tw.WriteHeader(h)
+		tw.Write(b)
+	}
+	tw.WriteHeader(&tar.Header{Name: ".history/00000000000000000001.json", Mode: 0600, Size: 2})
+	tw.Write([]byte("{}"))
+	if e = errors.Join(tw.Close(), ogz.Close(), out.Close()); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.Change(opEdit, q.ID, Change{Value: "Changed?"}); e != nil {
+		t.Fatal(e)
+	}
+	if e = s.Restore(old); e != nil {
+		t.Fatal(e)
+	}
+	if r, e := s.Resolve(q.ID, false); e != nil || r.Text != "Old archive?" {
+		t.Fatal(r, e)
 	}
 }

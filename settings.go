@@ -74,6 +74,12 @@ func appSettings() []ochazuke.Setting {
 		{Name: "entry.max-bytes", Type: ochazuke.SettingInteger, Default: 65536, Validate: positive, Description: "Larger entries use linked private files"},
 		{Name: "backup.daily", Type: ochazuke.SettingBoolean, Default: true, Description: "Back up before the first write of each UTC day"},
 		{Name: "backup.keep", Type: ochazuke.SettingInteger, Default: 14, Validate: positive, Description: "Daily archives retained"},
+		{Name: "retention.backups.days", Type: ochazuke.SettingInteger, Default: 14, Validate: func(v any) error {
+			if n, ok := v.(int); !ok || n < 0 {
+				return fmt.Errorf("retention.backups.days: use 0 (no age limit) or a number of days")
+			}
+			return nil
+		}, Description: "Daily archives older than this many days are removed, never the newest; 0 turns the age rule off"},
 		{Name: "history.keep", Type: ochazuke.SettingInteger, Default: 200, Validate: func(v any) error {
 			if n, ok := v.(int); !ok || n < 0 {
 				return fmt.Errorf("history.keep: use 0 (keep everything) or a count")

@@ -1,11 +1,8 @@
 package main
 
 import (
-	"strings"
 	"testing"
 	"time"
-
-	"ofam.dev/ochazuke"
 )
 
 func poseYesNo(t *testing.T, s *Store, title, group string, recommended string) Question {
@@ -68,41 +65,6 @@ func TestChecklistDiffersByMarks(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
-
-func TestDecisionRowsTonesAndColorOff(t *testing.T) {
-	s := fixture(t)
-	differ := poseYesNo(t, s, "differ", "G", "yes")
-	poseYesNo(t, s, "fresh", "G", "yes")
-	if _, e := s.Decide(differ.ID, DecisionChange{Option: "no"}); e != nil {
-		t.Fatal(e)
-	}
-	for _, color := range []bool{true, false} {
-		a, _ := mountDecisions(t, s, map[string]any{"decision.color": color, "decision.show": "all"})
-		rows, e := a.decisionRows(nil)
-		if e != nil {
-			t.Fatal(e)
-		}
-		for _, r := range rows {
-			if r.Label != "differ" && r.Label != "fresh" {
-				continue
-			}
-			tone := ""
-			if len(r.Tones) > 0 {
-				tone = r.Tones[0].Tone
-			}
-			wantTone, wantGlyph := "", ""
-			if color && r.Label == "differ" {
-				wantTone, wantGlyph = ochazuke.ToneWorking, differsMark
-			}
-			if color && r.Label == "fresh" {
-				wantTone, wantGlyph = ochazuke.ToneNeedsInput, "○"
-			}
-			if tone != wantTone || (wantGlyph != "" && !strings.HasPrefix(r.Cells[0], wantGlyph)) || (!color && (len(r.Tones) > 0 || strings.ContainsAny(r.Cells[0], "○≠"))) {
-				t.Errorf("color=%v %s: tone %q cell %q", color, r.Label, tone, r.Cells[0])
-			}
-		}
-	}
-}
 
 func TestArchiveMatchingDryRunApplyUndo(t *testing.T) {
 	s := fixture(t)

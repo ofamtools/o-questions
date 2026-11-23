@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+)
 
-	"ofam.dev/ochazuke"
+const (
+	agentNever = "never"
+	hostEnvMTM = "MTM_"
 )
 
 // Actor and RefusedError adapt matomeru/internal/work/actor.go.
@@ -23,7 +26,7 @@ type Actor struct {
 func Owner() Actor { return Actor{Kind: "owner"} }
 
 // Undeclared writes are open; these declarations also feed the catalog.
-var agentPolicy = map[string]string{"delete": ochazuke.AgentNever, "resolve-project": ochazuke.AgentNever}
+var agentPolicy = map[string]string{"delete": agentNever, "resolve-project": agentNever}
 
 type RefusedError struct{ Action, Rule string }
 
@@ -31,7 +34,7 @@ func (e *RefusedError) Error() string {
 	return fmt.Sprintf("agent refused %s (%s); ask the owner", e.Action, e.Rule)
 }
 func cliActor(env func(string) string) (Actor, error) {
-	a := Actor{Kind: "owner", Name: env(ochazuke.HostEnvMTM + "AGENT_NAME"), Harness: env(ochazuke.HostEnvMTM + "HARNESS"), Pane: env(ochazuke.HostEnvMTM + "PANE_ID"), Session: env(ochazuke.HostEnvMTM + "SESSION"), Model: env("AGENT_MODEL")}
+	a := Actor{Kind: "owner", Name: env(hostEnvMTM + "AGENT_NAME"), Harness: env(hostEnvMTM + "HARNESS"), Pane: env(hostEnvMTM + "PANE_ID"), Session: env(hostEnvMTM + "SESSION"), Model: env("AGENT_MODEL")}
 	if a.Harness == "" {
 		a.Harness = env("AGENT_HARNESS")
 	}
@@ -76,7 +79,7 @@ func (s *Store) permit(action string, _ Question) error {
 	if s.Permit != nil {
 		return s.Permit(action)
 	}
-	if agentPolicy[action] == ochazuke.AgentNever {
+	if agentPolicy[action] == agentNever {
 		return &RefusedError{action, "verb declaration"}
 	}
 	return nil

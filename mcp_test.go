@@ -22,11 +22,8 @@ func TestMCPLifecycleAndIdempotency(t *testing.T) {
 		`{"jsonrpc":"2.0","id":9,"method":"ping"}`,
 	}, "\n") + "\n"
 	var out, errOut bytes.Buffer
-	a, e := newApp(s, strings.NewReader(input), &out, &errOut)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if e = a.mcp(); e != nil {
+	a := newMCPServer(s, strings.NewReader(input), &out)
+	if e := a.serveMCP(); e != nil {
 		t.Fatal(e)
 	}
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
@@ -43,7 +40,7 @@ func TestMCPLifecycleAndIdempotency(t *testing.T) {
 			Tools []mcpTool `json:"tools"`
 		} `json:"result"`
 	}
-	if e = json.Unmarshal([]byte(lines[1]), &tools); e != nil {
+	if e := json.Unmarshal([]byte(lines[1]), &tools); e != nil {
 		t.Fatal(e)
 	}
 	if len(tools.Result.Tools) != 12 {
@@ -67,11 +64,8 @@ func TestMCPLifecycleAndIdempotency(t *testing.T) {
 func TestMCPSchemaAndRefusals(t *testing.T) {
 	s := fixture(t)
 	var out bytes.Buffer
-	a, e := newApp(s, strings.NewReader("invalid\n{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"missing\"}\n"), &out, &out)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if e = a.mcp(); e != nil {
+	a := newMCPServer(s, strings.NewReader("invalid\n{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"missing\"}\n"), &out)
+	if e := a.serveMCP(); e != nil {
 		t.Fatal(e)
 	}
 	if !strings.Contains(out.String(), "-32700") || !strings.Contains(out.String(), "-32601") {

@@ -12,11 +12,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -146,37 +144,6 @@ func stateDir() string {
 	return filepath.Join(h, ".local", "state")
 }
 
-func (a *App) decisionCommand(args []string) error {
-	web, rest := false, []string{}
-	var serve []string
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--web":
-			web = true
-		case "--no-open":
-			serve = append(serve, args[i])
-		case "--port":
-			if i+1 >= len(args) {
-				return errors.New("--port needs a number")
-			}
-			serve = append(serve, args[i], args[i+1])
-			i++
-		default:
-			rest = append(rest, args[i])
-		}
-	}
-	if !web {
-		if len(serve) > 0 {
-			return errors.New("--port and --no-open need --web")
-		}
-		return runPage(a, "decision", rest, decisionSpec)
-	}
-	if len(rest) > 0 {
-		return fmt.Errorf("unexpected decision arguments %v", rest)
-	}
-	return a.decisionWeb(serve)
-}
-
 func resolveMgmt(setting string) (string, error) {
 	if setting == "" {
 		if path, err := exec.LookPath("mgmt.py"); err == nil {
@@ -197,69 +164,4 @@ func resolveMgmt(setting string) (string, error) {
 		return "", fmt.Errorf("decision.mgmt: %q is not a regular file", path)
 	}
 	return path, nil
-}
-
-func (a *App) decisionWeb(serve []string) error {
-	a.r.EnsureConfigSettings()
-	a.configure()
-	mgmt, e := resolveMgmt(a.r.Settings().String("decision.mgmt"))
-	if e != nil {
-		return e
-	}
-	sess, e := a.store.webSession()
-	if e != nil {
-		return e
-	}
-	if len(sess.Items) == 0 {
-		_, e = fmt.Fprintln(a.out, "No questions for the owner.")
-		return e
-	}
-	dir := filepath.Join(stateDir(), "o-questions", "decision-web")
-	path := filepath.Join(dir, "session.json")
-	if e = os.MkdirAll(dir, 0700); e != nil {
-		return e
-	}
-	if e = atomicJSON(path, sess); e != nil {
-		return e
-	}
-	cmd := exec.Command("python3", append([]string{mgmt, "serve", path}, serve...)...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = a.in, a.out, a.errOut
-	done := make(chan struct{})
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	pull := func() {
-		mu.Lock()
-		defer mu.Unlock()
-		if n, e := a.store.syncWeb(path); e != nil {
-			fmt.Fprintln(a.errOut, "o-questions:", e)
-		} else if n > 0 {
-			fmt.Fprintf(a.errOut, "o-questions: saved %d decision(s)\n", n)
-		}
-	}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		var last time.Time
-		tick := time.NewTicker(500 * time.Millisecond)
-		defer tick.Stop()
-		for {
-			select {
-			case <-done:
-				return
-			case <-tick.C:
-				if info, e := os.Stat(path); e == nil && info.ModTime() != last {
-					last = info.ModTime()
-					pull()
-				}
-			}
-		}
-	}()
-	// Ctrl-C stops mgmt's server; this process stays to save the last decisions.
-	signal.Ignore(os.Interrupt)
-	defer signal.Reset(os.Interrupt)
-	runErr := a.run(cmd)
-	close(done)
-	wg.Wait()
-	pull()
-	return runErr
 }

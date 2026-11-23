@@ -3,8 +3,6 @@ package main
 import (
 	"slices"
 	"strings"
-
-	"ofam.dev/ochazuke"
 )
 
 // A decision row's state, for colour, markers, the filter and the sort. One
@@ -35,14 +33,14 @@ type stateMark struct {
 // applied quiet, failed red, archived dim. The order is the legend's and the
 // sort rank.
 var stateMarks = []stateMark{
-	{stateUndecided, "○", ochazuke.ToneNeedsInput, "new, not decided", 0},
-	{stateAnswered, "✓", ochazuke.ToneDone, "answered", 5},
-	{stateDiffers, differsMark, ochazuke.ToneWorking, "answered differently from the recommendation", 4},
-	{stateAsked, "?", ochazuke.ToneQueued, "asked the agent", 1},
-	{stateLater, "…", ochazuke.ToneIdle, "later", 2},
-	{stateApplied, "●", ochazuke.ToneExited, "applied", 6},
-	{stateFailed, "✗", ochazuke.ToneErrored, "applying failed", 3},
-	{stateArchived, "▫", ochazuke.ToneExited, "archived", 7},
+	{stateUndecided, "○", "warning", "new, not decided", 0},
+	{stateAnswered, "✓", "success", "answered", 5},
+	{stateDiffers, differsMark, "info", "answered differently from the recommendation", 4},
+	{stateAsked, "?", "accent", "asked the agent", 1},
+	{stateLater, "…", "muted", "later", 2},
+	{stateApplied, "●", "muted", "applied", 6},
+	{stateFailed, "✗", "error", "applying failed", 3},
+	{stateArchived, "▫", "muted", "archived", 7},
 }
 
 // markOf is the marker row of a state.
@@ -145,19 +143,6 @@ func (s *Store) markedCell(q Question) (string, string) {
 	}
 	return markOf(st).glyph + " " + cell, st
 }
-
-// stateTones are the spans that colour a question's cells (the state and
-// title cells): tones from the theme, so a themes.json recolours them.
-func stateTones(state string, cells ...int) []ochazuke.ToneSpan {
-	var out []ochazuke.ToneSpan
-	for _, c := range cells {
-		out = append(out, ochazuke.CellTone(c, markOf(state).tone))
-	}
-	return out
-}
-
-// colored is the decision.color setting: marker glyphs and tones on the rows.
-func (a *App) colored() bool { return a.r.Settings().Bool("decision.color") }
 
 // rank orders states for decision.sort undecided-first.
 func rank(state string) int { return markOf(state).rank }

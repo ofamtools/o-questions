@@ -1,11 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
-
-	ocli "ofam.dev/ochazuke/cli"
 )
 
 func blockerIDs(t *testing.T, s *Store) map[string]BlockerRow {
@@ -96,87 +93,4 @@ func TestBlockerOwnerDoneByCheckingItem(t *testing.T) {
 	if len(blockerIDs(t, s)) != 0 {
 		t.Fatal("decided item still listed")
 	}
-}
-
-func TestBlockerVerbsCLI(t *testing.T) {
-	s := fixture(t)
-	a, out := testApp(t, s)
-	if e := dispatch(a, []string{"blocker", "add", "Restart the daemon", "--key", "r"}); e != nil {
-		t.Fatalf("%v: %s", e, out)
-	}
-	out.Reset()
-	if e := dispatch(a, []string{"blocker", "list", "--json", "{}"}); e != nil {
-		t.Fatalf("%v: %s", e, out)
-	}
-	var page struct {
-		Items []map[string]any `json:"items"`
-	}
-	if e := json.Unmarshal(out.Bytes(), &page); e != nil || len(page.Items) != 1 {
-		t.Fatalf("%v: %s", e, out)
-	}
-	row := page.Items[0]
-	id, _ := row["id"].(string)
-	if row["kind"] != kindItem || row["resolve"] != "question.blocker.done" || row["source"] != "o-questions" {
-		t.Fatalf("%v", row)
-	}
-	out.Reset()
-	if e := dispatch(a, []string{"blocker", "show", id}); e != nil || !strings.Contains(out.String(), "Restart the daemon") {
-		t.Fatalf("%v: %s", e, out)
-	}
-	out.Reset()
-	if e := dispatch(a, []string{"blocker", "done", id}); e != nil {
-		t.Fatalf("%v: %s", e, out)
-	}
-	out.Reset()
-	dispatch(a, []string{"blocker", "list", "--json", "{}"})
-	if strings.Contains(out.String(), id) {
-		t.Fatalf("still listed: %s", out)
-	}
-}
-
-func TestBlockerCatalogDeclaresNoun(t *testing.T) {
-	a, _ := testApp(t, fixture(t))
-	b, e := ocli.Catalog(a.r, "o-questions", version)
-	if e != nil {
-		t.Fatal(e)
-	}
-	var doc struct {
-		Nouns []struct {
-			Name  string `json:"name"`
-			Props []struct {
-				Name string `json:"name"`
-			} `json:"props"`
-			Verbs []struct {
-				Name string `json:"name"`
-			} `json:"verbs"`
-		} `json:"nouns"`
-	}
-	if e := json.Unmarshal(b, &doc); e != nil {
-		t.Fatal(e)
-	}
-	for _, n := range doc.Nouns {
-		if n.Name != blockerNoun {
-			continue
-		}
-		have := map[string]bool{}
-		for _, v := range n.Verbs {
-			have[v.Name] = true
-		}
-		for _, v := range []string{"list", "add", "done", "show", "get"} {
-			if !have[v] {
-				t.Errorf("blocker lacks verb %s", v)
-			}
-		}
-		props := map[string]bool{}
-		for _, p := range n.Props {
-			props[p.Name] = true
-		}
-		for _, p := range []string{"id", "title", "kind", "source", "age", "resolve"} {
-			if !props[p] {
-				t.Errorf("blocker lacks prop %s", p)
-			}
-		}
-		return
-	}
-	t.Fatal("catalog lacks the blocker noun")
 }

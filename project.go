@@ -14,9 +14,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"ofam.dev/ochazuke"
-	ocli "ofam.dev/ochazuke/cli"
 )
 
 // A question's project is stored as the id of the host's project (mtm's
@@ -87,24 +84,14 @@ func resolveProjectRef(projects []hostProject, ref string) projectMatch {
 	return m
 }
 
-// hostProjectsFrom reads the host's project list: mounted, through the
-// host's project.list; standalone, through mtm on PATH. Source none has none.
+// hostProjectsFrom reads the host's project list through mtm on PATH. Source none has none.
 func hostProjectsFrom(ctx context.Context, source string) ([]hostProject, error) {
 	if source == "" || source == "none" {
 		return nil, nil
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	var b []byte
-	host, hosted, e := ocli.HostFromEnv()
-	if e != nil {
-		return nil, e
-	}
-	if hosted {
-		b, e = host.Run(ctx, "project.list", nil)
-	} else {
-		b, e = exec.CommandContext(ctx, "mtm", "project", "list").Output()
-	}
+	b, e := exec.CommandContext(ctx, "mtm", "project", "list").Output()
 	if e != nil {
 		return nil, fmt.Errorf("project.source %s: %w", source, e)
 	}
@@ -132,41 +119,11 @@ func hostProjectsFrom(ctx context.Context, source string) ([]hostProject, error)
 	return out, nil
 }
 
-// projectIndex is the host's projects, read at most every few seconds. A
-// failed read resolves nothing and is not cached: names stay as stored.
-func (a *App) projectIndex() []hostProject {
-	if a.projectsAt.IsZero() || time.Since(a.projectsAt) > 3*time.Second {
-		list, e := a.hostProjects(context.Background())
-		if e != nil {
-			return nil
-		}
-		a.projects, a.projectsAt = list, time.Now()
-	}
-	return a.projects
-}
-
-func (a *App) hostProjects(ctx context.Context) ([]hostProject, error) {
-	if a.projectList != nil {
-		return a.projectList(ctx)
-	}
-	return hostProjectsFrom(ctx, a.r.Settings().String("project.source"))
-}
-
-// hostRows runs a host list verb: mounted, through the host; standalone,
-// through mtm on PATH. The answer is an array or a page {"items": [...]}.
-func hostRows(ctx context.Context, noun string, args ochazuke.Arguments, cli []string) ([]map[string]any, error) {
+// hostRows runs a host list verb through mtm on PATH. The answer is an array or a page {"items": [...]}.
+func hostRows(ctx context.Context, noun string, cli []string) ([]map[string]any, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	var b []byte
-	host, hosted, e := ocli.HostFromEnv()
-	if e != nil {
-		return nil, e
-	}
-	if hosted {
-		b, e = host.Run(ctx, noun+".list", args)
-	} else {
-		b, e = exec.CommandContext(ctx, "mtm", append([]string{noun, "list"}, cli...)...).Output()
-	}
+	b, e := exec.CommandContext(ctx, "mtm", append([]string{noun, "list"}, cli...)...).Output()
 	if e != nil {
 		return nil, e
 	}
@@ -189,12 +146,11 @@ func hostPanesFrom(ctx context.Context, source, id string) (map[string]string, e
 	if source == "" || source == "none" {
 		return nil, nil
 	}
-	args, cli := ochazuke.Arguments{"props": "project", "limit": 0}, []string{"--props", "project", "--limit", "0"}
+	cli := []string{"--props", "project", "--limit", "0"}
 	if id != "" {
-		args["where"] = "id=" + id
 		cli = append(cli, "--where", "id="+id)
 	}
-	rows, e := hostRows(ctx, "pane", args, cli)
+	rows, e := hostRows(ctx, "pane", cli)
 	if e != nil {
 		return nil, fmt.Errorf("project.source %s: %w", source, e)
 	}
@@ -239,57 +195,6 @@ func projectForDir(projects []hostProject, dir string) string {
 type paneProject struct {
 	id string
 	at time.Time
-}
-
-// defaultProject is the project a new question gets when none was given: the
-// asking pane's project as the host reports it, else the project whose
-// directory contains cwd (the given one, else the current one). A failed
-// read, a pane the host does not know, or an ambiguous directory gives
-// none: the question is recorded without a project.
-func (a *App) defaultProject(pane, cwd string) string {
-	if src := a.r.Settings().String("project.source"); a.projectList == nil && (src == "" || src == "none") {
-		return ""
-	}
-	if pane != "" && !strings.ContainsAny(pane, " ,=") {
-		if c, ok := a.paneProjects[pane]; ok && time.Since(c.at) < 3*time.Second {
-			if c.id != "" {
-				return c.id
-			}
-		} else if m, e := a.hostPanes(context.Background(), pane); e == nil {
-			if a.paneProjects == nil {
-				a.paneProjects = map[string]paneProject{}
-			}
-			a.paneProjects[pane] = paneProject{m[pane], time.Now()}
-			if m[pane] != "" {
-				return m[pane]
-			}
-		}
-	}
-	if cwd == "" {
-		cwd, _ = os.Getwd()
-	}
-	if cwd == "" {
-		return ""
-	}
-	return projectForDir(a.projectIndex(), cwd)
-}
-
-func (a *App) hostPanes(ctx context.Context, id string) (map[string]string, error) {
-	if a.paneList != nil {
-		return a.paneList(ctx, id)
-	}
-	return hostPanesFrom(ctx, a.r.Settings().String("project.source"), id)
-}
-
-// linkProjects gives the store its views of the host's projects.
-func (a *App) linkProjects() {
-	a.store.ProjectRef = func(ref string) projectMatch {
-		if strings.TrimSpace(ref) == "" {
-			return projectMatch{Status: projectEmpty}
-		}
-		return resolveProjectRef(a.projectIndex(), ref)
-	}
-	a.store.ProjectDefault = a.defaultProject
 }
 
 // projectDisplay is the name a stored project is shown as: the name kept on
@@ -798,26 +703,6 @@ func copyTree(src, dst string) error {
 		}
 	}
 	return nil
-}
-
-func runResolveProjects(a *App, c ochazuke.Ctx) ochazuke.Result {
-	list, e := a.hostProjects(context.Background())
-	if e != nil {
-		return result(nil, e)
-	}
-	if len(list) == 0 {
-		return result(nil, errors.New("no projects from project.source (mtm); nothing to resolve against, nothing written"))
-	}
-	dry, _ := c.Args["dry-run"].(bool)
-	panes, pe := a.hostPanes(context.Background(), "")
-	if pe != nil || panes == nil {
-		panes = nil
-	}
-	rep, e := a.store.ResolveProjects(list, panes, dry)
-	if pe != nil {
-		rep.PanesError = pe.Error()
-	}
-	return result(rep, e)
 }
 
 // defaultProjectOf gives q the project the host can name from its pane and

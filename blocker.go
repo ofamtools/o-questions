@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
-	"ofam.dev/ochazuke"
 )
 
 // A blocker is something that waits on the owner. It is not a second store:
@@ -136,103 +134,4 @@ func (s *Store) BlockerDone(target, result string) (Question, error) {
 		result = "done"
 	}
 	return s.Applied(q.ID, "", "done", result)
-}
-
-func blockerTarget() ochazuke.Parameter {
-	return ochazuke.Parameter{Type: "string", Description: "Blocker id, title or ID prefix; omitted uses the selected row", Noun: blockerNoun, Focus: true, Free: true, Source: blockerNoun + ".list"}
-}
-
-// declareBlockerVerbs defines the blocker noun and its verbs. Rows are the
-// shared shape (BlockerRow) a host merges across tools.
-func declareBlockerVerbs(a *App) {
-	n := a.r.Define(blockerNoun)
-	n.Props(blockerProps()...)
-	n.Store(a.blockerStore())
-	n.Columns(ochazuke.Column{Title: "Kind", Width: 9}, ochazuke.Column{Title: "Blocker", Min: 18}, ochazuke.Column{Title: "Source", Max: 14, Priority: 1}, ochazuke.Column{Title: "Age", Width: 7})
-	specs := []verbSpec{
-		{name: "add", description: "Add a plain 'waiting on you' item (idempotent by key)", params: map[string]ochazuke.Parameter{"text": prose("What the owner needs to do"), "details": param("Context the owner needs"), "key": param("Stable id; adding it again does not duplicate"), "group": param("Topic; default " + blockerGroup)}, positional: []string{"text"}, run: runBlockerAdd},
-		{name: "done", description: "Mark an added item done: check it, confirm it, record it applied", params: map[string]ochazuke.Parameter{"target": blockerTarget(), "result": param("What was done; default done")}, positional: []string{"target"}, run: runBlockerDone},
-		{name: "show", description: "Read one blocker: its row and its thread", params: map[string]ochazuke.Parameter{"target": blockerTarget()}, positional: []string{"target"}, run: runBlockerShow},
-	}
-	for _, v := range specs {
-		v := v
-		b := n.Verb(v.name, func(c ochazuke.Ctx) ochazuke.Result { return a.invoke(v, c) }, v.description).Agent(ochazuke.AgentAllow)
-		if len(v.positional) > 0 {
-			b.Positional(v.positional...)
-		}
-		op := a.r.Operations.At(ochazuke.Key(blockerNoun + "." + v.name))
-		op.Parameters = v.params
-		a.r.Operations.Set(op)
-	}
-}
-
-func runBlockerAdd(a *App, c ochazuke.Ctx) ochazuke.Result {
-	v, e := a.store.BlockerAdd(argStr(c, "text"), argStr(c, "details"), argStr(c, "key"), argStr(c, "group"), sourceFromEnv(a.store.Actor))
-	a.refresh()
-	if e != nil {
-		return result(nil, e)
-	}
-	return result(a.store.blockerRow(v.Question), nil)
-}
-
-var runBlockerDone = onTarget(func(a *App, q Question, c ochazuke.Ctx) ochazuke.Result {
-	v, e := a.store.BlockerDone(q.ID, argStr(c, "result"))
-	a.refresh()
-	return result(v, e)
-})
-
-var runBlockerShow = onTarget(func(a *App, q Question, _ ochazuke.Ctx) ochazuke.Result {
-	if !q.forOwner() {
-		return result(nil, errors.New("not a blocker"))
-	}
-	return result(map[string]any{"blocker": a.store.blockerRow(q), "class": a.store.decisionClass(q), "thread": thread(q, false)}, nil)
-})
-
-// blockerProps are the row fields a host merges across tools.
-func blockerProps() []ochazuke.PropSpec {
-	text := func(name, desc string) ochazuke.PropSpec {
-		return ochazuke.PropSpec{Name: name, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: desc}}
-	}
-	return []ochazuke.PropSpec{
-		{Name: "id", Key: true, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "Blocker id"}},
-		{Name: "title", Role: ochazuke.RoleLabel, ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Description: "What waits on the owner"}},
-		{Name: "kind", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "string", Enum: []string{kindDecision, kindItem}, Description: "decision (answer it) or item (an added chore: mark it done)"}},
-		text("source", "The tool that holds the blocker"),
-		text("age", "How long it has waited"),
-		text("created", "When it was added (RFC 3339)"),
-		text("group", "Topic"),
-		text("details", "Context the owner needs"),
-		text("resolve", "The operation that resolves it, qualified with the tool's namespace"),
-		{Name: "resolve_args", ReadOnly: true, Parameter: ochazuke.Parameter{Type: "object", Description: "Arguments of the resolving operation"}},
-	}
-}
-
-func (s *Store) blockerThing(q Question) ochazuke.Thing {
-	r := s.blockerRow(q)
-	return ochazuke.Thing{"id": r.ID, "title": r.Title, "kind": r.Kind, "source": r.Source, "age": r.Age, "created": r.Created, "group": r.Group, "details": r.Details, "resolve": r.Resolve, "resolve_args": r.ResolveArgs}
-}
-
-// blockerStore is a read-only store over Blockers: the framework's get and
-// list (filter, where, sort, group-by) are the blocker rows.
-func (a *App) blockerStore() ochazuke.Store {
-	return ochazuke.Store{Kind: ochazuke.KindCollection, Facts: true,
-		Get: func(_ ochazuke.Ctx, id string) (ochazuke.Thing, error) {
-			q, e := a.store.Resolve(itemRowQuestion(id), false)
-			if e != nil {
-				return nil, e
-			}
-			return a.store.blockerThing(q), nil
-		},
-		List: func(ochazuke.Ctx, ochazuke.ListQuery) ([]ochazuke.Thing, error) {
-			qs, e := a.store.Blockers()
-			if e != nil {
-				return nil, e
-			}
-			out := make([]ochazuke.Thing, len(qs))
-			for i, q := range qs {
-				out[i] = a.store.blockerThing(q)
-			}
-			return out, nil
-		},
-	}
 }

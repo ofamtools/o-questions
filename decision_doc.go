@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"ofam.dev/ochazuke/markdown"
 )
 
 // The Decisions page's document detail (setting decision.detail=document):
@@ -365,25 +363,3 @@ func (s *Store) docSyncAll() error {
 
 // docTopicText is a topic row's read-only summary document.
 func docTopicText(body string) string { return body + "\n" }
-
-// docSource is the editor's source for a working file in this process (the
-// standalone page): a save is read back at once, so the record changes with
-// the edit; a host that draws the file itself (mtm) reads it back on the
-// page's next refresh.
-func (a *App) docSource(path string) markdown.Source {
-	src := markdown.File(path)
-	save := src.Save
-	src.Save = func(text string) error {
-		if e := save(text); e != nil {
-			return e
-		}
-		if id, ok := strings.CutSuffix(filepath.Base(path), ".md"); ok && filepath.Dir(path) == docDir() && !strings.HasPrefix(id, "topic-") {
-			if e := a.store.docSync(id); e != nil {
-				a.r.UI().Status("not applied from the document: " + e.Error())
-			}
-			a.refresh()
-		}
-		return nil
-	}
-	return src
-}

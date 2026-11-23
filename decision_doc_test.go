@@ -153,31 +153,3 @@ func TestDocAppliedIsReadOnlyAndPrune(t *testing.T) {
 		t.Fatal("pruned files go", e)
 	}
 }
-
-func TestDocRowsCarryPathOnlyForTheOwner(t *testing.T) {
-	s := fixture(t)
-	q := poseYesNo(t, s, "path", "G", "yes")
-	useDetail(t, "document")
-	a, _ := mountDecisions(t, s, nil)
-	rows, e := a.decisionRows(nil)
-	if e != nil {
-		t.Fatal(e)
-	}
-	var got string
-	for _, r := range rows {
-		if r.ID == "question/"+q.ID {
-			got, _ = r.Data.(map[string]any)["path"].(string)
-		}
-	}
-	if got != docFile(q.ID) {
-		t.Fatal("the row names its working file", got)
-	}
-	a.store.Actor = Actor{Kind: "agent", Harness: "codex"}
-	docPrune(map[string]bool{})
-	rows, _ = a.decisionRows(nil)
-	for _, r := range rows {
-		if _, ok := r.Data.(map[string]any)["path"]; ok {
-			t.Fatal("an agent listing the queue leaves no working files")
-		}
-	}
-}

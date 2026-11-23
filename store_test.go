@@ -254,31 +254,31 @@ func TestCLIQuestion(t *testing.T) {
 	s := fixture(t)
 	t.Setenv("O_QUESTIONS_ACTOR", "owner")
 	var out strings.Builder
-	run := func(args ...string) string {
+	exec := func(args ...string) string {
 		t.Helper()
 		out.Reset()
 		args = append([]string{"--data", s.Dir}, args...)
-		if e := Main(args, strings.NewReader(""), &out, &out); e != nil {
-			t.Fatalf("%v: %v\n%s", args, e, out.String())
+		if code := run(args, strings.NewReader(""), &out, &out); code != 0 {
+			t.Fatalf("%v: exit %d\n%s", args, code, out.String())
 		}
 		return out.String()
 	}
 	text := "  Verbatim?  "
-	got := run("ask", text, "--key", "cli")
+	got := exec("ask", text, "--key", "cli", "--json")
 	var rec Asked
 	if e := json.Unmarshal([]byte(got), &rec); e != nil || rec.Question.Text != text {
 		t.Fatal(got, e)
 	}
-	run("question", "answer", rec.Question.ID, "Answer")
-	got = run("show", rec.Question.ID)
+	exec("answer", rec.Question.ID, "Answer")
+	got = exec("show", rec.Question.ID)
 	if !strings.Contains(got, "Answer") {
 		t.Fatal(got)
 	}
-	run("undo")
-	run("list")
+	exec("undo")
+	exec("list")
 	t.Setenv("O_QUESTIONS_ACTOR", "agent")
-	if e := Main([]string{"--data", s.Dir, "moot", rec.Question.ID}, strings.NewReader(""), &out, &out); e != nil {
-		t.Fatal("agent CLI moot refused", e)
+	if code := run([]string{"--data", s.Dir, "resolve", "--moot", rec.Question.ID}, strings.NewReader(""), &out, &out); code != 0 {
+		t.Fatalf("agent CLI moot refused: %d %s", code, out.String())
 	}
 }
 
@@ -389,10 +389,13 @@ func TestStoreHiddenIdempotencyAndCreationUndo(t *testing.T) {
 
 func TestCLISourcePreserved(t *testing.T) {
 	s := fixture(t)
+	t.Setenv("AGENT_SESSION", "fixture-session")
+	t.Setenv("AGENT_TURN", "fixture-turn")
+	t.Setenv("AGENT_TRANSCRIPT", "/tmp/oq-core/fixture-transcript")
 	var out strings.Builder
-	args := []string{"--data", s.Dir, "ask", "--json", `{"question":"Provenance?","source":{"agent_session":"fixture-session","turn":"fixture-turn","transcript":"/tmp/oq-core/fixture-transcript"}}`}
-	if e := Main(args, strings.NewReader(""), &out, &out); e != nil {
-		t.Fatal(e)
+	args := []string{"--data", s.Dir, "ask", "Provenance?", "--json"}
+	if code := run(args, strings.NewReader(""), &out, &out); code != 0 {
+		t.Fatalf("exit %d: %s", code, out.String())
 	}
 	rows, e := s.List()
 	if e != nil || len(rows) != 1 || rows[0].Source.AgentSession != "fixture-session" || rows[0].Source.Transcript != "/tmp/oq-core/fixture-transcript" {

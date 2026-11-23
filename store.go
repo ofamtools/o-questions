@@ -233,6 +233,7 @@ func (s *Store) apply(rows []Question) error {
 
 type Snapshot struct {
 	Rows     []Question `json:"rows"`
+	After    []Question `json:"after,omitempty"`
 	At       time.Time  `json:"at"`
 	Action   string     `json:"action"`
 	By       Actor      `json:"by"`
@@ -513,11 +514,46 @@ func (s *Store) Undo() (err error) {
 			if e = s.write(snap.Rows); e != nil {
 				return e
 			}
+			snap.After = current
 			snap.Undone = true
 			snap.UndoneBy = &s.Actor
 			return atomicJSON(files[i], snap)
 		}
 		return nothingToUndo(files, s.HistoryKeep)
+	})
+}
+func (s *Store) Redo() (err error) {
+	if err = s.permit("redo", Question{}); err != nil {
+		return
+	}
+	return s.locked(func() error {
+		files, e := s.history()
+		if e != nil {
+			return e
+		}
+		for i := 0; i < len(files); i++ {
+			b, e := os.ReadFile(files[i])
+			if e != nil {
+				return e
+			}
+			var snap Snapshot
+			if b, e = migrateLegacy(b); e != nil {
+				return e
+			}
+			if e = json.Unmarshal(b, &snap); e != nil {
+				return e
+			}
+			if !snap.Undone || len(snap.After) == 0 {
+				continue
+			}
+			if e = s.write(snap.After); e != nil {
+				return e
+			}
+			snap.Undone = false
+			snap.UndoneBy = nil
+			return atomicJSON(files[i], snap)
+		}
+		return errors.New("nothing to redo")
 	})
 }
 func (s *Store) History() (out []Snapshot, err error) {

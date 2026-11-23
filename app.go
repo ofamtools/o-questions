@@ -1,450 +1,857 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"ofam.dev/ochazuke"
-	ocli "ofam.dev/ochazuke/cli"
+	"maps"
 	"os"
-	"os/exec"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
+
+	"ofam.dev/ochazuke/config"
+	"ofam.dev/ochazuke/core"
+	otea "ofam.dev/ochazuke/tea"
+	"ofam.dev/ochazuke/ui"
+	"ofam.dev/ochazuke/widgets/form"
+	"ofam.dev/ochazuke/widgets/input"
+	"ofam.dev/ochazuke/widgets/markdown"
+	"ofam.dev/ochazuke/widgets/picker"
+	"ofam.dev/ochazuke/widgets/table"
 )
 
-const version = "0.1.0"
-const pageID = "questions"
-const listID = "questions/questions"
+// Frame and node IDs.
+const (
+	pageID       = "main"
+	nodeList     = "list"
+	nodeReader   = "reader"
+	nodeFilter   = "filter"
+	modalPalette = "palette"
+	modalChoose  = "choose"
+	modalHelp    = "help"
+	modalForm    = "form"
+)
 
+// Table cell keys.
+const (
+	cellStatus  = "status"
+	cellTitle   = "title"
+	cellProject = "project"
+	cellEntries = "entries"
+	cellUpdated = "updated"
+	cellText    = "text"
+	cellTags    = "tags"
+	cellGroup   = "group"
+)
+
+var sortKeys = []string{"", cellTitle, cellStatus, cellProject, cellUpdated, cellEntries}
+var groupKeys = []string{"", cellStatus, cellProject, cellGroup}
+
+var cellNames = map[string]string{
+	"":          "default order",
+	cellTitle:   "title",
+	cellStatus:  "status",
+	cellProject: "project",
+	cellUpdated: "updated",
+	cellEntries: "replies",
+	cellGroup:   "topic",
+}
+
+// App is the page state, kept by value in the page frame's Data.
 type App struct {
-	store        *Store
-	r            *ochazuke.Runtime
-	in           io.Reader
-	out, errOut  io.Writer
-	tui          bool
-	changed      func()
-	run          func(*exec.Cmd) error
-	showThread   func(Question) error
-	projects     []hostProject
-	projectsAt   time.Time
-	projectList  func(context.Context) ([]hostProject, error)
-	paneList     func(context.Context, string) (map[string]string, error)
-	paneProjects map[string]paneProject
-}
-type verbSpec struct {
-	name, description string
-	params            map[string]ochazuke.Parameter
-	positional        []string
-	rows              bool
-	run               verbRun
-	aliases           []string // other names of the verb on the same noun
+	Questions []Question
+	base      []table.Row
+	List      table.Model
+
+	Query     string
+	QueryLine input.Line
+	Match     table.MatchMode
+	FilterErr string
+	Typing    bool
+
+	StatusFilter  string // "", "open", "answered", "follow-up", "moot"
+	ProjectFilter string // "" = all
+	DecisionsOnly bool   // true = owner decisions view
+	ShowArchived  bool
+
+	Reader    markdown.Model
+	ReaderID  string
+	ReaderKey string // ID + Updated timestamp to detect edits
+
+	Focus string // nodeList or nodeReader
+	Ratio float64
+
+	Status, Tone string
+	Register     string
 }
 
-func param(desc string) ochazuke.Parameter {
-	return ochazuke.Parameter{Type: "string", Description: desc}
-}
-func required(desc string) ochazuke.Parameter { p := param(desc); p.Required = true; return p }
-func prose(desc string) ochazuke.Parameter    { p := required(desc); p.Rest = true; return p }
-
-// Namespace is the singular namespace o-questions declares (lexicon plan):
-// its operations are question.<noun>.<verb> and a host mounts its catalog
-// under it.
-const Namespace = "question"
-
-func init() {
-	if err := ochazuke.DeclareNamespace(Namespace); err != nil {
-		panic(err)
-	}
+func (a App) clone() App {
+	a.List = a.List.Copy()
+	a.QueryLine.Text = slices.Clone(a.QueryLine.Text)
+	return a
 }
 
-func newApp(s *Store, in io.Reader, out, errOut io.Writer) (*App, error) {
-	a := &App{store: s, in: in, out: out, errOut: errOut, run: func(cmd *exec.Cmd) error { return cmd.Run() }}
-	a.r = ochazuke.NewRuntime()
-	a.r.Config().App = "o-questions"
-	// The retired decision settings are rewritten before the settings load,
-	// so the load sees no unknown names.
-	if notes, e := migrateSettingsFile(a.r.Config().Path(ochazuke.SettingsFile), time.Now()); e != nil {
-		fmt.Fprintln(errOut, "o-questions: settings migration:", e)
-	} else {
-		for _, n := range notes {
-			fmt.Fprintln(errOut, "o-questions:", n)
-		}
-	}
-	a.showThread = func(q Question) error {
-		if !a.r.Settings().Bool("view.thread") {
-			return nil
-		}
-		return openThreadViewer(a.r, q.Title, thread(q, a.r.Settings().Bool("detail.provenance")))
-	}
-	if e := a.r.DeclareSetting(appSettings()...); e != nil {
-		return nil, e
-	}
-	a.r.Define("question").Main()                            // the tool's main noun: `o-questions ask` is `question ask`
-	a.r.Define(decisionNoun).DefaultAction(decisionPageVerb) // decision.VERB aliases name question verbs (decisionAliases); bare `decision` opens the page
-	for _, v := range a.specs() {
-		v := v
-		// A verb homed on another noun (verbHomes) keeps question.NAME as an alias.
-		noun, verb := "question", v.name
-		if home, ok := verbHomes[v.name]; ok {
-			noun, verb = home.noun, home.verb
-		}
-		b := a.r.Define(noun).Verb(verb, func(c ochazuke.Ctx) ochazuke.Result { return a.invoke(v, c) }, v.description).Alias(v.aliases...)
-		right := agentPolicy[v.name]
-		if right == "" {
-			right = ochazuke.AgentAllow
-		}
-		b.Agent(right)
-		if len(v.positional) > 0 {
-			b.Positional(v.positional...)
-		}
-		if v.rows {
-			b.Rows(noun).Fetch().Quiet().Table() // a person at a terminal reads rows as a table (cli.tty-format)
-		}
-		if noun != "question" && verbHomes[v.name].alias {
-			b.AliasOn("question", v.name)
-		}
-		if alias, ok := decisionAliases[v.name]; ok {
-			b.AliasOn(decisionNoun, alias)
-		}
-		op := a.r.Operations.At(ochazuke.Key(noun + "." + verb))
-		op.Parameters = v.params
-		a.r.Operations.Set(op)
-	}
-	// show reads the thread: markdown, or the thread viewer in the TUI (setting view.thread).
-	show := a.r.Operations.At("question.show")
-	show.Result = ochazuke.ResultMarkdown
-	show.EnabledSetting = "view.thread"
-	a.r.Operations.Set(show)
-	declareDecisionPage(a)
-	declareDecisionItemVerbs(a)
-	declareBlockerVerbs(a)
-	a.r.EnsureConfigSettings()
-	a.declareFilterProps()
-	a.r.Define("question").Columns(columns...)
-	registerQuestionUI(a)
-	if e := loadDefaultBindings(a); e != nil {
-		return nil, e
-	}
-	if e := a.declareSetup(); e != nil {
-		return nil, e
-	}
-	if e := ocli.DeclarePage(a.r, questionPage(a.r.Settings().Bool("view.detail"))); e != nil {
-		return nil, e
-	}
-	if a.r.Settings().Bool("decision.page") {
-		if e := ocli.DeclarePage(a.r, decisionPage(a.r.Settings().String("decision.detail") == "document")); e != nil {
-			return nil, e
-		}
-	}
-	for _, v := range []struct {
-		key, verb string
-		args      ochazuke.Arguments
-	}{{"c", "ask", nil}, {"u", "undo", nil}} {
-		row := ochazuke.Do("question."+v.verb, v.args)
-		row.Instance = pageID
-		row.Mode = "normal"
-		row.Keys = v.key
-		if e := a.r.Bind(row); e != nil {
-			return nil, e
-		}
-	}
-	if e := declarePickers(a.r); e != nil {
-		return nil, e
-	}
-	return a, nil
-}
-func frameworkActor(a Actor) ochazuke.Actor {
-	return ochazuke.Actor{Kind: a.Kind, Name: a.Name, Harness: a.Harness, Pane: a.Pane, Session: a.Session, Model: a.Model}
+func appOf(s core.State) App {
+	a, _ := s.Pages[pageID].Data.(App)
+	return a
 }
 
-func (a *App) view(args []string) error { return runTUI(a, args) }
-func (a *App) mcp() error               { return a.serveMCP() }
-func (a *App) shell() *ocli.Shell {
-	sh := ocli.New(a.r, "o-questions", a.in, a.out, a.errOut)
-	sh.Version = version
-	actor := frameworkActor(a.store.Actor)
-	sh.Actor = &actor
-	sh.Prepare = func(context.Context) error { a.configure(); return nil }
-	sh.Reveal = func(target string) error {
-		q, e := a.store.Resolve(target, a.newestFirst())
-		if e != nil {
-			return e
+func withApp(s core.State, a App) core.State {
+	f := s.Pages[pageID]
+	f.Data = a
+	f.FocusID = a.Focus
+	if a.Typing {
+		f.FocusID = nodeFilter
+	}
+	s.Pages = maps.Clone(s.Pages)
+	s.Pages[pageID] = f
+	return s
+}
+
+func (a *App) note(msg string) { a.Status, a.Tone = msg, "success" }
+func (a *App) info(msg string) { a.Status, a.Tone = msg, "info" }
+func (a *App) warn(msg string) { a.Status, a.Tone = msg, "warning" }
+func (a *App) fail(msg string) { a.Status, a.Tone = msg, "error" }
+
+// Env is the immutable session configuration shared by handlers and the view.
+type Env struct {
+	St       *Store
+	Km       *core.Keymap
+	Bindings []core.Binding
+	Specs    []core.CommandSpec
+	Theme    ui.Theme
+	Match    table.MatchMode
+	Ratio    float64
+	StackW   int
+	Notes    []string
+}
+
+// Config is what main (or a test) supplies to build an Env.
+type Config struct {
+	Bindings []core.Binding
+	Theme    *ui.Theme
+	Settings *config.Settings
+	Notes    []string
+}
+
+var defaultSettings = map[string]any{
+	"matchMode":  "substring",
+	"listRatio":  0.48,
+	"stackWidth": 100,
+}
+
+var modes = []core.Mode{
+	{Name: "normal"},
+	{Name: "input"},
+	{Name: "palette"},
+	{Name: "choose"},
+	{Name: "form"},
+	{Name: "help"},
+}
+
+func newEnv(st *Store, cfg Config) *Env {
+	env := &Env{St: st, Theme: ui.DefaultDarkTheme(), Notes: cfg.Notes}
+	if cfg.Theme != nil {
+		env.Theme = *cfg.Theme
+	}
+	set := cfg.Settings
+	if set == nil {
+		set, _ = config.LoadSettings(nil, defaultSettings)
+	}
+	switch m := table.MatchMode(set.String("matchMode", "substring")); m {
+	case table.MatchSubstring, table.MatchFuzzy, table.MatchRegex:
+		env.Match = m
+	default:
+		env.Match = table.MatchSubstring
+		env.Notes = append(env.Notes, "settings: matchMode must be substring, fuzzy or regex")
+	}
+	env.Ratio = min(max(set.Float("listRatio", 0.48), 0.2), 0.8)
+	env.StackW = set.Int("stackWidth", 100)
+	env.Specs = commandSpecs()
+	for _, d := range config.CheckBindings(modes, cfg.Bindings, env.Specs...) {
+		if d.Severity == config.SevError {
+			env.Notes = append(env.Notes, fmt.Sprintf("bindings.json #%d: %s", d.Index, d.Message))
 		}
-		l := a.r.List("question-targets")
-		if l == nil {
-			l, e = a.r.AddList("question-targets", nil)
-			if e != nil {
-				return e
+	}
+	env.Bindings = config.MergeBindings(defaultBindings(), cfg.Bindings)
+	km, err := core.NewKeymap(modes, env.Bindings, env.Specs...)
+	if err != nil && len(env.Notes) == 0 {
+		env.Notes = append(env.Notes, "bindings: "+strings.ReplaceAll(err.Error(), "\n", "; "))
+	}
+	env.Km = km
+	return env
+}
+
+// --- commands and bindings ------------------------------------------------------
+
+func commandSpecs() []core.CommandSpec {
+	user := func(id, desc string) core.CommandSpec {
+		return core.CommandSpec{ID: id, Description: desc, Tags: []string{"user"}}
+	}
+	internal := func(id, desc string) core.CommandSpec { return core.CommandSpec{ID: id, Description: desc} }
+	specs := []core.CommandSpec{
+		user("filter.open", "Filter questions (title, text, project, tags)"),
+		user("filter.mode.cycle", "Cycle filter match mode: substring, fuzzy, regex"),
+		user("filter.clear", "Clear active text/status/project filters"),
+		user("sort.cycle", "Sort by next column: default, title, status, project, updated, replies"),
+		user("sort.reverse", "Reverse sort direction"),
+		user("group.cycle", "Group list: status, project, topic, or ungrouped"),
+		user("group.collapse", "Collapse or expand focused group"),
+		user("filter.status.cycle", "Cycle status filter: all, open, answered, follow-up, moot"),
+		user("filter.project.pick", "Filter by project"),
+		user("view.decisions.toggle", "Toggle Decisions view (owner decisions vs all questions)"),
+		user("archived.toggle", "Show or hide archived questions"),
+		user("list.reload", "Reload questions from disk"),
+		user("focus.toggle", "Switch focus between list and thread/decision reader"),
+		user("focus.reader", "Focus the thread/decision reader"),
+		user("focus.list", "Focus the questions list"),
+		user("heading.next", "Jump reader to next heading"),
+		user("heading.prev", "Jump reader to previous heading"),
+		user("question.ask", "Ask a new question"),
+		user("question.answer", "Answer the focused question"),
+		user("question.followup", "Add a follow-up to the focused question"),
+		user("question.decide", "Decide the focused owner decision"),
+		user("question.accept", "Accept the recommendation on the focused owner decision"),
+		user("question.resolve", "Resolve (mark answered) the focused question"),
+		user("question.moot", "Mark the focused question moot"),
+		user("question.reopen", "Reopen the focused question"),
+		user("question.star", "Star or unstar the focused question"),
+		user("question.archive", "Archive or restore the focused question"),
+		user("store.undo", "Undo the last store change"),
+		user("store.redo", "Redo the last undone store change"),
+		user("palette.open", "Open the command palette"),
+		user("help.open", "Show active key bindings"),
+		user("app.close", "Quit"),
+
+		internal("input.insert", "Type into the filter"),
+		internal("input.backspace", "Delete the last filter character"),
+		internal("input.accept", "Keep filter and return to list"),
+		internal("input.cancel", "Clear filter and return to list"),
+		internal("palette.insert", "Type into palette query"),
+		internal("palette.backspace", "Delete last palette character"),
+		internal("palette.close", "Close palette"),
+		internal("choose.insert", "Type into picker query"),
+		internal("choose.backspace", "Delete last picker character"),
+		internal("choose.close", "Close picker"),
+		internal(picker.CmdConfirm, "Choose highlighted item"),
+		internal(picker.CmdModeCycle, "Cycle match mode"),
+		internal("help.close", "Close help"),
+		internal(form.CmdInsert, "Type into form field"),
+		internal(form.CmdBackspace, "Delete last character"),
+		internal("form.clear", "Clear form field"),
+		internal(form.CmdSubmit, "Submit form"),
+		internal(form.CmdCancel, "Cancel form"),
+	}
+	for _, sp := range markdown.Specs() {
+		sp.Tags = append(slices.Clone(sp.Tags), "user")
+		specs = append(specs, sp)
+	}
+	return append(specs, input.ReadlineSpecs()...)
+}
+
+func b(mode, keys, cmd, hint string) core.Binding {
+	return core.Binding{Mode: mode, Keys: strings.Fields(keys), Command: cmd, Hint: hint}
+}
+
+func sb(scope, mode, keys, cmd, hint string) core.Binding {
+	bd := b(mode, keys, cmd, hint)
+	bd.Scope = scope
+	return bd
+}
+
+func class(mode, cls, cmd string, args map[string]any, hint string) core.Binding {
+	return core.Binding{Mode: mode, Class: cls, Command: cmd, Args: args, Hint: hint}
+}
+
+var unusedMotions = []string{
+	"motion.word.next", "motion.word.prev", "motion.word.end",
+	"motion.group.next", "motion.group.prev",
+	"motion.left", "motion.right", "motion.start", "motion.end",
+}
+
+func standard(mode string) []core.Binding {
+	var out []core.Binding
+	for _, bd := range core.StandardBindings(mode) {
+		if !slices.Contains(unusedMotions, bd.Command) {
+			out = append(out, bd)
+		}
+	}
+	return out
+}
+
+func defaultBindings() []core.Binding {
+	text := map[string]any{"text": "$text"}
+	out := []core.Binding{
+		b("normal", "/", "filter.open", "filter"),
+		b("normal", "alt+m", "filter.mode.cycle", "match mode"),
+		sb("list", "normal", "esc", "filter.clear", "clear filter"),
+		b("normal", "s", "sort.cycle", "sort"),
+		b("normal", "S", "sort.reverse", "reverse sort"),
+		b("normal", "g b", "group.cycle", "group"),
+		b("normal", "z a", "group.collapse", "fold group"),
+		b("normal", "f", "filter.status.cycle", "status filter"),
+		b("normal", "g p", "filter.project.pick", "project filter"),
+		b("normal", "D", "view.decisions.toggle", "decisions view"),
+		b("normal", ".", "archived.toggle", "archived"),
+		b("normal", "R", "list.reload", "reload"),
+		b("normal", "tab", "focus.toggle", "list / reader"),
+		sb("list", "normal", "enter", "focus.reader", "read thread"),
+		sb("list", "normal", "l", "focus.reader", "read thread"),
+		sb("markdown", "normal", "esc", "focus.list", "back to list"),
+		sb("markdown", "normal", "h", "focus.list", "back to list"),
+		sb("markdown", "normal", "n", markdown.CmdLinkNext, "next link"),
+		sb("markdown", "normal", "N", markdown.CmdLinkPrev, "prev link"),
+		sb("markdown", "normal", "ctrl+n", markdown.CmdTOCNext, "next TOC"),
+		sb("markdown", "normal", "ctrl+p", markdown.CmdTOCPrev, "prev TOC"),
+		sb("markdown", "normal", "g o", markdown.CmdHeadingJump, "jump TOC"),
+		b("normal", "t", markdown.CmdTOCToggle, "contents"),
+		b("normal", "]", "heading.next", "next heading"),
+		b("normal", "[", "heading.prev", "prev heading"),
+		b("normal", "a", "question.ask", "ask"),
+		b("normal", "A", "question.answer", "answer"),
+		b("normal", "F", "question.followup", "follow-up"),
+		b("normal", "d", "question.decide", "decide"),
+		b("normal", "y", "question.accept", "accept rec"),
+		b("normal", "r", "question.resolve", "resolve"),
+		b("normal", "m", "question.moot", "moot"),
+		b("normal", "o", "question.reopen", "reopen"),
+		b("normal", "*", "question.star", "star"),
+		b("normal", "x", "question.archive", "archive/restore"),
+		b("normal", "u", "store.undo", "undo"),
+		b("normal", "ctrl+r", "store.redo", "redo"),
+		b("normal", ":", "palette.open", "commands"),
+		b("normal", "?", "help.open", "help"),
+		b("normal", "q", "app.close", "quit"),
+		b("normal", "ctrl+c", "app.close", "quit"),
+	}
+	out = append(out, standard("normal")...)
+	nav := func(mode, next string) []core.Binding {
+		return []core.Binding{
+			b(mode, "down", "motion.down", next), b(mode, "ctrl+n", "motion.down", next),
+			b(mode, "up", "motion.up", "previous"), b(mode, "ctrl+p", "motion.up", "previous"),
+			b(mode, "pgdown", "motion.page.down", "page down"), b(mode, "pgup", "motion.page.up", "page up"),
+		}
+	}
+	out = append(out,
+		class("input", core.ClassPrintable, "input.insert", text, "type"),
+		class("input", core.ClassPaste, "input.insert", text, "paste"),
+		b("input", "backspace", "input.backspace", "delete"),
+		b("input", "enter", "input.accept", "keep filter"),
+		b("input", "esc", "input.cancel", "clear filter"),
+		b("input", "ctrl+c", "input.cancel", "clear filter"),
+		b("input", "alt+m", "filter.mode.cycle", "match mode"),
+		b("input", "tab", "filter.mode.cycle", "match mode"),
+	)
+	out = append(out, nav("input", "next question")...)
+	for _, m := range []string{"palette", "choose"} {
+		out = append(out,
+			class(m, core.ClassPrintable, m+".insert", text, "type"),
+			class(m, core.ClassPaste, m+".insert", text, "paste"),
+			b(m, "backspace", m+".backspace", "delete"),
+			b(m, "enter", picker.CmdConfirm, "choose"),
+			b(m, "esc", m+".close", "close"),
+			b(m, "ctrl+c", m+".close", "close"),
+			b(m, "alt+m", picker.CmdModeCycle, "match mode"),
+			b(m, "tab", picker.CmdModeCycle, "match mode"),
+		)
+		out = append(out, nav(m, "next")...)
+	}
+	out = append(out,
+		class("form", core.ClassPrintable, form.CmdInsert, text, "type"),
+		class("form", core.ClassPaste, form.CmdInsert, text, "paste"),
+		b("form", "backspace", form.CmdBackspace, "delete"),
+		b("form", "ctrl+u", "form.clear", "clear field"),
+		b("form", "tab", "motion.down", "next field"),
+		b("form", "down", "motion.down", "next field"),
+		b("form", "shift+tab", "motion.up", "previous field"),
+		b("form", "up", "motion.up", "previous field"),
+		b("form", "enter", form.CmdSubmit, "apply"),
+		b("form", "esc", form.CmdCancel, "cancel"),
+		b("form", "ctrl+c", form.CmdCancel, "cancel"),
+
+		b("help", "esc", "help.close", "close"),
+		b("help", "q", "help.close", "close"),
+		b("help", "?", "help.close", "close"),
+		b("help", "ctrl+c", "help.close", "close"),
+	)
+	for _, mode := range []string{"input", "palette", "choose", "form"} {
+		taken := map[string]bool{}
+		for _, bd := range out {
+			if bd.Mode == mode && len(bd.Keys) > 0 {
+				taken[strings.Join(bd.Keys, " ")] = true
 			}
 		}
-		return l.SetItems([]ochazuke.ListItem{{ID: target, Noun: "question", Label: q.Title, Data: "question/" + q.ID}})
+		for _, rb := range input.ReadlineBindings(mode, "") {
+			k := strings.Join(rb.Keys, " ")
+			if taken[k] {
+				continue
+			}
+			taken[k] = true
+			out = append(out, rb)
+		}
+	}
+	return append(out, standard("help")...)
+}
+
+// --- engine -----------------------------------------------------------------------
+
+type fn func(s core.State, a *App, c core.Command) (core.State, []core.Effect)
+
+func (env *Env) wrap(f fn) core.Handler {
+	return func(s core.State, c core.Command) core.StepResult {
+		a := appOf(s).clone()
+		a.Status, a.Tone = "", ""
+		env.size(&a, s)
+		s, effects := f(s, &a, c)
+		env.syncReader(&a)
+		env.size(&a, s)
+		return core.Next(withApp(s, a), effects...)
+	}
+}
+
+func (env *Env) size(a *App, s core.State) {
+	g := env.geometry(a, s.Width, s.Height)
+	a.List.PageSize = g.listRows
+	a.Reader.PageSize = g.readerRows
+}
+
+func (env *Env) syncReader(a *App) {
+	q, ok := a.focusedQuestion()
+	if !ok {
+		if a.ReaderID != "" || a.Reader.Title == "" {
+			a.ReaderID, a.ReaderKey = "", ""
+			a.Reader = *markdown.New("Thread", "*No question selected. Press `a` to ask a question.*")
+		}
+		return
+	}
+	key := q.ID + "|" + q.Updated.Format(time.RFC3339Nano) + "|" + fmt.Sprintf("%d", len(q.Entries))
+	if q.forOwner() && q.Decision != nil {
+		key += "|" + q.Decision.Action + "|" + q.Decision.Note + "|" + q.Decision.Status
+	}
+	if key == a.ReaderKey {
+		return
+	}
+	var src string
+	if q.forOwner() {
+		src = env.St.docRender(q)
+	} else {
+		src = thread(q, false)
+	}
+	ps := a.Reader.PageSize
+	toc := a.Reader.ShowTOC
+	a.Reader = *markdown.New(q.Title, src)
+	a.Reader.PageSize, a.Reader.ShowTOC = ps, toc
+	a.ReaderID, a.ReaderKey = q.ID, key
+}
+
+func setMode(s core.State, mode string) core.State {
+	f := s.Pages[pageID]
+	f.Mode = mode
+	s.Pages = maps.Clone(s.Pages)
+	s.Pages[pageID] = f
+	return s
+}
+
+func openModal(s core.State, id, mode string, data any) core.State {
+	s = closeModal(s, id)
+	s.Modals = append(slices.Clone(s.Modals), core.Frame{ID: id, Kind: core.FrameModal, Mode: mode, FocusID: id, Data: data})
+	return s
+}
+
+func closeModal(s core.State, id string) core.State {
+	if i := slices.IndexFunc(s.Modals, func(f core.Frame) bool { return f.ID == id }); i >= 0 {
+		s.Modals = slices.Delete(slices.Clone(s.Modals), i, i+1)
+	}
+	return s
+}
+
+func modalData(s core.State, id string) any {
+	if i := slices.IndexFunc(s.Modals, func(f core.Frame) bool { return f.ID == id }); i >= 0 {
+		return s.Modals[i].Data
+	}
+	return nil
+}
+
+func setModalData(s core.State, id string, data any) core.State {
+	if i := slices.IndexFunc(s.Modals, func(f core.Frame) bool { return f.ID == id }); i >= 0 {
+		s.Modals = slices.Clone(s.Modals)
+		s.Modals[i].Data = data
+	}
+	return s
+}
+
+func dispatch(c core.Command) core.Effect { return core.CustomEffect{Kind: "dispatch", Data: c} }
+
+var motions = []string{
+	"motion.down", "motion.up", "motion.top", "motion.bottom",
+	"motion.page.down", "motion.page.up", "motion.half.down", "motion.half.up",
+	"motion.block.next", "motion.block.prev",
+}
+
+func newEngine(env *Env) *core.Engine {
+	e := core.NewEngine(env.Km)
+	h := func(id string, f fn) { e.Handle(id, env.wrap(f)) }
+	scoped := func(scope, id string, f fn) { e.HandleScope(scope, id, env.wrap(f)) }
+
+	for _, id := range motions {
+		scoped("list", id, env.listMotion)
+		scoped("markdown", id, env.readerCmd)
+		scoped("palette", id, env.pickCmd(modalPalette))
+		scoped("choose", id, env.pickCmd(modalChoose))
+		scoped("help", id, env.helpScroll)
+		scoped("form", id, env.formCmd)
+	}
+	for _, sp := range markdown.Specs() {
+		h(sp.ID, env.readerCmd)
+	}
+	h("heading.next", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		c.ID = "motion.block.next"
+		return env.readerCmd(s, a, c)
+	})
+	h("heading.prev", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		c.ID = "motion.block.prev"
+		return env.readerCmd(s, a, c)
+	})
+
+	h("filter.open", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		a.Typing, a.Focus = true, nodeList
+		return setMode(s, "input"), nil
+	})
+	h("filter.mode.cycle", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		m := table.Model{MatchMode: a.Match}
+		m.CycleMatchMode()
+		a.Match = m.MatchMode
+		a.reproject()
+		a.info("match mode: " + string(a.Match))
+		return s, nil
+	})
+	h("filter.clear", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		if a.Query == "" && a.StatusFilter == "" && a.ProjectFilter == "" {
+			return s, nil
+		}
+		a.Query, a.StatusFilter, a.ProjectFilter = "", "", ""
+		a.reproject()
+		a.info("filters cleared")
+		return s, nil
+	})
+	lineEdit := func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		a.QueryLine.Sync(a.Query)
+		var changed bool
+		switch c.ID {
+		case "input.insert":
+			changed = a.QueryLine.Insert(c.Arg("text"))
+		default:
+			changed, _ = a.QueryLine.HandleCommand(c)
+		}
+		if changed {
+			a.Query = a.QueryLine.Value()
+			a.reproject()
+		}
+		return s, nil
+	}
+	h("input.insert", lineEdit)
+	for _, id := range input.ReadlineCommandIDs() {
+		h(id, lineEdit)
+	}
+	h("input.accept", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		a.Typing = false
+		return setMode(s, "normal"), nil
+	})
+	h("input.cancel", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		a.Typing, a.Query = false, ""
+		a.reproject()
+		return setMode(s, "normal"), nil
+	})
+
+	h("sort.cycle", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		i := (slices.Index(sortKeys, a.List.SortField) + 1) % len(sortKeys)
+		a.List.SortField = sortKeys[i]
+		a.List.SortDir = table.SortAsc
+		if a.List.SortField == "" {
+			a.List.SortDir = table.SortNone
+		}
+		a.reproject()
+		a.info(sortLabel(a))
+		return s, nil
+	})
+	h("sort.reverse", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		if a.List.SortField == "" {
+			a.List.SortField, a.List.SortDir = cellUpdated, table.SortAsc
+		} else if a.List.SortDir == table.SortAsc {
+			a.List.SortDir = table.SortDesc
+		} else {
+			a.List.SortDir = table.SortAsc
+		}
+		a.reproject()
+		a.info(sortLabel(a))
+		return s, nil
+	})
+	h("group.cycle", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		keep, onRow := a.focusedID()
+		a.List.GroupField = groupKeys[(slices.Index(groupKeys, a.List.GroupField)+1)%len(groupKeys)]
+		a.List.Collapsed = nil
+		if a.List.GroupField == "" {
+			a.info("not grouped")
+		} else {
+			a.info("grouped by " + cellNames[a.List.GroupField])
+		}
+		if !onRow || !a.focusRow(keep) {
+			a.List.SelectedIdx = 0
+		}
+		a.List.Focused()
+		return s, nil
+	})
+	h("group.collapse", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		if a.List.GroupField == "" {
+			a.warn("not grouped — g b groups the list")
+			return s, nil
+		}
+		a.List.ToggleGroup()
+		return s, nil
+	})
+	h("filter.status.cycle", env.cycleStatusFilter)
+	h("filter.project.pick", env.projectPick)
+	h("view.decisions.toggle", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		a.DecisionsOnly = !a.DecisionsOnly
+		env.reload(a, "")
+		if a.DecisionsOnly {
+			a.info("Decisions view (owner decisions only)")
+		} else {
+			a.info("All questions view")
+		}
+		return s, nil
+	})
+	h("archived.toggle", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		a.ShowArchived = !a.ShowArchived
+		env.reload(a, "")
+		if a.ShowArchived {
+			a.info("showing archived questions")
+		} else {
+			a.info("archived questions hidden")
+		}
+		return s, nil
+	})
+	h("list.reload", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		env.reload(a, "")
+		a.note(fmt.Sprintf("%d questions", len(a.Questions)))
+		return s, nil
+	})
+	h("focus.toggle", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		if a.Focus == nodeReader {
+			a.Focus = nodeList
+		} else {
+			a.Focus = nodeReader
+		}
+		return s, nil
+	})
+	h("focus.reader", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		if _, ok := a.focusedQuestion(); !ok {
+			a.warn("no question selected")
+			return s, nil
+		}
+		a.Focus = nodeReader
+		return s, nil
+	})
+	h("focus.list", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		a.Focus = nodeList
+		return s, nil
+	})
+
+	h("question.ask", env.openForm("ask"))
+	h("question.answer", env.openForm("answer"))
+	h("question.followup", env.openForm("followup"))
+	h("question.decide", env.openForm("decide"))
+	h("question.accept", env.acceptDecision)
+	h("question.resolve", env.resolveQuestion(false))
+	h("question.moot", env.resolveQuestion(true))
+	h("question.reopen", env.reopenQuestion)
+	h("question.star", env.toggleStar)
+	h("question.archive", env.toggleArchive)
+	h("store.undo", env.undoStore)
+	h("store.redo", env.redoStore)
+
+	for _, id := range append([]string{form.CmdInsert, form.CmdBackspace, "form.clear", form.CmdSubmit, form.CmdCancel}, input.ReadlineCommandIDs()...) {
+		scoped("form", id, env.formCmd)
+	}
+	h("palette.open", env.paletteOpen)
+	for _, id := range append([]string{"palette.insert", "palette.backspace", "palette.close", picker.CmdConfirm, picker.CmdModeCycle}, input.ReadlineCommandIDs()...) {
+		scoped("palette", id, env.pickCmd(modalPalette))
+	}
+	for _, id := range append([]string{"choose.insert", "choose.backspace", "choose.close", picker.CmdConfirm, picker.CmdModeCycle}, input.ReadlineCommandIDs()...) {
+		scoped("choose", id, env.pickCmd(modalChoose))
+	}
+	h("help.open", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		return openModal(s, modalHelp, "help", 0), nil
+	})
+	h("help.close", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		return closeModal(s, modalHelp), nil
+	})
+	h("app.close", func(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+		return s, []core.Effect{core.QuitEffect{}}
+	})
+	return e
+}
+
+func sortLabel(a *App) string {
+	if a.List.SortField == "" || a.List.SortDir == table.SortNone {
+		return "default order"
+	}
+	dir := "ascending"
+	if a.List.SortDir == table.SortDesc {
+		dir = "descending"
+	}
+	return "sorted by " + cellNames[a.List.SortField] + " " + dir
+}
+
+func (env *Env) listMotion(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+	if (c.ID == "motion.bottom" || c.ID == "motion.top") && c.Count > 0 {
+		a.List.SelectedIdx = c.Count - 1
+		a.List.Focused()
+		return s, nil
+	}
+	a.List.HandleCommand(c)
+	return s, nil
+}
+
+func (env *Env) readerCmd(s core.State, a *App, c core.Command) (core.State, []core.Effect) {
+	if a.ReaderID == "" {
+		a.warn("no question in the reader")
+		return s, nil
+	}
+	act, _ := a.Reader.HandleCommand(c)
+	switch act.Kind {
+	case markdown.ActionYank:
+		a.Register = act.Text
+		a.info("yanked code block to register")
+	case markdown.ActionOpen:
+		a.Register = act.Target
+		a.info("link: " + act.Target)
+	}
+	return s, nil
+}
+
+// --- shell ---------------------------------------------------------------------------
+
+func newShell(env *Env) *otea.Shell {
+	a := App{Match: env.Match, Ratio: env.Ratio, Focus: nodeList}
+	a.List = *table.New(listColumns(), nil)
+	a.List.MatchMode = env.Match
+	env.reload(&a, "")
+	env.syncReader(&a)
+	if len(env.Notes) > 0 {
+		a.warn(strings.Join(env.Notes, " · "))
+	}
+	initial := withApp(core.NewState(core.Frame{ID: pageID, Mode: "normal"}), a)
+	sh := otea.New(newEngine(env), initial, env.view, env.Theme)
+	sh.OnPassThrough = func(e core.PassToWidgetEffect) tea.Cmd {
+		if e.Mouse == nil {
+			return nil
+		}
+		id := map[string]string{"wheeldown": "motion.down", "wheelup": "motion.up"}[e.Mouse.Button]
+		if id == "" {
+			return nil
+		}
+		return func() tea.Msg { return core.CommandEvent{Command: core.Command{ID: id, Count: 3, Source: "mouse"}} }
+	}
+	sh.OnCustom = func(e core.CustomEffect) tea.Cmd {
+		c, ok := e.Data.(core.Command)
+		if e.Kind != "dispatch" || !ok {
+			return nil
+		}
+		return func() tea.Msg { return core.CommandEvent{Command: c} }
 	}
 	return sh
 }
-func (a *App) configure() {
-	s := a.r.Settings()
-	a.store.MaxBytes = s.Int("entry.max-bytes")
-	a.store.BackupDaily = s.Bool("backup.daily")
-	a.store.BackupKeep = s.Int("backup.keep")
-	a.store.BackupDays = s.Int("retention.backups.days")
-	a.store.HistoryKeep = s.Int("history.keep")
-	a.store.Warn = func(m string) { fmt.Fprintln(a.errOut, m) }
-	if out, e := parseOutcomes(s.Strings("decision.outcomes")); e == nil {
-		a.store.Outcomes = out
-	}
-	a.store.Permit = func(action string) error {
-		op, ok := a.r.Operation("question." + action)
-		if !ok {
-			return nil
-		}
-		right := a.r.AgentRight(op, false)
-		if right.Right != ochazuke.AgentAllow {
-			return &RefusedError{action, right.Rule}
-		}
-		return nil
-	}
-	// Kinds missing from a customised table keep their default status.
-	table := map[string]string{}
-	for k, v := range entryStatuses {
-		table[k] = v
-	}
-	for _, v := range s.Strings("status.from-entry") {
-		k, v, ok := strings.Cut(v, "=")
-		if ok {
-			table[k] = v
-		}
-	}
-	a.store.StatusFromEntry = table
-	a.linkProjects()
-}
-func (a *App) newestFirst() bool { return a.r.Settings().String("list.order") == "newest-first" }
-func (a *App) specs() []verbSpec {
-	target := ochazuke.Parameter{Type: "string", Description: "Question title, number or ID prefix; omitted uses the selected row", Noun: "question"}
-	arr := ochazuke.Parameter{Type: "array", Description: "Values to append"}
-	ask := map[string]ochazuke.Parameter{"question": {Type: "string", Required: true, Rest: true, Description: "Owner's exact words, verbatim"}, "title": param("Short title"), "project": param("Project ID; absence takes the asking pane's project, else the project holding the directory (project.source), else unassociated"), "cwd": param("Project directory"), "task": param("Task ID"), "tags": arr, "links": arr, "asked_at": param("RFC3339 asking time"), "follow_up_of": param("Append follow-up to this question"), "key": param("Idempotency key"), "source": {Type: "object", Description: "Source provenance"}}
-	out := []verbSpec{
-		{"ask", "Record the owner's verbatim question", ask, []string{"question"}, false, runAsk, []string{"add", "new"}},
-		{"list", "List questions, newest last", map[string]ochazuke.Parameter{"filter": param("Search title, text, entries and tags"), "status": {Type: "string", Enum: append([]string{"all"}, statuses...)}, "project": param("Project ID"), "agent": param("Recording harness"), "direction": {Type: "string", Enum: directions, Description: "Who answers: to-agent (the owner asked), to-owner (an agent asked); default filter.direction"}, "pane": param("Asking pane"), "agent_session": param("Agent session"), "since": param("RFC3339, today, 7d or 30d"), "limit": {Type: "integer"}}, nil, true, runList, nil},
-		{"show", "Read the complete thread: the markdown thread, or the thread viewer in the TUI", map[string]ochazuke.Parameter{"target": target}, []string{"target"}, false, runShow, nil},
-		{"answer", "Append the answer given", map[string]ochazuke.Parameter{"target": target, "answer": prose("Full answer"), "summary": param("Short answer summary"), "model": param("Answering model"), "links": arr, "tags": arr}, []string{"target", "answer"}, false, entryVerb("answer", "answer"), nil},
-		{"follow-up", "Append the owner's follow-up", map[string]ochazuke.Parameter{"target": target, "text": prose("Verbatim follow-up")}, []string{"target", "text"}, false, entryVerb("follow-up", "text"), nil},
-		{"correct", "Append a correction, preserving old words", map[string]ochazuke.Parameter{"target": target, "text": prose("Correction"), "replaces": param("Entry corrected")}, []string{"target", "text"}, false, entryVerb("correction", "text"), nil},
-		{"annotate", "Annotate a question: append a note or correction (text), or add tags, links, a project, a task or a title", map[string]ochazuke.Parameter{"target": target, "text": {Type: "string", Rest: true, Description: "Entry text; appends a note (or the correction kind)"}, "kind": {Type: "string", Enum: []string{"note", "correction"}}, "replaces": param("Entry corrected"), "tags": arr, "links": arr, "project": param("Project ID"), "task": param("Task ID"), "title": param("Title")}, []string{"target", "text"}, false, runAnnotate, nil},
-		{"choose-status", "Choose the question's status (open, answered, follow-up or moot): the status prop's write, with the status asked for as a required argument; explicit and sticky", map[string]ochazuke.Parameter{"target": target, "status": {Type: "string", Required: true, Description: "New status", Enum: statuses}}, []string{"target", "status"}, false, changeVerb(opStatus, "status", nil), nil},
-		{"rename", "Change the title", map[string]ochazuke.Parameter{"target": target, "title": prose("New title")}, []string{"target", "title"}, false, changeVerb(opRename, "text", nil), nil},
-		{"edit", "Change the owner's question, retaining undo", map[string]ochazuke.Parameter{"target": target, "text": prose("Question text")}, []string{"target", "text"}, false, changeVerb(opEdit, "text", nil), nil},
-		{"yank", "Copy the thread, the question or the latest answer to the clipboard; answers the text", map[string]ochazuke.Parameter{"target": target, "part": {Type: "string", Enum: []string{"question", "answer", "thread"}}}, []string{"target"}, false, runYank, nil},
-		{"tag", "Append a tag", map[string]ochazuke.Parameter{"target": target, "tag": required("Tag")}, []string{"target", "tag"}, false, changeVerb(opTag, "text", func(an *Annotation, str func(string) string) { an.Tags = []string{str("tag")} }), nil},
-		{"untag", "Remove a tag", map[string]ochazuke.Parameter{"target": target, "tag": required("Tag")}, []string{"target", "tag"}, false, changeVerb(opUntag, "tag", nil), nil},
-		{"link", "Append a link", map[string]ochazuke.Parameter{"target": target, "link": required("URL or file")}, []string{"target", "link"}, false, changeVerb(opLink, "text", func(an *Annotation, str func(string) string) { an.Links = []Link{{Target: str("link")}} }), nil},
-		{"unlink", "Remove a link", map[string]ochazuke.Parameter{"target": target, "link": required("URL or file")}, []string{"target", "link"}, false, changeVerb(opUnlink, "link", nil), nil},
-		{"associate", "Associate with a project or task", map[string]ochazuke.Parameter{"target": target, "project": param("Project ID"), "task": param("Task ID")}, []string{"target", "project"}, false, changeVerb(opAssociate, "text", nil), nil},
-		{"open", "Open a link or source transcript", map[string]ochazuke.Parameter{"target": target, "link": param("Link target; required when several")}, []string{"target", "link"}, false, runOpen, nil},
-		{"split", "Split a thread entry into a child question", map[string]ochazuke.Parameter{"target": target, "entry": required("Entry ID")}, []string{"target", "entry"}, false, changeVerb(opSplit, "text", nil), nil},
-		{"merge", "Merge another question here", map[string]ochazuke.Parameter{"target": target, "other": required("Other question")}, []string{"target", "other"}, false, changeVerb(opMerge, "text", nil), nil},
-		{"resolve-project", "Rewrite every question's project that names exactly one host project (by name, id or mtm:<id>) as that project's id, keeping the name in the project's label; unmatched and ambiguous names stay as they were. A question with no project and a recorded pane takes that pane's project where the host still lists the pane (ended panes included); the report counts pane_filled, pane_unknown, pane_no_project and no_pane. Every other byte stays as it was. --dry-run writes nothing and prints the counts; a real run first copies q/ to <data>.bak-<date>-project-ids and is idempotent", map[string]ochazuke.Parameter{"dry-run": {Type: "boolean", Description: "Print what would change and write nothing"}}, nil, false, runResolveProjects, nil},
-		{"backup", "Write a private tar.gz backup", map[string]ochazuke.Parameter{"to": param("Destination directory")}, nil, false, runBackup, nil},
-		{"restore", "Restore an archived question (--target) or a backup (FILE), preserving undo", map[string]ochazuke.Parameter{"target": target, "file": param("Backup tar.gz; omit when restoring a question with --target")}, []string{"file"}, false, runRestore, nil},
-	}
-	for _, v := range []struct {
-		name, desc string
-		run        verbRun
-	}{{"reopen", "Explicitly reopen", changeVerb(opReopen, "text", nil)}, {"moot", "Mark moot", changeVerb(opMoot, "text", nil)}, {"delete", "Hide, preserving history; agents use question.archive", changeVerb(opDelete, "text", nil)}, {"archive", "Archive a question, retaining its text and history; restore --target brings it back", changeVerb(opArchive, "text", nil)}, {"star", "Toggle star", changeVerb(opStar, "text", nil)}, {"unstar", "Remove star", changeVerb(opUnstar, "text", nil)}, {"check", "Check wording against source transcript", runCheck}} {
-		out = append(out, verbSpec{name: v.name, description: v.desc, params: map[string]ochazuke.Parameter{"target": target}, positional: []string{"target"}, run: v.run})
-	}
-	out = append(out, a.decisionSpecs()...)
-	out = append(out, verbSpec{name: "undo", description: "Undo the last store change", run: runUndo}, verbSpec{name: "history", description: "Show store change history", run: runHistory})
-	return out
-}
-func result(v any, e error) ochazuke.Result {
-	if e != nil {
-		return ochazuke.Failed(e)
-	}
-	return ochazuke.Done(v)
-}
-func decodeArgs(args ochazuke.Arguments, v any) error {
-	b, e := json.Marshal(args)
-	if e != nil {
-		return e
-	}
-	return json.Unmarshal(b, v)
-}
-func (a *App) target(c ochazuke.Ctx) (Question, error) {
-	t := ochazuke.StringArg(c.Args, "target", "")
-	if t == "" && c.Instance != nil {
-		t, _ = c.Instance.Data.(string)
-		if t == "" {
-			t = c.Instance.ID
-		}
-	}
-	if t == "" {
-		return Question{}, fmt.Errorf("name a question or displayed number")
-	}
-	return a.store.Resolve(itemRowQuestion(t), a.newestFirst())
-}
-func mapAction(kind string) string {
-	if kind == "correction" {
-		return "correct"
-	}
-	return kind
-}
-func sourceFromEnv(a Actor) Source {
-	return Source{Harness: a.Harness, Pane: a.Pane, MtmSession: a.Session, AgentSession: firstEnv("CODEX_THREAD_ID", "CLAUDE_SESSION_ID"), Transcript: os.Getenv("TRANSCRIPT_PATH"), Turn: os.Getenv("AGENT_TURN_ID")}
-}
-func firstEnv(keys ...string) string {
-	for _, k := range keys {
-		if v := os.Getenv(k); v != "" {
-			return v
-		}
-	}
-	return ""
-}
-func (a *App) refresh() {
-	if a.changed != nil {
-		a.changed()
-	}
-}
-func latestAnswer(q Question) string {
-	for i := len(q.Entries) - 1; i >= 0; i-- {
-		if q.Entries[i].Kind == "answer" {
-			return q.Entries[i].Text
-		}
-	}
-	return ""
+
+// driver feeds a Shell synchronously, without a terminal.
+type driver struct{ sh *otea.Shell }
+
+func newDriver(sh *otea.Shell, w, h int) *driver {
+	sh.Engine.PrefixTimeout = 0
+	sh.MaxFPS = 0
+	d := &driver{sh: sh}
+	d.send(tea.WindowSizeMsg{Width: w, Height: h})
+	return d
 }
 
-var columns = []ochazuke.Column{{Title: "#", Width: 4}, {Title: "Status", Width: 10}, {Title: "Question", Min: 18}, {Title: "Project", Max: 20, Priority: 2}, {Title: "Agent", Max: 15, Priority: 1}, {Title: "Age", Width: 7, Priority: 2}, {Title: "Answers", Width: 7, Priority: 2}}
-
-func age(at, now time.Time) string {
-	d := now.Sub(at)
-	if d < time.Minute {
-		return "now"
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%dm", int(d.Minutes()))
-	}
-	if d < 24*time.Hour {
-		return fmt.Sprintf("%dh", int(d.Hours()))
-	}
-	return fmt.Sprintf("%dd", int(d.Hours()/24))
+func (d *driver) send(msg tea.Msg) {
+	_, cmd := d.sh.Update(msg)
+	d.pump(cmd)
 }
-func (a *App) rows(args ochazuke.Arguments) ([]ocli.Row, error) {
-	qs, e := a.store.records(!a.r.Settings().Bool("collection.hide-archived"))
-	if e != nil {
-		return nil, e
+
+func (d *driver) pump(cmd tea.Cmd) {
+	if cmd == nil {
+		return
 	}
-	if a.newestFirst() {
-		slices.Reverse(qs)
+	done := make(chan tea.Msg, 1)
+	go func() { done <- cmd() }()
+	var m tea.Msg
+	select {
+	case m = <-done:
+	case <-time.After(5 * time.Second):
+		return
 	}
-	out := []ocli.Row{}
-	get := func(k, setting string) string {
-		if v := ochazuke.StringArg(args, k, ""); v != "" {
-			return v
+	switch m := m.(type) {
+	case tea.BatchMsg:
+		for _, c := range m {
+			d.pump(c)
 		}
-		if setting != "" {
-			return a.r.Settings().String(setting)
-		}
-		return ""
-	}
-	status := get("status", "filter.status")
-	direction := get("direction", "filter.direction")
-	project := get("project", "filter.project")
-	agent := get("agent", "filter.agent")
-	since := get("since", "filter.since")
-	var cutoff time.Time
-	switch since {
-	case "", "any":
-	case "today":
-		now := a.store.now()
-		cutoff = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	case "7d":
-		cutoff = a.store.now().Add(-7 * 24 * time.Hour)
-	case "30d":
-		cutoff = a.store.now().Add(-30 * 24 * time.Hour)
+	case tea.QuitMsg, nil:
 	default:
-		cutoff, e = time.Parse(time.RFC3339, since)
-		if e != nil {
-			return nil, e
-		}
+		d.send(m)
 	}
-	filter := strings.ToLower(get("filter", ""))
-	pane := get("pane", "")
-	session := get("agent_session", "")
-	number := 0
-	match := a.store.projectMatcher(project, qs)
-	for _, q := range qs {
-		cellNumber := "-"
-		if !q.Deleted {
-			number++
-			cellNumber = strconv.Itoa(number)
-		}
-		if dir := q.Direction; direction == toAgent && dir == toOwner || direction == toOwner && dir != toOwner {
-			continue
-		}
-		if status != "" && status != "all" && q.Status != status {
-			continue
-		}
-		if project != "" && project != "all" && !match(q.Project) {
-			continue
-		}
-		if agent != "" && agent != "all" && q.RecordedBy.Harness != agent {
-			continue
-		}
-		if pane != "" && q.Source.Pane != pane {
-			continue
-		}
-		if session != "" && q.Source.AgentSession != session {
-			continue
-		}
-		if q.AskedAt.Before(cutoff) {
-			continue
-		}
-		search := thread(q, true) + strings.Join(q.Tags, " ")
-		if !strings.Contains(strings.ToLower(search), filter) {
-			continue
-		}
-		data := questionRowData(q)
-		data["project_name"] = a.store.projectDisplay(q.Project)
-		data["search"] = search
-		data["question"] = q.Text
-		data["answer"] = latestAnswer(q)
-		data["thread"] = thread(q, true)
-		count := 0
-		for _, en := range q.Entries {
-			if en.Kind == "answer" {
-				count++
-			}
-		}
-		label := q.Title
-		if q.Starred {
-			label = "★ " + label
-		}
-		out = append(out, ocli.Row{Noun: "question", ID: "question/" + q.ID, Label: q.Title, Data: data, Cells: []string{cellNumber, q.Status, label, a.store.projectDisplay(q.Project), q.RecordedBy.Harness, age(q.AskedAt, a.store.now()), strconv.Itoa(count), search}})
-	}
-	limit := 0
-	switch v := args["limit"].(type) {
-	case int:
-		limit = v
-	case float64:
-		limit = int(v)
-	}
-	if limit > 0 && len(out) > limit {
-		out = out[len(out)-limit:]
-	}
-	return out, nil
 }
 
-func fillSource(given, fallback Source) Source {
-	for _, v := range []struct {
-		to       *string
-		fallback string
-	}{{&given.Harness, fallback.Harness}, {&given.AgentSession, fallback.AgentSession}, {&given.Pane, fallback.Pane}, {&given.MtmSession, fallback.MtmSession}, {&given.Transcript, fallback.Transcript}, {&given.Turn, fallback.Turn}} {
-		if *v.to == "" {
-			*v.to = v.fallback
+func (d *driver) keys(names ...string) {
+	for _, n := range names {
+		d.send(keyMsg(n))
+	}
+}
+
+func (d *driver) typeText(s string) {
+	for _, r := range s {
+		if r == ' ' {
+			d.send(keyMsg("space"))
+		} else {
+			d.send(tea.KeyPressMsg{Code: r, Text: string(r)})
 		}
 	}
-	return given
+}
+
+var namedKeys = map[string]rune{
+	"enter": tea.KeyEnter, "esc": tea.KeyEscape, "tab": tea.KeyTab, "backspace": tea.KeyBackspace,
+	"up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft, "right": tea.KeyRight,
+	"pgup": tea.KeyPgUp, "pgdown": tea.KeyPgDown,
+}
+
+func keyMsg(n string) tea.KeyPressMsg {
+	var mod tea.KeyMod
+	for {
+		if rest, ok := strings.CutPrefix(n, "ctrl+"); ok && len(rest) > 0 {
+			mod, n = mod|tea.ModCtrl, rest
+		} else if rest, ok := strings.CutPrefix(n, "alt+"); ok && len(rest) > 0 {
+			mod, n = mod|tea.ModAlt, rest
+		} else if rest, ok := strings.CutPrefix(n, "shift+"); ok && len(rest) > 0 {
+			mod, n = mod|tea.ModShift, rest
+		} else {
+			break
+		}
+	}
+	if r, ok := namedKeys[n]; ok {
+		return tea.KeyPressMsg{Code: r, Mod: mod}
+	}
+	if n == "space" {
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " ", Mod: mod}
+	}
+	r := []rune(n)[0]
+	if mod != 0 {
+		return tea.KeyPressMsg{Code: r, Mod: mod}
+	}
+	return tea.KeyPressMsg{Code: r, Text: n}
+}
+
+func cwdOrEmpty() string {
+	d, _ := os.Getwd()
+	return d
 }

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,9 +108,6 @@ func TestProjectNameResolvesOnWriteAndShowsAsName(t *testing.T) {
 	if s.projectDisplay(q.Project) != "Beta" || !s.projectMatcher("beta", []Question{q})(q.Project) {
 		t.Fatal("a read needed the host")
 	}
-	if r := questionRowData(q); r["project_id"] != "2" || r["project_name"] != "Beta" {
-		t.Fatalf("row data %v", r)
-	}
 }
 
 // With no host projects nothing is rewritten and nothing errors.
@@ -125,84 +120,6 @@ func TestProjectStandaloneKeepsNames(t *testing.T) {
 }
 
 var defaultProjects = []hostProject{{"1", "Alpha", "/w/alpha"}, {"2", "Beta", "/w/alpha/beta"}, {"3", "Twin", "/w/twin"}, {"4", "Twin2", "/w/twin"}}
-
-// defaultApp is an app whose host knows defaultProjects and the panes p-1
-// (project 1) and p-2 (no project); everything else is unknown.
-func defaultApp(t *testing.T, source string) (*App, *int) {
-	t.Helper()
-	a, _ := testApp(t, fixture(t))
-	calls := 0
-	a.projectList = func(context.Context) ([]hostProject, error) { return defaultProjects, nil }
-	a.paneList = func(_ context.Context, id string) (map[string]string, error) {
-		calls++
-		all := map[string]string{"p-1": "1", "p-2": ""}
-		if id == "" {
-			return all, nil
-		}
-		if v, ok := all[id]; ok {
-			return map[string]string{id: v}, nil
-		}
-		return map[string]string{}, nil
-	}
-	if e := a.r.Settings().Set("project.source", source); e != nil {
-		t.Fatal(e)
-	}
-	a.configure()
-	return a, &calls
-}
-
-// A question with no project takes its pane's project, else the project
-// whose directory holds the cwd (longest wins, ties store nothing); a given
-// project wins; a follow-up keeps its thread's; pose follows the same path.
-func TestProjectDefaultsFromPaneThenCwd(t *testing.T) {
-	a, _ := defaultApp(t, "mtm")
-	ask := func(text, project, pane, cwd string) Question {
-		v, e := a.store.Ask(Ask{Question: text, Key: text, Project: project, Cwd: cwd, Source: Source{Pane: pane}})
-		if e != nil {
-			t.Fatal(e)
-		}
-		return v.Question
-	}
-	for _, c := range []struct{ name, project, pane, cwd, id, label string }{
-		{"pane", "", "p-1", "/w/twin", "1", "Alpha"},
-		{"cwd after a pane without project", "", "p-2", "/w/alpha/beta/sub", "2", "Beta"},
-		{"cwd after an unknown pane", "", "gone", "/w/alpha/x", "1", "Alpha"},
-		{"ambiguous cwd", "", "", "/w/twin", "", ""},
-		{"nothing known", "", "", "/elsewhere", "", ""},
-		{"given wins", "Beta", "p-1", "/w/twin", "2", "Beta"},
-	} {
-		if q := ask(c.name, c.project, c.pane, c.cwd); q.Project.ID != c.id || q.Project.Label != c.label {
-			t.Errorf("%s: stored %+v, want %s/%s", c.name, q.Project, c.id, c.label)
-		}
-	}
-	p, e := a.store.Pose(Pose{Question: "q?", Key: "pose", Provenance: Source{Pane: "p-1"}, Options: []Option{{ID: "a", Label: "A"}, {ID: "b", Label: "B"}}})
-	if e != nil || p.Question.Project.ID != "1" {
-		t.Fatalf("pose: %+v %v", p.Question.Project, e)
-	}
-	th := ask("thread", "Beta", "", "")
-	f, e := a.store.Ask(Ask{Question: "more", Key: "more", FollowUpOf: th.ID, Source: Source{Pane: "p-1"}})
-	if e != nil || f.Question.Project.ID != "2" {
-		t.Fatalf("follow-up: %+v %v", f.Question.Project, e)
-	}
-}
-
-// A host that fails stores no project and does not fail the ask; source none
-// makes no host call at all.
-func TestProjectDefaultHostFailsOrOff(t *testing.T) {
-	a, calls := defaultApp(t, "mtm")
-	a.paneList = func(context.Context, string) (map[string]string, error) { return nil, errors.New("host down") }
-	a.projectList = func(context.Context) ([]hostProject, error) { return nil, errors.New("host down") }
-	v, e := a.store.Ask(Ask{Question: "x", Key: "x", Source: Source{Pane: "p-1"}})
-	if e != nil || v.Question.Project.ID != "" {
-		t.Fatalf("failed host: %+v %v", v.Question.Project, e)
-	}
-	a, calls = defaultApp(t, "none")
-	a.projectList = nil
-	a.configure()
-	if v, e = a.store.Ask(Ask{Question: "y", Key: "y", Source: Source{Pane: "p-1"}, Cwd: "/w/alpha"}); e != nil || v.Question.Project.ID != "" || *calls != 0 {
-		t.Fatalf("source none: %+v %v calls %d", v.Question.Project, e, *calls)
-	}
-}
 
 // The backfill fills a question with no project from its pane's project,
 // counts the unknown panes and the rest, never touches a set project or any

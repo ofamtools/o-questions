@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"ofam.dev/ochazuke/core"
+	"ofam.dev/oden"
 )
 
 // The catalog protocol (matomeru's ext package): a host runs
@@ -201,4 +202,89 @@ func queryQuestions(st *Store, text, status, project string, includeArchived boo
 	}
 	res.Total = len(res.Items)
 	return res, nil
+}
+
+func extManifest() *oden.ExtManifest {
+	m := manifest()
+	schemas := make([]oden.ExtSchema, 0, len(m.Schemas))
+	for _, s := range m.Schemas {
+		fields := make([]oden.ExtField, 0, len(s.Fields))
+		for _, f := range s.Fields {
+			fields = append(fields, oden.ExtField{
+				Name:        f.Name,
+				Type:        string(f.Type),
+				Required:    f.Required,
+				Description: f.Description,
+				Enum:        f.Enum,
+				Default:     f.Default,
+				RefKinds:    f.RefKinds,
+			})
+		}
+		schemas = append(schemas, oden.ExtSchema{
+			Kind:           s.Kind,
+			Title:          s.Title,
+			Plural:         s.Plural,
+			Fields:         fields,
+			DefaultColumns: s.DefaultColumns,
+			SummaryField:   s.SummaryField,
+			UniqueFields:   s.UniqueFields,
+		})
+	}
+	cmds := make([]oden.ExtCommand, 0, len(m.Commands))
+	for _, c := range m.Commands {
+		params := make([]oden.ExtField, 0, len(c.Params))
+		for _, p := range c.Params {
+			params = append(params, oden.ExtField{
+				Name:        p.Name,
+				Type:        string(p.Type),
+				Required:    p.Required,
+				Description: p.Description,
+				Enum:        p.Enum,
+				Default:     p.Default,
+				RefKinds:    p.RefKinds,
+			})
+		}
+		cmds = append(cmds, oden.ExtCommand{
+			ID:          c.ID,
+			Description: c.Description,
+			Params:      params,
+			Tags:        c.Tags,
+			Meta:        c.Meta,
+		})
+	}
+	return &oden.ExtManifest{
+		Name:     m.Name,
+		Version:  m.Version,
+		Schemas:  schemas,
+		Commands: cmds,
+	}
+}
+
+func extQueryQuestions(st *Store, kind string, args []string) (oden.ExtQueryResult, error) {
+	if kind != "" && kind != questionKind {
+		return oden.ExtQueryResult{Items: []oden.ExtRecord{}, Total: 0}, nil
+	}
+	a, err := parseArgs(args, "archived")
+	if err != nil {
+		return oden.ExtQueryResult{}, err
+	}
+	qr, err := queryQuestions(st, strings.Join(a.pos, " "), a.flags["status"], a.flags["project"], a.has("archived"))
+	if err != nil {
+		return oden.ExtQueryResult{}, err
+	}
+	items := make([]oden.ExtRecord, 0, len(qr.Items))
+	for _, it := range qr.Items {
+		items = append(items, oden.ExtRecord{
+			Kind:            it.Kind,
+			ID:              it.ID,
+			Fields:          it.Fields,
+			ReadOnly:        it.ReadOnly,
+			ArchiveStatus:   it.ArchiveStatus,
+			StarStatus:      it.StarStatus,
+			ChangeSetNumber: it.ChangeSetNumber,
+			CreatedAt:       it.CreatedAt,
+			UpdatedAt:       it.UpdatedAt,
+		})
+	}
+	return oden.ExtQueryResult{Items: items, Total: qr.Total}, nil
 }

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,12 +16,22 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	ocli "ofam.dev/ochazuke/cli"
 	"ofam.dev/ochazuke/config"
+	"ofam.dev/ochazuke/core"
 	"ofam.dev/ochazuke/ui"
 	"ofam.dev/ochazuke/widgets/table"
+	"ofam.dev/oden"
 )
 
 func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
+
+func progName() string {
+	if parent := os.Getenv("ODEN_PARENT"); parent != "" {
+		return parent + " questions"
+	}
+	return "o-questions"
+}
 
 func run(argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	argv, dataFlag, err := splitDataArgs(argv)
@@ -28,42 +39,125 @@ func run(argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "o-questions:", err)
 		return 2
 	}
-	if len(argv) > 0 {
-		switch argv[0] {
-		case "-h", "--help", "help":
-			fmt.Fprintln(stdout, usageText())
-			return 0
-		case "--version", "-version", "version":
-			fmt.Fprintf(stdout, "o-questions %s\n", Version)
-			return 0
-		case "--smoke":
-			return runSmoke(stdout, stderr)
+	app := newOdenApp(argv, dataFlag, stdin, stdout, stderr)
+	return oden.Report(stderr, progName(), app.Run(context.Background()))
+}
+
+func newOdenApp(argv []string, dataFlag string, stdin io.Reader, stdout, stderr io.Writer) *oden.App {
+	openCLI := func() (*cli, error) {
+		dir, err := resolveDataDir(dataFlag)
+		if err != nil {
+			return nil, err
 		}
-		if sub, ok := subcommands[argv[0]]; ok {
-			dir, err := resolveDataDir(dataFlag)
-			if err != nil {
-				fmt.Fprintln(stderr, "o-questions:", err)
-				return 1
-			}
-			act, err := cliActor(os.Getenv)
-			if err != nil {
-				fmt.Fprintln(stderr, "o-questions:", err)
-				return 1
-			}
-			st := &Store{Dir: dir, Actor: act}
-			c := &cli{st: st, stdin: stdin, stdout: stdout}
-			if err := sub.run(c, argv[1:]); err != nil {
-				if errors.Is(err, errUsage) {
-					fmt.Fprintln(stderr, "usage:", sub.usage)
-					return 2
+		act, err := cliActor(os.Getenv)
+		if err != nil {
+			return nil, err
+		}
+		st := &Store{Dir: dir, Actor: act}
+		return &cli{st: st, stdin: stdin, stdout: stdout}, nil
+	}
+
+	exportConfig := func(jsonl bool) ([]byte, error) {
+		dir, _ := resolveDataDir(dataFlag)
+		cfg := map[string]any{
+			"name":     "o-questions",
+			"version":  Version,
+			"config":   configDir(),
+			"data":     dir,
+			"settings": defaultSettings,
+		}
+		if jsonl {
+			var b strings.Builder
+			for _, k := range []string{"name", "version", "config", "data", "settings"} {
+				line, err := json.Marshal(map[string]any{"key": k, "value": cfg[k]})
+				if err != nil {
+					return nil, err
 				}
-				fmt.Fprintf(stderr, "o-questions %s: %v\n", argv[0], err)
-				return 1
+				b.Write(line)
+				b.WriteByte('\n')
 			}
-			return 0
+			return []byte(b.String()), nil
+		}
+		return json.MarshalIndent(cfg, "", "  ")
+	}
+
+	info := ocli.AppInfo{
+		Name:         "o-questions",
+		Version:      Version,
+		Summary:      "Questions & owner-decisions journal TUI, CLI, and MCP server",
+		Modes:        func() []core.Mode { return modes },
+		Bindings:     func() []core.Binding { return defaultBindings() },
+		Specs:        func() []core.CommandSpec { return commandSpecs() },
+		ExportConfig: exportConfig,
+		RunTUI: func(_ context.Context, tuiArgs []string) error {
+			if code := interactive(tuiArgs, dataFlag, stdout, stderr); code != 0 {
+				return &oden.ExitError{Code: code}
+			}
+			return nil
+		},
+		RunSmoke: func(out io.Writer, _ bool) error {
+			if code := runSmoke(out, stderr); code != 0 {
+				return &oden.ExitError{Code: code}
+			}
+			return nil
+		},
+		Manifest: extManifest(),
+		Capabilities: &oden.Capabilities{
+			Name:         "o-questions",
+			Version:      Version,
+			Summary:      "Questions & owner-decisions journal TUI, CLI, and MCP server",
+			Capabilities: []string{"query", "catalog", "tui", "mcp"},
+		},
+		Query: func(_ context.Context, kind string, args []string) (oden.ExtQueryResult, error) {
+			c, err := openCLI()
+			if err != nil {
+				return oden.ExtQueryResult{}, err
+			}
+			return extQueryQuestions(c.st, kind, args)
+		},
+	}
+
+	app := ocli.NewApp(info, argv, oden.WithStdio(stdin, stdout, stderr))
+
+	subCmd := func(name string, aliases []string, summary string) oden.Command {
+		sub := subcommands[name]
+		return oden.Command{
+			Name:    name,
+			Aliases: aliases,
+			Summary: summary,
+			Usage:   strings.TrimPrefix(sub.usage, "o-questions "+name+" "),
+			Run: func(_ context.Context, args []string) error {
+				c, err := openCLI()
+				if err != nil {
+					return err
+				}
+				if err := sub.run(c, args); err != nil {
+					if errors.Is(err, errUsage) {
+						fmt.Fprintln(stderr, "usage:", sub.usage)
+						return &oden.ExitError{Code: 2}
+					}
+					return err
+				}
+				return nil
+			},
 		}
 	}
-	return interactive(argv, dataFlag, stdout, stderr)
+
+	app.Add(
+		subCmd("ask", nil, "record a new question"),
+		subCmd("answer", nil, "append an answer to a question"),
+		subCmd("list", []string{"ls"}, "list questions in the journal"),
+		subCmd("show", nil, "show a question and its full thread"),
+		subCmd("resolve", []string{"close"}, "mark a question resolved (answered or moot)"),
+		subCmd("reopen", nil, "reopen a question"),
+		subCmd("undo", nil, "undo the last store change"),
+		subCmd("redo", nil, "redo the last undone store change"),
+		subCmd("decisions", nil, "list, pose, decide, reply, export, or import owner decisions"),
+		subCmd("mcp", nil, "serve agent MCP tools over stdio (JSON-RPC 2.0)"),
+	)
+
+	app.HelpText = usageText()
+	return app
 }
 
 func interactive(argv []string, dataFlag string, stdout, stderr io.Writer) int {
